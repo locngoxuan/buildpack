@@ -7,6 +7,8 @@ type BuildPackRuntimeParams struct {
 	GitConfig         GitConfig
 	DockerConfig      DockerConfig
 	Modules           []BuildPackRuntimeModule
+
+	UseContainerBuild bool
 }
 
 type BuildPackRuntimeModule struct {

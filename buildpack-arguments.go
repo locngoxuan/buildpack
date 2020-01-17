@@ -20,6 +20,11 @@ func readModules(f *flag.FlagSet) []string {
 	return strings.Split(*s, ",")
 }
 
+func readContainerOpt(f *flag.FlagSet) bool {
+	s := f.Bool("container", false, "using docker environment rather than host environment")
+	return *s
+}
+
 func initRuntimeParams(f *flag.FlagSet) *BuildError {
 	buildPackConfig, err := readFromConfigFile()
 	if err != nil {
@@ -38,6 +43,7 @@ func initRuntimeParams(f *flag.FlagSet) *BuildError {
 		runtimeParams.Version = rtVersion
 	}
 
+	runtimeParams.UseContainerBuild = readContainerOpt(f)
 	runtimeParams.Modules = make([]BuildPackRuntimeModule, 0)
 
 	findModuleConfig := func(name string) (BuildPackModuleConfig, error) {
@@ -46,7 +52,7 @@ func initRuntimeParams(f *flag.FlagSet) *BuildError {
 				return v, nil
 			}
 		}
-		return BuildPackModuleConfig{}, errors.New("")
+		return BuildPackModuleConfig{}, errors.New("not found module by name " + name)
 	}
 	moduleNames := readModules(f)
 	if len(moduleNames) == 0 {

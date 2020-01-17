@@ -8,6 +8,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -32,7 +33,7 @@ func ActionInitHandler(f *flag.FlagSet) *BuildError {
 		Version: strings.TrimSpace(versiongString),
 	}
 
-	modules := make([]BuildPackModule, 0)
+	modules := make([]BuildPackModuleConfig, 0)
 
 	// Add new module [Y/N]
 	reader := bufio.NewReader(os.Stdin)
@@ -43,11 +44,11 @@ func ActionInitHandler(f *flag.FlagSet) *BuildError {
 		if err != nil {
 			return newError("config", "", err)
 		}
-		if text == "N" {
+		if strings.ToLower(text) == "n" {
 			break
 		}
 
-		m := BuildPackModule{}
+		m := BuildPackModuleConfig{}
 		text, err = readFromTerminal(reader, "Module position: ")
 		if err != nil {
 			return newError("config", "", err)
@@ -89,6 +90,11 @@ func ActionInitHandler(f *flag.FlagSet) *BuildError {
 	if len(modules) == 0 {
 		return newError("config", "not found any modules in config", nil)
 	}
+
+	sort.Slice(modules, func(i, j int) bool {
+		return modules[i].Position < modules[j].Position
+	})
+
 	buidlPackConfig.Modules = modules
 
 	bytes, err := yaml.Marshal(buidlPackConfig)
@@ -104,26 +110,30 @@ func ActionInitHandler(f *flag.FlagSet) *BuildError {
 }
 
 func ActionSnapshotHandler(f *flag.FlagSet) *BuildError {
-	buildPackConfig, err := readFromConfigFile()
+	// read configuration then pre runtime-params for doing snapshot
+	err := initRuntimeParams(f)
 	if err != nil {
-		return newError("arguments", "", err)
+		return err
+	}
+	// run snapshot action for each module
+	for _, rtModule := range runtimeParams.Modules {
+		fmt.Println(rtModule.Module.Name)
 	}
 
-	runtimeParams = BuildPackRuntimeParams{
-		Version:           buildPackConfig.Version,
-		ArtifactoryConfig: buildPackConfig.ArtifactoryConfig,
-		GitConfig:         buildPackConfig.GitConfig,
-		DockerConfig:      buildPackConfig.DockerConfig,
-		Modules:           buildPackConfig.Modules,
-	}
-
-	rtVersion := readVersion(f)
-	if len(rtVersion) > 0 {
-		runtimeParams.Version = rtVersion
-	}
 	return nil
 }
 
 func ActionReleaseHandler(f *flag.FlagSet) *BuildError {
+	// read configuration then pre runtime-params for doing release
+	err := initRuntimeParams(f)
+	if err != nil {
+		return err
+	}
+
+	// run release action for each module
+	for _, rtModule := range runtimeParams.Modules {
+		fmt.Println(rtModule.Module.Name)
+	}
+
 	return nil
 }

@@ -14,10 +14,10 @@ type BuildPackConfig struct {
 	ArtifactoryConfig `yaml:"artifactory,omitempty"`
 	DockerConfig      `yaml:"docker,omitempty"`
 	GitConfig         `yaml:"git,omitempty"`
-	Modules           []BuildPackModule `yaml:"modules,omitempty"`
+	Modules           []BuildPackModuleConfig `yaml:"modules,omitempty"`
 }
 
-type BuildPackModule struct {
+type BuildPackModuleConfig struct {
 	Position int    `yaml:"position"`
 	Name     string `yaml:"name"`
 	Path     string `yaml:"path"`

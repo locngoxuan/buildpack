@@ -6,5 +6,9 @@ type BuildPackRuntimeParams struct {
 	ArtifactoryConfig ArtifactoryConfig
 	GitConfig         GitConfig
 	DockerConfig      DockerConfig
-	Modules           []BuildPackModule
+	Modules           []BuildPackRuntimeModule
+}
+
+type BuildPackRuntimeModule struct {
+	Module BuildPackModuleConfig
 }

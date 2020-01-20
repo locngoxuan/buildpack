@@ -2,7 +2,6 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
@@ -22,17 +21,18 @@ func readFromTerminal(reader *bufio.Reader, msg string) (string, error) {
 	return strings.TrimSpace(text), nil
 }
 
-func ActionInitHandler(f *flag.FlagSet) *BuildError {
-	versiongString := readVersion(f)
+func ActionInitHandler(bp *BuildPack) *BuildError {
+	versiongString := readVersion(bp.Flag)
 
 	if len(strings.TrimSpace(versiongString)) == 0 {
-		return newError("arguments", "", errors.New("version number is empty"))
+		return bp.Error("", errors.New("version number is empty"))
 	}
 
 	buidlPackConfig := &BuildPackConfig{
 		Version: strings.TrimSpace(versiongString),
 	}
 
+	bp.Phase = BUILDPACK_PHASE_ACTIONINT_BUILDCONFIG
 	modules := make([]BuildPackModuleConfig, 0)
 
 	// Add new module [Y/N]
@@ -42,7 +42,7 @@ func ActionInitHandler(f *flag.FlagSet) *BuildError {
 	for {
 		text, err = readFromTerminal(reader, "Add new module [y/N]: ")
 		if err != nil {
-			return newError("config", "", err)
+			return bp.Error("", err)
 		}
 		if strings.ToLower(text) == "n" {
 			break
@@ -51,44 +51,44 @@ func ActionInitHandler(f *flag.FlagSet) *BuildError {
 		m := BuildPackModuleConfig{}
 		text, err = readFromTerminal(reader, "Module position: ")
 		if err != nil {
-			return newError("config", "", err)
+			return bp.Error("", err)
 		}
 		m.Position, err = strconv.Atoi(text)
 		if err != nil {
-			return newError("config", "", err)
+			return bp.Error("", err)
 		}
 
 		m.Name, err = readFromTerminal(reader, "Module name: ")
 		if err != nil {
-			return newError("config", "", err)
+			return bp.Error("", err)
 		}
 
 		m.Path, err = readFromTerminal(reader, "Module path: ")
 		if err != nil {
-			return newError("config", "", err)
+			return bp.Error("", err)
 		}
 		m.Build, err = readFromTerminal(reader, "Module builder: ")
 		if err != nil {
-			return newError("config", "", err)
+			return bp.Error("", err)
 		}
 
 		if len(m.Build) == 0 {
-			return newError("config", "Please specify bulder", nil)
+			return bp.Error("Please specify builder", nil)
 		}
 
 		m.Publish, err = readFromTerminal(reader, "Module publisher: ")
 		if err != nil {
-			return newError("config", "", err)
+			return bp.Error("", err)
 		}
 
 		if len(m.Publish) == 0 {
-			return newError("config", "Please specify publisher", nil)
+			return bp.Error("Please specify publisher", nil)
 		}
 		modules = append(modules, m)
 	}
 
 	if len(modules) == 0 {
-		return newError("config", "not found any modules in config", nil)
+		return bp.Error("not found any modules in config", nil)
 	}
 
 	sort.Slice(modules, func(i, j int) bool {
@@ -97,43 +97,85 @@ func ActionInitHandler(f *flag.FlagSet) *BuildError {
 
 	buidlPackConfig.Modules = modules
 
+	bp.Phase = BUILDPACK_PHASE_ACTIONINT_SAVECONFIG
 	bytes, err := yaml.Marshal(buidlPackConfig)
 	if err != nil {
-		return newError("marshal", "", errors.New("can not marshal build pack config to yaml"))
+		return bp.Error("", errors.New("can not marshal build pack config to yaml"))
 	}
 
 	err = ioutil.WriteFile(BUILPACK_FILE, bytes, 0644)
 	if err != nil {
-		return newError("save", "", err)
+		return bp.Error("", err)
 	}
 	return nil
 }
 
-func ActionSnapshotHandler(f *flag.FlagSet) *BuildError {
+func buildAndPublish(bp *BuildPack) *BuildError {
+	for _, rtModule := range bp.RuntimeParams.Modules {
+		builder, err := getBuilder(rtModule.Module.Build)
+		if err != nil {
+			return bp.Error("", err)
+		}
+		err = builder.LoadConfig()
+		if err != nil {
+			return bp.Error("", err)
+		}
+		err = builder.Clean()
+		if err != nil {
+			return bp.Error("", err)
+		}
+		err = builder.Build()
+		if err != nil {
+			return bp.Error("", err)
+		}
+		// publish build
+		publisher, err := getPublisher(rtModule.Module.Publish)
+		if err != nil {
+			return bp.Error("", err)
+		}
+		err = publisher.LoadConfig()
+		if err != nil {
+			return bp.Error("", err)
+		}
+		err = publisher.Pre()
+		if err != nil {
+			return bp.Error("", err)
+		}
+		err = publisher.Publish()
+		if err != nil {
+			return bp.Error("", err)
+		}
+		// clean publish data
+		err = publisher.Post()
+		if err != nil {
+			return bp.Error("", err)
+		}
+		// clean build data
+		err = builder.Clean()
+		if err != nil {
+			return bp.Error("", err)
+		}
+	}
+	return nil
+}
+
+func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 	// read configuration then pre runtime-params for doing snapshot
-	err := initRuntimeParams(f)
+	err := bp.InitRuntimeParams(bp.Flag)
 	if err != nil {
-		return err
+		return bp.Error("", err)
 	}
 	// run snapshot action for each module
-	for _, rtModule := range runtimeParams.Modules {
-		fmt.Println(rtModule.Module.Name)
-	}
-
-	return nil
+	return buildAndPublish(bp)
 }
 
-func ActionReleaseHandler(f *flag.FlagSet) *BuildError {
+func ActionReleaseHandler(bp *BuildPack) *BuildError {
 	// read configuration then pre runtime-params for doing release
-	err := initRuntimeParams(f)
+	err := bp.InitRuntimeParams(bp.Flag)
 	if err != nil {
-		return err
+		return bp.Error("", err)
 	}
 
-	// run release action for each module
-	for _, rtModule := range runtimeParams.Modules {
-		fmt.Println(rtModule.Module.Name)
-	}
-
-	return nil
+	// run snapshot action for each module
+	return buildAndPublish(bp)
 }

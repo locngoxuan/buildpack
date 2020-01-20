@@ -2,6 +2,13 @@ package main
 
 import "github.com/pkg/errors"
 
+type Builder interface {
+	LoadConfig() error
+	Clean() error
+	Build() error
+	Publish() error
+}
+
 var builders map[string]Builder
 
 func init() {

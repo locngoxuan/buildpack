@@ -1,30 +1,148 @@
 package main
 
-type BuildPhase func() error
+import (
+	"errors"
+	"flag"
+	"sort"
+)
 
-type BuildPack struct {
+type BuildError struct {
+	Err     error
+	Action  string
+	Phase   string
+	Message string
 }
 
-type Builder interface {
-	Clean() error
-	Build() error
-	Publish() error
+type ActionHandler func(bp *BuildPack) *BuildError
+
+type BuildPack struct {
+	Flag          *flag.FlagSet
+	Config        BuildPackConfig
+	RuntimeParams BuildPackRuntimeParams
+	Action        string
+	Phase         string
 }
 
 type Publisher interface {
+	LoadConfig() error
 	Pre() error
 	Publish() error
 	Post() error
 }
 
-func (b *BuildPack) Init() error {
-	return nil
+var actions map[string]ActionHandler
+
+const (
+	ACTION_INIT     = "init"
+	ACTION_SNAPSHOT = "snapshot"
+	ACTION_RELEASE  = "release"
+
+	BUILPACK_FILE = "buildpack.yml"
+
+	BUILDPACK_PHASE_INIT                  = "init"
+	BUILDPACK_PHASE_LOADCONFIG            = "loadconfig"
+	BUILDPACK_PHASE_ACTIONINT_BUILDCONFIG = "buildconfig"
+	BUILDPACK_PHASE_ACTIONINT_SAVECONFIG  = "saveconfig"
+
+	BUILDPACK_PHASE_CLEAN   = "clean"
+	BUILDPACK_PHASE_BUILD   = "build"
+	BUILDPACK_PHASE_PREPUB  = "pre-publish"
+	BUILDPACK_PHASE_PUBLISH = "publish"
+	BUILDPACK_PHASE_POSTPUB = "post-publish"
+)
+
+func init() {
+	actions = make(map[string]ActionHandler)
+	actions[ACTION_INIT] = ActionInitHandler
+	actions[ACTION_SNAPSHOT] = ActionSnapshotHandler
+	actions[ACTION_RELEASE] = ActionReleaseHandler
 }
 
-func (b *BuildPack) Snapshot() error {
-	return nil
+func newBuildPack(action string, f *flag.FlagSet) *BuildPack {
+	return &BuildPack{
+		Flag:          f,
+		Action:        action,
+		Phase:         BUILDPACK_PHASE_INIT,
+		Config:        BuildPackConfig{},
+		RuntimeParams: BuildPackRuntimeParams{},
+	}
 }
 
-func (b *BuildPack) Release() error {
+func (b *BuildPack) Error(msg string, err error) *BuildError {
+	return &BuildError{
+		Action:  b.Action,
+		Phase:   b.Phase,
+		Err:     err,
+		Message: msg,
+	}
+}
+
+func (b *BuildPack) Handle() *BuildError {
+	actionHandler, ok := actions[b.Action]
+	if !ok {
+		return b.Error("action not found", nil)
+	}
+	b.Phase = BUILDPACK_PHASE_LOADCONFIG
+	return actionHandler(b)
+}
+
+func (bp *BuildPack) InitRuntimeParams(f *flag.FlagSet) error {
+	var err error
+	bp.Config, err = readFromConfigFile()
+	if err != nil {
+		return err
+	}
+
+	runtimeParams := BuildPackRuntimeParams{
+		Version:           bp.Config.Version,
+		ArtifactoryConfig: bp.Config.ArtifactoryConfig,
+		GitConfig:         bp.Config.GitConfig,
+		DockerConfig:      bp.Config.DockerConfig,
+	}
+
+	rtVersion := readVersion(f)
+	if len(rtVersion) > 0 {
+		runtimeParams.Version = rtVersion
+	}
+
+	runtimeParams.UseContainerBuild = readContainerOpt(f)
+	runtimeParams.Modules = make([]BuildPackModuleRuntimeParams, 0)
+
+	findModuleConfig := func(name string) (BuildPackModuleConfig, error) {
+		for _, v := range bp.Config.Modules {
+			if v.Name == name {
+				return v, nil
+			}
+		}
+		return BuildPackModuleConfig{}, errors.New("not found module by name " + name)
+	}
+	moduleNames := readModules(f)
+	if len(moduleNames) == 0 {
+		for _, mc := range bp.Config.Modules {
+			rtm, err := newBuildPackModuleRuntime(mc)
+			if err != nil {
+				return err
+			}
+			runtimeParams.Modules = append(runtimeParams.Modules, rtm)
+		}
+	} else {
+		for _, moduleName := range moduleNames {
+			mc, err := findModuleConfig(moduleName)
+			if err != nil {
+				return err
+			}
+
+			rtm, err := newBuildPackModuleRuntime(mc)
+			if err != nil {
+				return err
+			}
+			runtimeParams.Modules = append(runtimeParams.Modules, rtm)
+		}
+	}
+
+	sort.Slice(runtimeParams.Modules, func(i, j int) bool {
+		return runtimeParams.Modules[i].Module.Position < runtimeParams.Modules[j].Module.Position
+	})
+
 	return nil
 }

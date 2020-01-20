@@ -5,20 +5,17 @@ import (
 	"strings"
 )
 
-type BuildPhase func() error
-
 type Builder interface {
 	LoadConfig() error
 	Clean() error
 	Build() error
-	Publish() error
 }
 
 var builders map[string]Builder
 
 func init() {
 	builders = make(map[string]Builder)
-	builders["mvn"] = nil
+	builders["mvn"] = &BuilderMvn{}
 	builders["make"] = nil
 }
 

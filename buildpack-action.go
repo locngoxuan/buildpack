@@ -29,8 +29,18 @@ func init() {
 	actions[ACTION_RELEASE] = ActionReleaseHandler
 }
 
+func verifyAction(action string) error {
+	_, ok := actions[action]
+	if !ok {
+		return errors.New("action not found")
+	}
+	return nil
+}
+
 func readFromTerminal(reader *bufio.Reader, msg string) (string, error) {
+	//display msg to stdout
 	fmt.Print(msg)
+	//wait until user type then press 'enter'
 	text, err := reader.ReadString('\n')
 	if err != nil {
 		return "", err
@@ -189,7 +199,7 @@ func buildAndPublish(bp *BuildPack) *BuildError {
 
 func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 	// read configuration then pre runtime-params for doing snapshot
-	err := bp.InitRuntimeParams(bp.Flag)
+	err := bp.InitRuntimeParams()
 	if err != nil {
 		return bp.Error("", err)
 	}
@@ -199,7 +209,7 @@ func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 
 func ActionReleaseHandler(bp *BuildPack) *BuildError {
 	// read configuration then pre runtime-params for doing release
-	err := bp.InitRuntimeParams(bp.Flag)
+	err := bp.InitRuntimeParams()
 	if err != nil {
 		return bp.Error("", err)
 	}

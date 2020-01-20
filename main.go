@@ -20,11 +20,12 @@ options:
 	--del apply for only module action
 	--clean apply for snapshot and release
 	--phase apply for snapshot and release
+	--container run build command in container env
 */
 
 func buildError(err BuildError) {
 	if err.Err != nil {
-		fmt.Println(fmt.Sprintf("[BUILDPACK] [%s:%s] ERROR:", err.Action, err.Phase), err)
+		fmt.Println(fmt.Sprintf("[BUILDPACK] [%s:%s] ERROR:", err.Action, err.Phase), err.Err)
 	} else if len(strings.TrimSpace(err.Message)) > 0 {
 		fmt.Println(fmt.Sprintf("[BUILDPACK] [%s:%s] ERROR: %s", err.Action, err.Phase, err.Message))
 	} else {
@@ -42,8 +43,17 @@ func main() {
 	}
 
 	action := os.Args[1]
+	err := verifyAction(action)
+	if err != nil {
+		buildError(BuildError{
+			Action:  action,
+			Phase:   BUILDPACK_PHASE_INIT,
+			Err:     err,
+			Message: "",
+		})
+	}
 
-	err := f.Parse(os.Args[2:])
+	err = f.Parse(os.Args[2:])
 	if err != nil {
 		buildError(BuildError{
 			Action:  action,

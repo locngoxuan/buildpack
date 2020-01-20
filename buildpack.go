@@ -16,11 +16,11 @@ type BuildError struct {
 type ActionHandler func(bp *BuildPack) *BuildError
 
 type BuildPack struct {
+	Action        string
+	Phase         string
 	Flag          *flag.FlagSet
 	Config        BuildPackConfig
 	RuntimeParams BuildPackRuntimeParams
-	Action        string
-	Phase         string
 }
 
 type Publisher interface {
@@ -74,7 +74,7 @@ func (b *BuildPack) Handle() *BuildError {
 	return actionHandler(b)
 }
 
-func (bp *BuildPack) InitRuntimeParams(f *flag.FlagSet) error {
+func (bp *BuildPack) InitRuntimeParams() error {
 	var err error
 	bp.Config, err = readFromConfigFile()
 	if err != nil {
@@ -88,13 +88,14 @@ func (bp *BuildPack) InitRuntimeParams(f *flag.FlagSet) error {
 		DockerConfig:      bp.Config.DockerConfig,
 	}
 
-	rtVersion := readVersion(f)
+	rtVersion := readVersion(bp.Flag)
 	if len(rtVersion) > 0 {
 		runtimeParams.Version = rtVersion
 	}
 
-	runtimeParams.UseContainerBuild = readContainerOpt(f)
+	runtimeParams.UseContainerBuild = readContainerOpt(bp.Flag)
 	runtimeParams.Modules = make([]BuildPackModuleRuntimeParams, 0)
+	runtimeParams.UseContainerBuild = readContainerOpt(bp.Flag)
 
 	findModuleConfig := func(name string) (BuildPackModuleConfig, error) {
 		for _, v := range bp.Config.Modules {
@@ -104,7 +105,7 @@ func (bp *BuildPack) InitRuntimeParams(f *flag.FlagSet) error {
 		}
 		return BuildPackModuleConfig{}, errors.New("not found module by name " + name)
 	}
-	moduleNames := readModules(f)
+	moduleNames := readModules(bp.Flag)
 	if len(moduleNames) == 0 {
 		for _, mc := range bp.Config.Modules {
 			rtm, err := newBuildPackModuleRuntime(mc)
@@ -132,5 +133,6 @@ func (bp *BuildPack) InitRuntimeParams(f *flag.FlagSet) error {
 		return runtimeParams.Modules[i].Module.Position < runtimeParams.Modules[j].Module.Position
 	})
 
+	bp.RuntimeParams = runtimeParams
 	return nil
 }

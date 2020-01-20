@@ -35,9 +35,9 @@ func buildError(err BuildError) {
 }
 
 func main() {
-	f := flag.NewFlagSet("buildpack [init/snapshot/release] [OPTIONS]", flag.ContinueOnError)
 
 	if len(os.Args) <= 1 {
+		f := flag.NewFlagSet("buildpack [init/snapshot/release] [OPTIONS]", flag.ContinueOnError)
 		f.Usage()
 		return
 	}
@@ -53,6 +53,7 @@ func main() {
 		})
 	}
 
+	f := flag.NewFlagSet(fmt.Sprintf("buildpack %s [OPTIONS]", action), flag.ContinueOnError)
 	buildPack := newBuildPack(action, f)
 	result := buildPack.Handle()
 	if result != nil {

@@ -48,8 +48,8 @@ const (
 
 func newBuildPack(action string, f *flag.FlagSet) *BuildPack {
 	return &BuildPack{
-		Flag:          f,
 		Action:        action,
+		Flag:          f,
 		Phase:         BUILDPACK_PHASE_INIT,
 		Config:        BuildPackConfig{},
 		RuntimeParams: BuildPackRuntimeParams{},

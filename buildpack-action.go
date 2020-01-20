@@ -48,7 +48,47 @@ func readFromTerminal(reader *bufio.Reader, msg string) (string, error) {
 	return strings.TrimSpace(text), nil
 }
 
+func (a *ActionArguments) readModuleAdd() *ActionArguments {
+	s := a.Flag.Bool("add", false, "add new module into buildpack config. (default is false)")
+	a.Values["add"] = s
+	return a
+}
+
+func (a *ActionArguments) readModuleRemove() *ActionArguments {
+	s := a.Flag.Bool("del", false, "remove exist module into buildpack config. (default is false)")
+	a.Values["del"] = s
+	return a
+}
+
+func (a *ActionArguments) addModule() bool {
+	s, ok := a.Values["add"]
+	if !ok {
+		return false
+	}
+	return *(s.(*bool))
+}
+
+func (a *ActionArguments) removeModule() bool {
+	s, ok := a.Values["del"]
+	if !ok {
+		return false
+	}
+	return *(s.(*bool))
+}
+
 func ActionModuleHandler(bp *BuildPack) *BuildError {
+	actionArgs := newActionArguments(bp.Flag)
+	err := actionArgs.readModuleAdd().
+		readModuleRemove().
+		parse()
+
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	if actionArgs.addModule() && actionArgs.removeModule() {
+		return bp.Error("can not apply both action add and remove at same time", nil)
+	}
 	return nil
 }
 
@@ -75,7 +115,7 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 	bp.Phase = BUILDPACK_PHASE_ACTIONINT_BUILDCONFIG
 	modules := make([]BuildPackModuleConfig, 0)
 
-	// Add new module [Y/N]
+	// Add new module
 	reader := bufio.NewReader(os.Stdin)
 	var text string
 	for {

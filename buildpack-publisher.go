@@ -1,11 +1,24 @@
 package main
 
-import "github.com/pkg/errors"
+import (
+	"github.com/pkg/errors"
+	"strings"
+)
 
 var publishers map[string]Publisher
 
 func init() {
 	publishers = make(map[string]Publisher)
+	publishers["jfrog"] = nil
+	publishers["docker"] = nil
+}
+
+func publisherOptions() string {
+	names := make([]string, 0)
+	for name, _ := range publishers {
+		names = append(names, name)
+	}
+	return strings.Join(names, "/")
 }
 
 func getPublisher(builderName string) (Publisher, error) {

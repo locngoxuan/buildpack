@@ -30,13 +30,7 @@ type Publisher interface {
 	Post() error
 }
 
-var actions map[string]ActionHandler
-
 const (
-	ACTION_INIT     = "init"
-	ACTION_SNAPSHOT = "snapshot"
-	ACTION_RELEASE  = "release"
-
 	BUILPACK_FILE = "buildpack.yml"
 
 	BUILDPACK_PHASE_INIT                  = "init"
@@ -44,19 +38,13 @@ const (
 	BUILDPACK_PHASE_ACTIONINT_BUILDCONFIG = "buildconfig"
 	BUILDPACK_PHASE_ACTIONINT_SAVECONFIG  = "saveconfig"
 
-	BUILDPACK_PHASE_CLEAN   = "clean"
-	BUILDPACK_PHASE_BUILD   = "build"
-	BUILDPACK_PHASE_PREPUB  = "pre-publish"
-	BUILDPACK_PHASE_PUBLISH = "publish"
-	BUILDPACK_PHASE_POSTPUB = "post-publish"
+	BUILDPACK_PHASE_PREBUILD = "prebuild"
+	BUILDPACK_PHASE_BUILD    = "build"
+	BUILDPACK_PHASE_PREPUB   = "pre-publish"
+	BUILDPACK_PHASE_PUBLISH  = "publish"
+	BUILDPACK_PHASE_POSTPUB  = "post-publish"
+	BUILDPACK_PHASE_CLEAN    = "clean"
 )
-
-func init() {
-	actions = make(map[string]ActionHandler)
-	actions[ACTION_INIT] = ActionInitHandler
-	actions[ACTION_SNAPSHOT] = ActionSnapshotHandler
-	actions[ACTION_RELEASE] = ActionReleaseHandler
-}
 
 func newBuildPack(action string, f *flag.FlagSet) *BuildPack {
 	return &BuildPack{

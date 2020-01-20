@@ -12,10 +12,14 @@ import (
 Usage:
 buildpack [action] [options]
 
-action: init, snapshot, release
+action: init, snapshot, release, module
 options:
 	--m list of modules
 	--v version
+	--add apply for only module action
+	--del apply for only module action
+	--clean apply for snapshot and release
+	--phase apply for snapshot and release
 */
 
 func buildError(err BuildError) {

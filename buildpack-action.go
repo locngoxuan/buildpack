@@ -12,6 +12,23 @@ import (
 	"strings"
 )
 
+var actions map[string]ActionHandler
+
+const (
+	ACTION_INIT     = "init"
+	ACTION_SNAPSHOT = "snapshot"
+	ACTION_RELEASE  = "release"
+	ACTION_MODULE   = "module"
+)
+
+func init() {
+	actions = make(map[string]ActionHandler)
+	actions[ACTION_INIT] = ActionInitHandler
+	actions[ACTION_MODULE] = ActionModuleHandler
+	actions[ACTION_SNAPSHOT] = ActionSnapshotHandler
+	actions[ACTION_RELEASE] = ActionReleaseHandler
+}
+
 func readFromTerminal(reader *bufio.Reader, msg string) (string, error) {
 	fmt.Print(msg)
 	text, err := reader.ReadString('\n')
@@ -19,6 +36,10 @@ func readFromTerminal(reader *bufio.Reader, msg string) (string, error) {
 		return "", err
 	}
 	return strings.TrimSpace(text), nil
+}
+
+func ActionModuleHandler(bp *BuildPack) *BuildError {
+	return nil
 }
 
 func ActionInitHandler(bp *BuildPack) *BuildError {
@@ -40,7 +61,7 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 	var text string
 	var err error
 	for {
-		text, err = readFromTerminal(reader, "Add new module [y/N]: ")
+		text, err = readFromTerminal(reader, "Add new module [y/n]: ")
 		if err != nil {
 			return bp.Error("", err)
 		}
@@ -67,7 +88,7 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 		if err != nil {
 			return bp.Error("", err)
 		}
-		m.Build, err = readFromTerminal(reader, "Module builder: ")
+		m.Build, err = readFromTerminal(reader, fmt.Sprintf("Module builder [%s]: ", builderOptions()))
 		if err != nil {
 			return bp.Error("", err)
 		}
@@ -76,7 +97,7 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 			return bp.Error("Please specify builder", nil)
 		}
 
-		m.Publish, err = readFromTerminal(reader, "Module publisher: ")
+		m.Publish, err = readFromTerminal(reader, fmt.Sprintf("Module publisher [%s]: ", publisherOptions()))
 		if err != nil {
 			return bp.Error("", err)
 		}
@@ -120,15 +141,19 @@ func buildAndPublish(bp *BuildPack) *BuildError {
 		if err != nil {
 			return bp.Error("", err)
 		}
+		bp.Phase = BUILDPACK_PHASE_PREBUILD
 		err = builder.Clean()
 		if err != nil {
 			return bp.Error("", err)
 		}
+
+		bp.Phase = BUILDPACK_PHASE_BUILD
 		err = builder.Build()
 		if err != nil {
 			return bp.Error("", err)
 		}
 		// publish build
+		bp.Phase = BUILDPACK_PHASE_PREPUB
 		publisher, err := getPublisher(rtModule.Module.Publish)
 		if err != nil {
 			return bp.Error("", err)
@@ -141,16 +166,19 @@ func buildAndPublish(bp *BuildPack) *BuildError {
 		if err != nil {
 			return bp.Error("", err)
 		}
+		bp.Phase = BUILDPACK_PHASE_PUBLISH
 		err = publisher.Publish()
 		if err != nil {
 			return bp.Error("", err)
 		}
 		// clean publish data
+		bp.Phase = BUILDPACK_PHASE_POSTPUB
 		err = publisher.Post()
 		if err != nil {
 			return bp.Error("", err)
 		}
 		// clean build data
+		bp.Phase = BUILDPACK_PHASE_CLEAN
 		err = builder.Clean()
 		if err != nil {
 			return bp.Error("", err)

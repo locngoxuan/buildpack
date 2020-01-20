@@ -35,7 +35,7 @@ options:
 ```
 options:
 	--v : version number of buildpack.yml file
-    --m : version number of buildpack.yml file
+	--m : version number of buildpack.yml file
 	--container : run build command in container environment
 	--phase: list of specific phases will be run
 	
@@ -60,7 +60,7 @@ options:
 ```
 options:
 	--v : version number of buildpack.yml file
-    --m : version number of buildpack.yml file
+	--m : version number of buildpack.yml file
 	--container : run build command in container environment
 	--phase: list of specific phases will be run
 	

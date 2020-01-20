@@ -53,16 +53,6 @@ func main() {
 		})
 	}
 
-	err = f.Parse(os.Args[2:])
-	if err != nil {
-		buildError(BuildError{
-			Action:  action,
-			Phase:   BUILDPACK_PHASE_INIT,
-			Err:     err,
-			Message: "",
-		})
-	}
-
 	buildPack := newBuildPack(action, f)
 	result := buildPack.Handle()
 	if result != nil {

@@ -74,7 +74,21 @@ func (b *BuildPack) Handle() *BuildError {
 	return actionHandler(b)
 }
 
-func (bp *BuildPack) InitRuntimeParams() error {
+func (a *ActionArguments) readContainer() *ActionArguments {
+	s := a.Flag.Bool("container", false, "using docker environment rather than host environment")
+	a.Values["container"] = s
+	return a
+}
+
+func (a *ActionArguments) container() bool {
+	s, ok := a.Values["container"]
+	if !ok {
+		return false
+	}
+	return *(s.(*bool))
+}
+
+func (bp *BuildPack) InitRuntimeParams(argument *ActionArguments) error {
 	var err error
 	bp.Config, err = readFromConfigFile()
 	if err != nil {
@@ -88,15 +102,15 @@ func (bp *BuildPack) InitRuntimeParams() error {
 		DockerConfig:      bp.Config.DockerConfig,
 	}
 
-	rtVersion := readVersion(bp.Flag)
+	rtVersion := argument.version()
 	if len(rtVersion) > 0 {
 		runtimeParams.Version = rtVersion
 	}
 
-	runtimeParams.UseContainerBuild = readContainerOpt(bp.Flag)
+	runtimeParams.UseContainerBuild = argument.container()
 	runtimeParams.Modules = make([]BuildPackModuleRuntimeParams, 0)
-	runtimeParams.UseContainerBuild = readContainerOpt(bp.Flag)
-
+	moduleNames := argument.modules()
+	//parsing module
 	findModuleConfig := func(name string) (BuildPackModuleConfig, error) {
 		for _, v := range bp.Config.Modules {
 			if v.Name == name {
@@ -105,7 +119,7 @@ func (bp *BuildPack) InitRuntimeParams() error {
 		}
 		return BuildPackModuleConfig{}, errors.New("not found module by name " + name)
 	}
-	moduleNames := readModules(bp.Flag)
+
 	if len(moduleNames) == 0 {
 		for _, mc := range bp.Config.Modules {
 			rtm, err := newBuildPackModuleRuntime(mc)
@@ -132,7 +146,7 @@ func (bp *BuildPack) InitRuntimeParams() error {
 	sort.Slice(runtimeParams.Modules, func(i, j int) bool {
 		return runtimeParams.Modules[i].Module.Position < runtimeParams.Modules[j].Module.Position
 	})
-
+	//end parsing and sorting modules
 	bp.RuntimeParams = runtimeParams
 	return nil
 }

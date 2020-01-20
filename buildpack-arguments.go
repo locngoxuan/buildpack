@@ -2,24 +2,54 @@ package main
 
 import (
 	"flag"
+	"os"
 	"strings"
 )
 
-func readVersion(f *flag.FlagSet) string {
-	s := f.String("v", "0.1.0", "version number")
-	return strings.TrimSpace(*s)
+type ActionArguments struct {
+	Flag   *flag.FlagSet
+	Values map[string]interface{}
 }
 
-func readModules(f *flag.FlagSet) []string {
-	s := f.String("m", "", "modules")
-	if len(strings.TrimSpace(*s)) == 0 {
+func newActionArguments(f *flag.FlagSet) *ActionArguments {
+	return &ActionArguments{
+		Flag:   f,
+		Values: make(map[string]interface{}),
+	}
+}
+
+func (a *ActionArguments) readVersion() *ActionArguments {
+	s := a.Flag.String("v", "0.1.0", "version number")
+	a.Values["v"] = s
+	return a
+}
+
+func (a *ActionArguments) readModules() *ActionArguments {
+	s := a.Flag.String("m", "", "modules")
+	a.Values["m"] = s
+	return a
+}
+
+func (a *ActionArguments) parse() error {
+	return a.Flag.Parse(os.Args[2:])
+}
+
+func (a *ActionArguments) version() string {
+	s, ok := a.Values["v"]
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(*(s.(*string)))
+}
+
+func (a *ActionArguments) modules() []string {
+	s, ok := a.Values["m"]
+	if !ok {
 		return []string{}
 	}
-	return strings.Split(*s, ",")
+	v := strings.TrimSpace(*(s.(*string)))
+	if len(v) == 0 {
+		return []string{}
+	}
+	return strings.Split(v, ",")
 }
-
-func readContainerOpt(f *flag.FlagSet) bool {
-	s := f.Bool("container", false, "using docker environment rather than host environment")
-	return *s
-}
-

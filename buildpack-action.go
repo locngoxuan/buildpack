@@ -53,14 +53,23 @@ func ActionModuleHandler(bp *BuildPack) *BuildError {
 }
 
 func ActionInitHandler(bp *BuildPack) *BuildError {
-	versiongString := readVersion(bp.Flag)
 
-	if len(strings.TrimSpace(versiongString)) == 0 {
+	actionArgs := newActionArguments(bp.Flag)
+	err := actionArgs.readVersion().
+		readModules().
+		parse()
+
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	versionString := actionArgs.version()
+	if len(strings.TrimSpace(versionString)) == 0 {
 		return bp.Error("", errors.New("version number is empty"))
 	}
 
 	buidlPackConfig := &BuildPackConfig{
-		Version: strings.TrimSpace(versiongString),
+		Version: strings.TrimSpace(versionString),
 	}
 
 	bp.Phase = BUILDPACK_PHASE_ACTIONINT_BUILDCONFIG
@@ -69,7 +78,6 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 	// Add new module [Y/N]
 	reader := bufio.NewReader(os.Stdin)
 	var text string
-	var err error
 	for {
 		text, err = readFromTerminal(reader, "Add new module [y/n]: ")
 		if err != nil {
@@ -199,7 +207,7 @@ func buildAndPublish(bp *BuildPack) *BuildError {
 
 func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 	// read configuration then pre runtime-params for doing snapshot
-	err := bp.InitRuntimeParams()
+	err := bp.InitRuntimeParams(newActionArguments(bp.Flag))
 	if err != nil {
 		return bp.Error("", err)
 	}
@@ -209,7 +217,7 @@ func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 
 func ActionReleaseHandler(bp *BuildPack) *BuildError {
 	// read configuration then pre runtime-params for doing release
-	err := bp.InitRuntimeParams()
+	err := bp.InitRuntimeParams(newActionArguments(bp.Flag))
 	if err != nil {
 		return bp.Error("", err)
 	}

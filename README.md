@@ -18,8 +18,9 @@ action:
 - ##### INIT
 ```
 options:
-	--version : version number of buildpack.yml file
-
+	--v : version number of buildpack.yml file
+	--m : version number of buildpack.yml file
+	
 ```
 
 - ##### MODULE
@@ -33,6 +34,8 @@ options:
 - ##### SNAPSHOT
 ```
 options:
+	--v : version number of buildpack.yml file
+    --m : version number of buildpack.yml file
 	--container : run build command in container environment
 	--phase: list of specific phases will be run
 	
@@ -56,6 +59,8 @@ options:
 - ##### RELEASE
 ```
 options:
+	--v : version number of buildpack.yml file
+    --m : version number of buildpack.yml file
 	--container : run build command in container environment
 	--phase: list of specific phases will be run
 	

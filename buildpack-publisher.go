@@ -1,16 +1,46 @@
 package main
 
 import (
-	"github.com/pkg/errors"
 	"strings"
 )
 
+type Publisher interface {
+	SetBuildPack(bp BuildPack)
+	LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp BuildPack) error
+	Pre() error
+	Publish() error
+	Clean() error
+}
+
+type EmptyPublisher struct {
+}
+
+func (p *EmptyPublisher) SetBuildPack(bp BuildPack) {
+
+}
+
+func (p *EmptyPublisher) LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp BuildPack) error {
+	return nil
+}
+func (p *EmptyPublisher) Pre() error {
+	return nil
+}
+func (p *EmptyPublisher) Publish() error {
+	return nil
+}
+func (p *EmptyPublisher) Clean() error {
+	return nil
+}
+
 var publishers map[string]Publisher
+
+const (
+	publisherJfrogMvn = "jfrog-mvn"
+)
 
 func init() {
 	publishers = make(map[string]Publisher)
-	publishers["jfrog"] = &PublisherJfrog{}
-	publishers["docker"] = nil
+	publishers[publisherJfrogMvn] = &PublisherJfrog{}
 }
 
 func publisherOptions() string {
@@ -21,10 +51,10 @@ func publisherOptions() string {
 	return strings.Join(names, "/")
 }
 
-func getPublisher(builderName string) (Publisher, error) {
+func getPublisher(builderName string) Publisher {
 	publisher, ok := publishers[builderName]
 	if !ok {
-		return nil, errors.New("can not find builder by name " + builderName)
+		return nil
 	}
-	return publisher, nil
+	return publisher
 }

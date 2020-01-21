@@ -25,14 +25,6 @@ type BuildPack struct {
 	RuntimeParams BuildPackRuntimeParams
 }
 
-type Publisher interface {
-	SetBuildPack(bp BuildPack)
-	LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp BuildPack) error
-	Pre() error
-	Publish() error
-	Clean() error
-}
-
 const (
 	fileBuildPackConfig = "buildpack.yml"
 	fileBuilderConfig   = "builder.yml"
@@ -85,20 +77,6 @@ func (b *BuildPack) Handle() *BuildError {
 	return actionHandler(b)
 }
 
-func (a *ActionArguments) readContainer() *ActionArguments {
-	s := a.Flag.Bool("container", false, "using docker environment rather than host environment")
-	a.Values["container"] = s
-	return a
-}
-
-func (a *ActionArguments) container() bool {
-	s, ok := a.Values["container"]
-	if !ok {
-		return false
-	}
-	return *(s.(*bool))
-}
-
 func (bp *BuildPack) InitRuntimeParams(argument *ActionArguments) error {
 	var err error
 	bp.Config, err = readFromConfigFile()
@@ -106,16 +84,27 @@ func (bp *BuildPack) InitRuntimeParams(argument *ActionArguments) error {
 		return err
 	}
 
-	runtimeParams := BuildPackRuntimeParams{
-		Version:           bp.Config.Version,
-		ArtifactoryConfig: bp.Config.ArtifactoryConfig,
-		GitConfig:         bp.Config.GitConfig,
-		DockerConfig:      bp.Config.DockerConfig,
+	versionStr := bp.Config.Version
+	if len(argument.version()) > 0 {
+		versionStr = argument.version()
 	}
 
-	rtVersion := argument.version()
-	if len(rtVersion) > 0 {
-		runtimeParams.Version = rtVersion
+	v, err := fromString(versionStr)
+	if err != nil {
+		return err
+	}
+
+	runtimeParams := BuildPackRuntimeParams{
+		Version: *v,
+		ArtifactoryRuntimeParams: ArtifactoryRuntimeParams{
+			bp.Config.ArtifactoryConfig,
+		},
+		GitRuntimeParams: GitRuntimeParams{
+			bp.Config.GitConfig,
+		},
+		DockerRuntimeParams: DockerRuntimeParams{
+			bp.Config.DockerConfig,
+		},
 	}
 
 	runtimeParams.UseContainerBuild = argument.container()
@@ -133,11 +122,9 @@ func (bp *BuildPack) InitRuntimeParams(argument *ActionArguments) error {
 
 	if len(moduleNames) == 0 {
 		for _, mc := range bp.Config.Modules {
-			rtm, err := newBuildPackModuleRuntime(mc)
-			if err != nil {
-				return err
-			}
-			runtimeParams.Modules = append(runtimeParams.Modules, rtm)
+			runtimeParams.Modules = append(runtimeParams.Modules, BuildPackModuleRuntimeParams{
+				mc,
+			})
 		}
 	} else {
 		for _, moduleName := range moduleNames {
@@ -146,11 +133,12 @@ func (bp *BuildPack) InitRuntimeParams(argument *ActionArguments) error {
 				return err
 			}
 
-			rtm, err := newBuildPackModuleRuntime(mc)
 			if err != nil {
 				return err
 			}
-			runtimeParams.Modules = append(runtimeParams.Modules, rtm)
+			runtimeParams.Modules = append(runtimeParams.Modules, BuildPackModuleRuntimeParams{
+				mc,
+			})
 		}
 	}
 

@@ -7,7 +7,6 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/client"
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
@@ -20,19 +19,20 @@ import (
 const (
 	mvnContainerImage = "docker.io/xuanloc0511/mvn:3.6.3"
 	pomFile           = "pom.xml"
+	pomFlattened      = ".flattened-pom.xml"
 	builderTypeMvn    = "mvn"
 )
 
 type BuilderMvn struct {
-	RunFnc RunMvn
-	BuildPack
-	BuilderMvnOption
+	RunFnc        RunMvn
 	WorkingDir    string
 	BuildSnapshot bool
 	Version       string
 	Label         string
 	Name          string
 	Path          string
+	BuildPack
+	BuilderMvnOption
 }
 
 type BuilderMvnOption struct {
@@ -41,7 +41,7 @@ type BuilderMvnOption struct {
 	BuildOptions []string `yaml:"options,omitempty"`
 }
 
-type RunMvn func(bp BuildPack, buildOpt BuilderMvnOption, workingDir string, arg ...string) error
+type RunMvn func(arg ...string) error
 
 func (b *BuilderMvn) SetBuilderPack(bp BuildPack) {
 	b.BuildPack = bp
@@ -82,9 +82,9 @@ func (b *BuilderMvn) LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp BuildPack
 	}
 
 	b.BuildPack = bp
-	b.RunFnc = runMvnLocal
+	b.RunFnc = b.runMvnLocal
 	if bp.RuntimeParams.UseContainerBuild {
-		b.RunFnc = runMvnContainer
+		b.RunFnc = b.runMvnContainer
 	}
 
 	b.Version = bp.RuntimeParams.Version
@@ -100,7 +100,7 @@ func (b *BuilderMvn) Clean() error {
 	arg := make([]string, 0)
 	arg = append(arg, "clean")
 	arg = append(arg, b.BuildOptions...)
-	return b.RunFnc(b.BuildPack, b.BuilderMvnOption, b.WorkingDir, arg...)
+	return b.RunFnc(arg...)
 }
 
 func (b *BuilderMvn) Build() error {
@@ -110,7 +110,7 @@ func (b *BuilderMvn) Build() error {
 		arg = append(arg, "-U")
 	}
 	arg = append(arg, b.BuildOptions...)
-	return b.RunFnc(b.BuildPack, b.BuilderMvnOption, b.WorkingDir, arg...)
+	return b.RunFnc(arg...)
 }
 
 func readMvnBuildConfig(configFile string) (option BuilderMvnOption, err error) {
@@ -133,19 +133,20 @@ func readMvnBuildConfig(configFile string) (option BuilderMvnOption, err error) 
 	return
 }
 
-func runMvnLocal(bp BuildPack, buildOpt BuilderMvnOption, workingDir string, arg ...string) error {
-	arg = append(arg, "-f", filepath.Join(workingDir, pomFile))
+func (b *BuilderMvn) runMvnLocal(arg ...string) error {
+	arg = append(arg, "-f", b.BuildPack.getBuilderSpecificFile(b.Path, pomFile))
 	cmd := exec.Command("mvn", arg...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-func runMvnContainer(bp BuildPack, buildOpt BuilderMvnOption, workingDir string, arg ...string) error {
+func (b *BuilderMvn) runMvnContainer(arg ...string) error {
 	ctx := context.Background()
-	cli, err := client.NewEnvClient()
+
+	cli, err := newDockerClient(ctx, b.RuntimeParams.DockerConfig)
 	if err != nil {
-		return err
+		return errors.New(fmt.Sprintf("can not connect to docker host: %s", err.Error()))
 	}
 
 	cmd := make([]string, 0)
@@ -153,7 +154,7 @@ func runMvnContainer(bp BuildPack, buildOpt BuilderMvnOption, workingDir string,
 	for _, v := range arg {
 		cmd = append(cmd, v)
 	}
-	buildInfo(bp, fmt.Sprintf("docker run -it --rm %s %+v", mvnContainerImage, cmd))
+	buildInfo(b.BuildPack, fmt.Sprintf("docker run -it --rm %s %+v", mvnContainerImage, cmd))
 
 	pullResp, err := cli.ImagePull(ctx, mvnContainerImage, types.ImagePullOptions{})
 	if err != nil {
@@ -167,15 +168,15 @@ func runMvnContainer(bp BuildPack, buildOpt BuilderMvnOption, workingDir string,
 	mounts := []mount.Mount{
 		{
 			Type:   mount.TypeBind,
-			Source: workingDir,
+			Source: b.WorkingDir,
 			Target: "/working",
 		},
 	}
 
-	if len(buildOpt.M2) > 0 {
+	if len(b.M2) > 0 {
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
-			Source: buildOpt.M2,
+			Source: b.M2,
 			Target: "/root/.m2",
 		})
 	}
@@ -193,11 +194,7 @@ func runMvnContainer(bp BuildPack, buildOpt BuilderMvnOption, workingDir string,
 		return err
 	}
 
-	defer func(ctx context.Context, containerId string) {
-		_ = cli.ContainerRemove(ctx, containerId, types.ContainerRemoveOptions{
-			Force: true,
-		})
-	}(ctx, createRsp.ID)
+	removeContainerAtEnd(createRsp.ID)
 
 	attachRsp, err := cli.ContainerAttach(ctx, createRsp.ID, types.ContainerAttachOptions{
 		Stream: true,

@@ -1,6 +1,11 @@
 package main
 
-import "path/filepath"
+import (
+	"fmt"
+	"io"
+	"os"
+	"path/filepath"
+)
 
 func (bp *BuildPack) getBuildPackConfigPath() string {
 	p, err := filepath.Abs(filepath.Join(bp.Root, fileBuildPackConfig))
@@ -32,4 +37,33 @@ func (bp *BuildPack) getModuleWorkingDir(modulePath string) string {
 		buildError(*bp.Error("", err))
 	}
 	return p
+}
+
+func copyFile(src, dst string) error {
+	sourceFileStat, err := os.Stat(src)
+	if err != nil {
+		return err
+	}
+
+	if !sourceFileStat.Mode().IsRegular() {
+		return fmt.Errorf("%s is not a regular file", src)
+	}
+
+	source, err := os.Open(src)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = source.Close()
+	}()
+
+	destination, err := os.Create(dst)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = destination.Close()
+	}()
+	_, err = io.Copy(destination, source)
+	return err
 }

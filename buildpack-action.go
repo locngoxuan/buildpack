@@ -127,7 +127,7 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 		}
 
 		m := BuildPackModuleConfig{}
-		text, err = readFromTerminal(reader, "Module position: ")
+		text, err = readFromTerminal(reader, "Module position (default is 0): ")
 		if err != nil {
 			return bp.Error("", err)
 		}
@@ -159,11 +159,7 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 			return bp.Error("", err)
 		}
 
-		if len(m.Publish) == 0 {
-			return bp.Error("Please specify publisher", nil)
-		}
-
-		m.Label, err = readFromTerminal(reader, "Module label [SNAPSHOT]: ")
+		m.Label, err = readFromTerminal(reader, "Module label (default is SNAPSHOT): ")
 		if err != nil {
 			return bp.Error("", err)
 		}
@@ -245,11 +241,11 @@ func buildAndPublish(bp *BuildPack) *BuildError {
 
 	bp.Phase = phaseInitPublisher
 	for _, rtModule := range bp.RuntimeParams.Modules {
-		publisher, err := getPublisher(rtModule.Publish)
-		if err != nil {
-			return bp.Error("", err)
+		publisher := getPublisher(rtModule.Publish)
+		if publisher == nil {
+			publisher = &EmptyPublisher{}
 		}
-		err = publisher.LoadConfig(rtModule, *bp)
+		err := publisher.LoadConfig(rtModule, *bp)
 		if err != nil {
 			return bp.Error("", err)
 		}
@@ -331,17 +327,33 @@ func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 	if err != nil {
 		return bp.Error("", err)
 	}
+
+	defer endBuildPack(*bp)
 	// run snapshot action for each module
 	return buildAndPublish(bp)
 }
 
 func ActionReleaseHandler(bp *BuildPack) *BuildError {
 	// read configuration then pre runtime-params for doing release
-	err := bp.InitRuntimeParams(newActionArguments(bp.Flag))
+	args := newActionArguments(bp.Flag)
+
+	err := args.readVersion().
+		readModules().
+		readContainer().
+		parse()
 	if err != nil {
 		return bp.Error("", err)
 	}
 
+	err = bp.InitRuntimeParams(newActionArguments(bp.Flag))
+	if err != nil {
+		return bp.Error("", err)
+	}
+	defer endBuildPack(*bp)
 	// run snapshot action for each module
 	return buildAndPublish(bp)
+}
+
+func endBuildPack(bp BuildPack) {
+	removeAllContainer(bp)
 }

@@ -1,22 +1,26 @@
 package main
 
 type BuildPackRuntimeParams struct {
-	Version           string
-	ArtifactoryConfig ArtifactoryConfig
-	GitConfig         GitConfig
-	DockerConfig      DockerConfig
-	Modules           []BuildPackModuleRuntimeParams
-
 	UseContainerBuild bool
+	Version
+	ArtifactoryRuntimeParams
+	GitRuntimeParams
+	DockerRuntimeParams
+	Modules []BuildPackModuleRuntimeParams
+}
+
+type GitRuntimeParams struct {
+	GitConfig
+}
+
+type DockerRuntimeParams struct {
+	DockerConfig
+}
+
+type ArtifactoryRuntimeParams struct {
+	ArtifactoryConfig
 }
 
 type BuildPackModuleRuntimeParams struct {
 	BuildPackModuleConfig
-}
-
-func newBuildPackModuleRuntime(mc BuildPackModuleConfig) (rs BuildPackModuleRuntimeParams, err error) {
-	rs = BuildPackModuleRuntimeParams{
-		mc,
-	}
-	return
 }

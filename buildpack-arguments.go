@@ -19,7 +19,7 @@ func newActionArguments(f *flag.FlagSet) *ActionArguments {
 }
 
 func (a *ActionArguments) readVersion() *ActionArguments {
-	s := a.Flag.String("v", "0.1.0", "version number")
+	s := a.Flag.String("v", "", "version number")
 	a.Values["v"] = s
 	return a
 }
@@ -52,4 +52,18 @@ func (a *ActionArguments) modules() []string {
 		return []string{}
 	}
 	return strings.Split(v, ",")
+}
+
+func (a *ActionArguments) readContainer() *ActionArguments {
+	s := a.Flag.Bool("container", false, "using docker environment rather than host environment")
+	a.Values["container"] = s
+	return a
+}
+
+func (a *ActionArguments) container() bool {
+	s, ok := a.Values["container"]
+	if !ok {
+		return false
+	}
+	return *(s.(*bool))
 }

@@ -41,19 +41,19 @@ type ArtifactoryConfig struct {
 }
 
 type ArtRepositoryConfig struct {
-	Release  string
-	Snapshot string
+	Release  string `yaml:"release,omitempty"`
+	Snapshot string `yaml:"snapshot,omitempty"`
 }
 
 type DockerConfig struct {
-	Registries []DockerRegistryConfig
-	Hosts      []string
+	Registries []DockerRegistryConfig `yaml:"registries,omitempty"`
+	Hosts      []string               `yaml:"hosts,omitempty"`
 }
 
 type DockerRegistryConfig struct {
-	URL      string
-	Username string
-	Password string
+	URL      string `yaml:"url,omitempty"`
+	Username string `yaml:"username,omitempty"`
+	Password string `yaml:"password,omitempty"`
 }
 
 func readFromConfigFile() (buildPackConfig BuildPackConfig, err error) {

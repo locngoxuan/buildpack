@@ -18,8 +18,7 @@ var builders map[string]Builder
 
 func init() {
 	builders = make(map[string]Builder)
-	builders["mvn"] = &BuilderMvn{}
-	builders["make"] = nil
+	builders[builderTypeMvn] = &BuilderMvn{}
 }
 
 func builderOptions() string {

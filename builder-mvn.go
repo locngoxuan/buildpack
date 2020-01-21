@@ -70,7 +70,7 @@ func (b *BuilderMvn) LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp BuildPack
 	if err != nil {
 		return err
 	}
-	b.WorkingDir = filepath.Join(b.BuildPack.Root, rtOpt.Path)
+	b.WorkingDir = bp.getModuleWorkingDir(rtOpt.Path)
 	b.BuilderMvnOption = opt
 	if len(strings.TrimSpace(b.M2)) == 0 {
 		b.M2 = filepath.Join(os.Getenv("HOME"), ".m2")

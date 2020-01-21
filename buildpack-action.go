@@ -317,7 +317,17 @@ func buildAndPublish(bp *BuildPack) *BuildError {
 
 func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 	// read configuration then pre runtime-params for doing snapshot
-	err := bp.InitRuntimeParams(newActionArguments(bp.Flag))
+	args := newActionArguments(bp.Flag)
+
+	err := args.readVersion().
+		readModules().
+		readContainer().
+		parse()
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	err = bp.InitRuntimeParams(args)
 	if err != nil {
 		return bp.Error("", err)
 	}

@@ -38,9 +38,9 @@ const (
 	fileBuilderConfig   = "builder.yml"
 
 	phaseInit        = "init"
-	phaseLoadConfig  = "loadconfig"
-	phaseBuildConfig = "buildconfig"
-	phaseSaveConfig  = "saveconfig"
+	phaseLoadConfig  = "load-config"
+	phaseBuildConfig = "build-config"
+	phaseSaveConfig  = "save-config"
 
 	phaseInitBuilder   = "init-builder"
 	phaseInitPublisher = "init-publisher"
@@ -52,7 +52,6 @@ const (
 )
 
 func newBuildPack(action string, f *flag.FlagSet) (*BuildPack, error) {
-
 	root, err := filepath.Abs(".")
 	if err != nil {
 		return nil, err

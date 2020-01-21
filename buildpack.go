@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"flag"
+	"path/filepath"
 	"sort"
 )
 
@@ -18,42 +19,53 @@ type ActionHandler func(bp *BuildPack) *BuildError
 type BuildPack struct {
 	Action        string
 	Phase         string
+	Root          string
 	Flag          *flag.FlagSet
 	Config        BuildPackConfig
 	RuntimeParams BuildPackRuntimeParams
 }
 
 type Publisher interface {
-	LoadConfig() error
+	SetBuildPack(bp BuildPack)
+	LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp BuildPack) error
 	Pre() error
 	Publish() error
-	Post() error
+	Clean() error
 }
 
 const (
-	BUILPACK_FILE = "buildpack.yml"
+	fileBuildPackConfig = "buildpack.yml"
+	fileBuilderConfig   = "builder.yml"
 
-	BUILDPACK_PHASE_INIT                  = "init"
-	BUILDPACK_PHASE_LOADCONFIG            = "loadconfig"
-	BUILDPACK_PHASE_ACTIONINT_BUILDCONFIG = "buildconfig"
-	BUILDPACK_PHASE_ACTIONINT_SAVECONFIG  = "saveconfig"
+	phaseInit        = "init"
+	phaseLoadConfig  = "loadconfig"
+	phaseBuildConfig = "buildconfig"
+	phaseSaveConfig  = "saveconfig"
 
-	BUILDPACK_PHASE_PREBUILD = "prebuild"
-	BUILDPACK_PHASE_BUILD    = "build"
-	BUILDPACK_PHASE_PREPUB   = "pre-publish"
-	BUILDPACK_PHASE_PUBLISH  = "publish"
-	BUILDPACK_PHASE_POSTPUB  = "post-publish"
-	BUILDPACK_PHASE_CLEAN    = "clean"
+	phaseInitBuilder   = "init-builder"
+	phaseInitPublisher = "init-publisher"
+	phasePreBuild      = "prebuild"
+	phaseBuild         = "build"
+	phasePrePublish    = "pre-publish"
+	phasePublish       = "publish"
+	phaseCleanAll      = "clean-all"
 )
 
-func newBuildPack(action string, f *flag.FlagSet) *BuildPack {
+func newBuildPack(action string, f *flag.FlagSet) (*BuildPack, error) {
+
+	root, err := filepath.Abs(".")
+	if err != nil {
+		return nil, err
+	}
+
 	return &BuildPack{
 		Action:        action,
 		Flag:          f,
-		Phase:         BUILDPACK_PHASE_INIT,
+		Root:          root,
+		Phase:         phaseInit,
 		Config:        BuildPackConfig{},
 		RuntimeParams: BuildPackRuntimeParams{},
-	}
+	}, nil
 }
 
 func (b *BuildPack) Error(msg string, err error) *BuildError {
@@ -70,7 +82,7 @@ func (b *BuildPack) Handle() *BuildError {
 	if !ok {
 		return b.Error("action not found", nil)
 	}
-	b.Phase = BUILDPACK_PHASE_LOADCONFIG
+	b.Phase = phaseLoadConfig
 	return actionHandler(b)
 }
 
@@ -144,7 +156,7 @@ func (bp *BuildPack) InitRuntimeParams(argument *ActionArguments) error {
 	}
 
 	sort.Slice(runtimeParams.Modules, func(i, j int) bool {
-		return runtimeParams.Modules[i].Module.Position < runtimeParams.Modules[j].Module.Position
+		return runtimeParams.Modules[i].Position < runtimeParams.Modules[j].Position
 	})
 	//end parsing and sorting modules
 	bp.RuntimeParams = runtimeParams

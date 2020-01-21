@@ -18,11 +18,13 @@ type BuildPackConfig struct {
 }
 
 type BuildPackModuleConfig struct {
-	Position int    `yaml:"position"`
-	Name     string `yaml:"name"`
-	Path     string `yaml:"path"`
-	Build    string `yaml:"build"`
-	Publish  string `yaml:"publish"`
+	Position    int    `yaml:"position,omitempty"`
+	Name        string `yaml:"name,omitempty"`
+	Path        string `yaml:"path,omitempty"`
+	Build       string `yaml:"build,omitempty"`
+	Publish     string `yaml:"publish,omitempty"`
+	Label       string `yaml:"label,omitempty"`
+	BuildNumber int    `yaml:"build-number,omitempty"`
 }
 
 type GitConfig struct {
@@ -59,7 +61,7 @@ func readFromConfigFile() (buildPackConfig BuildPackConfig, err error) {
 	if err != nil {
 		return
 	}
-	configFile := filepath.Join(pwd, BUILPACK_FILE)
+	configFile := filepath.Join(pwd, fileBuildPackConfig)
 	_, err = os.Stat(configFile)
 	if os.IsNotExist(err) {
 		err = errors.New("configuration file not found")

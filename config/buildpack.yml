@@ -1,0 +1,8 @@
+version: 0.1.0
+
+modules:
+  - position: 0
+    name: name
+    path: path
+    build: mvn/make
+    publish: jfrog/docker

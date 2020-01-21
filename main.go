@@ -23,6 +23,10 @@ options:
 	--container run build command in container env
 */
 
+func buildInfo(bp BuildPack, msg string) {
+	fmt.Println(fmt.Sprintf("[BUILDPACK] [%s:%s] %s", bp.Action, bp.Phase, msg))
+}
+
 func buildError(err BuildError) {
 	if err.Err != nil {
 		fmt.Println(fmt.Sprintf("[BUILDPACK] [%s:%s] ERROR:", err.Action, err.Phase), err.Err)
@@ -35,7 +39,6 @@ func buildError(err BuildError) {
 }
 
 func main() {
-
 	if len(os.Args) <= 1 {
 		f := flag.NewFlagSet("buildpack [init/snapshot/release] [OPTIONS]", flag.ContinueOnError)
 		f.Usage()
@@ -47,14 +50,22 @@ func main() {
 	if err != nil {
 		buildError(BuildError{
 			Action:  action,
-			Phase:   BUILDPACK_PHASE_INIT,
+			Phase:   phaseInit,
 			Err:     err,
 			Message: "",
 		})
 	}
 
 	f := flag.NewFlagSet(fmt.Sprintf("buildpack %s [OPTIONS]", action), flag.ContinueOnError)
-	buildPack := newBuildPack(action, f)
+	buildPack, err := newBuildPack(action, f)
+	if err != nil {
+		buildError(BuildError{
+			Action:  action,
+			Phase:   phaseInit,
+			Err:     err,
+			Message: "",
+		})
+	}
 	result := buildPack.Handle()
 	if result != nil {
 		buildError(*result)

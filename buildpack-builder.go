@@ -6,9 +6,12 @@ import (
 )
 
 type Builder interface {
-	LoadConfig() error
+	LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp BuildPack) error
+	WriteConfig(name, path string, opt BuildPackModuleConfig) error
 	Clean() error
 	Build() error
+
+	SetBuilderPack(bp BuildPack)
 }
 
 var builders map[string]Builder
@@ -30,7 +33,7 @@ func builderOptions() string {
 func getBuilder(builderName string) (Builder, error) {
 	builder, ok := builders[builderName]
 	if !ok {
-		return nil, errors.New("can not find builder by name " + builderName)
+		return nil, errors.New("can not find builder by name: " + builderName)
 	}
 	return builder, nil
 }

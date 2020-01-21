@@ -9,7 +9,7 @@ var publishers map[string]Publisher
 
 func init() {
 	publishers = make(map[string]Publisher)
-	publishers["jfrog"] = nil
+	publishers["jfrog"] = &PublisherJfrog{}
 	publishers["docker"] = nil
 }
 

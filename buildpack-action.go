@@ -15,18 +15,18 @@ import (
 var actions map[string]ActionHandler
 
 const (
-	ACTION_INIT     = "init"
-	ACTION_SNAPSHOT = "snapshot"
-	ACTION_RELEASE  = "release"
-	ACTION_MODULE   = "module"
+	actionInit     = "init"
+	actionSnapshot = "snapshot"
+	actionRelease  = "release"
+	actionModule   = "module"
 )
 
 func init() {
 	actions = make(map[string]ActionHandler)
-	actions[ACTION_INIT] = ActionInitHandler
-	actions[ACTION_MODULE] = ActionModuleHandler
-	actions[ACTION_SNAPSHOT] = ActionSnapshotHandler
-	actions[ACTION_RELEASE] = ActionReleaseHandler
+	actions[actionInit] = ActionInitHandler
+	actions[actionModule] = ActionModuleHandler
+	actions[actionSnapshot] = ActionSnapshotHandler
+	actions[actionRelease] = ActionReleaseHandler
 }
 
 func verifyAction(action string) error {
@@ -93,7 +93,6 @@ func ActionModuleHandler(bp *BuildPack) *BuildError {
 }
 
 func ActionInitHandler(bp *BuildPack) *BuildError {
-
 	actionArgs := newActionArguments(bp.Flag)
 	err := actionArgs.readVersion().
 		readModules().
@@ -108,11 +107,11 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 		return bp.Error("", errors.New("version number is empty"))
 	}
 
-	buidlPackConfig := &BuildPackConfig{
+	buildPackConfig := &BuildPackConfig{
 		Version: strings.TrimSpace(versionString),
 	}
 
-	bp.Phase = BUILDPACK_PHASE_ACTIONINT_BUILDCONFIG
+	bp.Phase = phaseBuildConfig
 	modules := make([]BuildPackModuleConfig, 0)
 
 	// Add new module
@@ -163,6 +162,29 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 		if len(m.Publish) == 0 {
 			return bp.Error("Please specify publisher", nil)
 		}
+
+		m.Label, err = readFromTerminal(reader, "Module label [SNAPSHOT]: ")
+		if err != nil {
+			return bp.Error("", err)
+		}
+
+		if len(m.Label) == 0 {
+			m.Label = "SNAPSHOT"
+		}
+
+		text, err = readFromTerminal(reader, "Module build number [0]: ")
+		if err != nil {
+			return bp.Error("", err)
+		}
+		if len(text) == 0 {
+			m.BuildNumber = 0
+		} else {
+			m.BuildNumber, err = strconv.Atoi(text)
+			if err != nil {
+				return bp.Error("", err)
+			}
+		}
+
 		modules = append(modules, m)
 	}
 
@@ -174,15 +196,28 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 		return modules[i].Position < modules[j].Position
 	})
 
-	buidlPackConfig.Modules = modules
+	buildPackConfig.Modules = modules
 
-	bp.Phase = BUILDPACK_PHASE_ACTIONINT_SAVECONFIG
-	bytes, err := yaml.Marshal(buidlPackConfig)
+	for _, module := range buildPackConfig.Modules {
+		builder, err := getBuilder(module.Build)
+		if err != nil {
+			return bp.Error("", err)
+		}
+
+		builder.SetBuilderPack(*bp)
+		err = builder.WriteConfig(module.Name, module.Path, module)
+		if err != nil {
+			return bp.Error("", err)
+		}
+	}
+
+	bp.Phase = phaseSaveConfig
+	bytes, err := yaml.Marshal(buildPackConfig)
 	if err != nil {
 		return bp.Error("", errors.New("can not marshal build pack config to yaml"))
 	}
 
-	err = ioutil.WriteFile(BUILPACK_FILE, bytes, 0644)
+	err = ioutil.WriteFile(fileBuildPackConfig, bytes, 0644)
 	if err != nil {
 		return bp.Error("", err)
 	}
@@ -190,57 +225,92 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 }
 
 func buildAndPublish(bp *BuildPack) *BuildError {
+
+	_builders := make(map[string]Builder)
+	_publishers := make(map[string]Publisher)
+
+	bp.Phase = phaseInitBuilder
 	for _, rtModule := range bp.RuntimeParams.Modules {
-		builder, err := getBuilder(rtModule.Module.Build)
+		builder, err := getBuilder(rtModule.Build)
 		if err != nil {
 			return bp.Error("", err)
 		}
-		err = builder.LoadConfig()
+		err = builder.LoadConfig(rtModule, *bp)
 		if err != nil {
 			return bp.Error("", err)
 		}
-		bp.Phase = BUILDPACK_PHASE_PREBUILD
-		err = builder.Clean()
+		buildInfo(*bp, fmt.Sprintf("init builder %s for module %s", rtModule.Build, rtModule.Name))
+		_builders[rtModule.Name] = builder
+	}
+
+	bp.Phase = phaseInitPublisher
+	for _, rtModule := range bp.RuntimeParams.Modules {
+		publisher, err := getPublisher(rtModule.Publish)
+		if err != nil {
+			return bp.Error("", err)
+		}
+		err = publisher.LoadConfig(rtModule, *bp)
+		if err != nil {
+			return bp.Error("", err)
+		}
+		buildInfo(*bp, fmt.Sprintf("init publisher %s for module %s", rtModule.Publish, rtModule.Name))
+		_publishers[rtModule.Name] = publisher
+	}
+
+	// clean all before build & publish
+	bp.Phase = phaseCleanAll
+	for _, rtModule := range bp.RuntimeParams.Modules {
+		builder, _ := _builders[rtModule.Name]
+		publisher, _ := _publishers[rtModule.Name]
+		err := builder.Clean()
+		if err != nil {
+			return bp.Error("", err)
+		}
+		err = publisher.Clean()
+		if err != nil {
+			return bp.Error("", err)
+		}
+	}
+
+	for _, rtModule := range bp.RuntimeParams.Modules {
+		buildInfo(*bp, fmt.Sprintf("build module %s", rtModule.Name))
+		builder := _builders[rtModule.Name]
+		bp.Phase = phasePreBuild
+		err := builder.Clean()
 		if err != nil {
 			return bp.Error("", err)
 		}
 
-		bp.Phase = BUILDPACK_PHASE_BUILD
+		bp.Phase = phaseBuild
 		err = builder.Build()
 		if err != nil {
 			return bp.Error("", err)
 		}
+	}
+
+	for _, rtModule := range bp.RuntimeParams.Modules {
+		buildInfo(*bp, fmt.Sprintf("publish module %s", rtModule.Name))
 		// publish build
-		bp.Phase = BUILDPACK_PHASE_PREPUB
-		publisher, err := getPublisher(rtModule.Module.Publish)
+		bp.Phase = phasePrePublish
+		publisher := _publishers[rtModule.Name]
+		err := publisher.Pre()
 		if err != nil {
 			return bp.Error("", err)
 		}
-		err = publisher.LoadConfig()
-		if err != nil {
-			return bp.Error("", err)
-		}
-		err = publisher.Pre()
-		if err != nil {
-			return bp.Error("", err)
-		}
-		bp.Phase = BUILDPACK_PHASE_PUBLISH
+		bp.Phase = phasePublish
 		err = publisher.Publish()
 		if err != nil {
 			return bp.Error("", err)
 		}
-		// clean publish data
-		bp.Phase = BUILDPACK_PHASE_POSTPUB
-		err = publisher.Post()
-		if err != nil {
-			return bp.Error("", err)
-		}
-		// clean build data
-		bp.Phase = BUILDPACK_PHASE_CLEAN
-		err = builder.Clean()
-		if err != nil {
-			return bp.Error("", err)
-		}
+	}
+
+	bp.Phase = phaseCleanAll
+	for _, rtModule := range bp.RuntimeParams.Modules {
+		buildInfo(*bp, fmt.Sprintf("clean module %s", rtModule.Name))
+		builder, _ := _builders[rtModule.Name]
+		publisher, _ := _publishers[rtModule.Name]
+		_ = builder.Clean()
+		_ = publisher.Clean()
 	}
 	return nil
 }

@@ -12,12 +12,12 @@ type BuildPackRuntimeParams struct {
 }
 
 type BuildPackModuleRuntimeParams struct {
-	Module BuildPackModuleConfig
+	BuildPackModuleConfig
 }
 
 func newBuildPackModuleRuntime(mc BuildPackModuleConfig) (rs BuildPackModuleRuntimeParams, err error) {
 	rs = BuildPackModuleRuntimeParams{
-		Module: mc,
+		mc,
 	}
 	return
 }

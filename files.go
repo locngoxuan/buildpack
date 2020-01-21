@@ -39,6 +39,18 @@ func (bp *BuildPack) getModuleWorkingDir(modulePath string) string {
 	return p
 }
 
+func (bp *BuildPack) buildPathOnRoot(args ...string) string {
+	parts := []string{
+		bp.Root,
+	}
+	parts = append(parts, args...)
+	p, err := filepath.Abs(filepath.Join(parts...))
+	if err != nil {
+		buildError(*bp.Error("", err))
+	}
+	return p
+}
+
 func copyFile(src, dst string) error {
 	sourceFileStat, err := os.Stat(src)
 	if err != nil {

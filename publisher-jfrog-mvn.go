@@ -18,6 +18,11 @@ type PublisherJfrog struct {
 }
 
 type PublishJfrogOption struct {
+	GroupId    string `yaml:"group-id"`
+	ArtifactId string
+	Classifier string
+	Version    string
+	Label      string
 }
 
 type JfrogUploadParam struct {
@@ -38,7 +43,12 @@ func (p *PublisherJfrog) LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp Build
 }
 func (p *PublisherJfrog) Pre() error {
 	for _, rtModule := range p.RuntimeParams.Modules {
-		
+		pomSrc := p.BuildPack.buildPathOnRoot(rtModule.Path, "target", pomFlattened)
+		pomPublished := p.BuildPack.buildPathOnRoot(publishDir, fmt.Sprintf(".pom"))
+		err := copyFile(pomSrc, pomPublished)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

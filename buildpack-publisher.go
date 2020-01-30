@@ -5,7 +5,9 @@ import (
 )
 
 type Publisher interface {
+	WriteConfig(name, path string, opt BuildPackModuleConfig) error
 	SetBuildPack(bp BuildPack)
+	Verify() error
 	LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp BuildPack) error
 	Pre() error
 	Publish() error
@@ -13,6 +15,14 @@ type Publisher interface {
 }
 
 type EmptyPublisher struct {
+}
+
+func (p *EmptyPublisher) Verify() error {
+	return nil
+}
+
+func (p *EmptyPublisher) WriteConfig(name, path string, opt BuildPackModuleConfig) error {
+	return nil
 }
 
 func (p *EmptyPublisher) SetBuildPack(bp BuildPack) {
@@ -40,7 +50,7 @@ const (
 
 func init() {
 	publishers = make(map[string]Publisher)
-	publishers[publisherJfrogMvn] = &PublisherJfrog{}
+	publishers[publisherJfrogMvn] = &PublisherJfrogMvn{}
 }
 
 func publisherOptions() string {
@@ -54,7 +64,7 @@ func publisherOptions() string {
 func getPublisher(builderName string) Publisher {
 	publisher, ok := publishers[builderName]
 	if !ok {
-		return nil
+		return &EmptyPublisher{}
 	}
 	return publisher
 }

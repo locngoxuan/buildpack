@@ -43,6 +43,10 @@ type BuilderMvnOption struct {
 
 type RunMvn func(arg ...string) error
 
+func (b *BuilderMvn) Verify() error {
+	return nil
+}
+
 func (b *BuilderMvn) SetBuilderPack(bp BuildPack) {
 	b.BuildPack = bp
 }

@@ -8,6 +8,7 @@ import (
 type Builder interface {
 	LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp BuildPack) error
 	WriteConfig(name, path string, opt BuildPackModuleConfig) error
+	Verify() error
 	Clean() error
 	Build() error
 

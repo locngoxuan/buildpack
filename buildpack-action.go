@@ -19,6 +19,7 @@ const (
 	actionSnapshot = "snapshot"
 	actionRelease  = "release"
 	actionModule   = "module"
+	actionVerify   = "verify"
 )
 
 func init() {
@@ -27,6 +28,7 @@ func init() {
 	actions[actionModule] = ActionModuleHandler
 	actions[actionSnapshot] = ActionSnapshotHandler
 	actions[actionRelease] = ActionReleaseHandler
+	actions[actionVerify] = ActionVerifyHandler
 }
 
 func verifyAction(action string) error {
@@ -220,6 +222,52 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 	return nil
 }
 
+func ActionVerifyHandler(bp *BuildPack) *BuildError {
+	actionArgs := newActionArguments(bp.Flag)
+	err := actionArgs.readModules().parse()
+
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	err = bp.InitRuntimeParams(actionArgs)
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	defer endBuildPack(*bp)
+
+	for _, rtModule := range bp.RuntimeParams.Modules {
+		builder, err := getBuilder(rtModule.Build)
+		if err != nil {
+			return bp.Error("", err)
+		}
+		err = builder.LoadConfig(rtModule, *bp)
+		if err != nil {
+			return bp.Error("", err)
+		}
+		buildInfo(*bp, fmt.Sprintf("verify builder %s for module %s", rtModule.Build, rtModule.Name))
+		err = builder.Verify()
+		if err != nil {
+			return bp.Error("", err)
+		}
+	}
+
+	for _, rtModule := range bp.RuntimeParams.Modules {
+		publisher := getPublisher(rtModule.Publish)
+		err := publisher.LoadConfig(rtModule, *bp)
+		if err != nil {
+			return bp.Error("", err)
+		}
+		buildInfo(*bp, fmt.Sprintf("verify publisher %s for module %s", rtModule.Publish, rtModule.Name))
+		err = publisher.Verify()
+		if err != nil {
+			return bp.Error("", err)
+		}
+	}
+	return nil
+}
+
 func buildAndPublish(bp *BuildPack) *BuildError {
 
 	_builders := make(map[string]Builder)
@@ -242,9 +290,6 @@ func buildAndPublish(bp *BuildPack) *BuildError {
 	bp.Phase = phaseInitPublisher
 	for _, rtModule := range bp.RuntimeParams.Modules {
 		publisher := getPublisher(rtModule.Publish)
-		if publisher == nil {
-			publisher = &EmptyPublisher{}
-		}
 		err := publisher.LoadConfig(rtModule, *bp)
 		if err != nil {
 			return bp.Error("", err)

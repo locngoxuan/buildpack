@@ -11,18 +11,18 @@ const (
 	publishDir = "publishes"
 )
 
-type PublisherJfrog struct {
+type PublisherJfrogMvn struct {
 	BuildSnapshot bool
 	BuildPack
 	PublishJfrogOption
 }
 
 type PublishJfrogOption struct {
-	GroupId    string `yaml:"group-id"`
-	ArtifactId string
-	Classifier string
-	Version    string
-	Label      string
+	GroupId    string `yaml:"group,omitempty"`
+	ArtifactId string `yaml:"artifact,omitempty"`
+	Classifier string `yaml:"classifier,omitempty"`
+	Version    string `yaml:"version,omitempty"`
+	Label      string `yaml:"label,omitempty"`
 }
 
 type JfrogUploadParam struct {
@@ -34,14 +34,22 @@ type JfrogUploadParam struct {
 	Source string
 }
 
-func (p *PublisherJfrog) SetBuildPack(bp BuildPack) {
+func (p *PublisherJfrogMvn) WriteConfig(name, path string, opt BuildPackModuleConfig) error {
+	return nil
+}
+
+func (p *PublishJfrogOption) Verify() error {
+	return nil
+}
+
+func (p *PublisherJfrogMvn) SetBuildPack(bp BuildPack) {
 	p.BuildPack = bp
 }
-func (p *PublisherJfrog) LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp BuildPack) error {
+func (p *PublisherJfrogMvn) LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp BuildPack) error {
 	p.BuildPack = bp
 	return nil
 }
-func (p *PublisherJfrog) Pre() error {
+func (p *PublisherJfrogMvn) Pre() error {
 	for _, rtModule := range p.RuntimeParams.Modules {
 		pomSrc := p.BuildPack.buildPathOnRoot(rtModule.Path, "target", pomFlattened)
 		pomPublished := p.BuildPack.buildPathOnRoot(publishDir, fmt.Sprintf(".pom"))
@@ -52,14 +60,14 @@ func (p *PublisherJfrog) Pre() error {
 	}
 	return nil
 }
-func (p *PublisherJfrog) Publish() error {
+func (p *PublisherJfrogMvn) Publish() error {
 	return nil
 }
-func (p *PublisherJfrog) Clean() error {
+func (p *PublisherJfrogMvn) Clean() error {
 	return nil
 }
 
-func (p *PublisherJfrog) uploadFile(param JfrogUploadParam) error {
+func (p *PublisherJfrogMvn) uploadFile(param JfrogUploadParam) error {
 	destination := fmt.Sprintf("%s/%s/%s/%s", param.Url, param.Repository, param.ModulePath, param.FileName)
 	buildInfo(p.BuildPack, fmt.Sprintf("PUT %s to %s", param.Source, destination))
 	data, err := os.Open(param.Source)

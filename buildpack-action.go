@@ -131,9 +131,21 @@ func enterModuleInfo(reader *bufio.Reader, bp BuildPack) (*BuildPackModuleConfig
 		return nil, bp.Error("Please specify builder", nil)
 	}
 
+	_, err = getBuilder(m.Build)
+	if err != nil {
+		return nil, bp.Error("", err)
+	}
+
 	m.Publish, err = readFromTerminal(reader, fmt.Sprintf("Module publisher [%s]: ", publisherOptions()))
 	if err != nil {
 		return nil, bp.Error("", err)
+	}
+
+	if len(m.Publish) > 0 {
+		if !doesPublisherExist(m.Publish) {
+			return nil, bp.Error(fmt.Sprintf("Can not find any publisher with name %s", m.Publish), nil)
+		}
+
 	}
 
 	m.Label, err = readFromTerminal(reader, "Module label (default is SNAPSHOT): ")
@@ -338,7 +350,7 @@ func buildAndPublish(bp *BuildPack) *BuildError {
 		builder := _builders[rtModule.Name]
 		bp.Phase = phaseUnitTest
 		err = builder.UnitTest(_builderContexts[rtModule.Name])
-		if err != nil{
+		if err != nil {
 			return bp.Error("", err)
 		}
 		bp.Phase = phaseBuild

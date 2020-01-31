@@ -1,5 +1,18 @@
 version: 0.1.0
 
+docker:
+  hosts:
+    - "unix:///var/run/docker.sock"
+    - "tcp://127.0.0.1:2375"
+
+artifactory:
+  url: ""
+  repository:
+    release: ""
+    snapshot: ""
+  username: ""
+  password: ""
+
 modules:
   - position: 0
     name: name

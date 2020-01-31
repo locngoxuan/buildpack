@@ -23,10 +23,10 @@ type PublishContext struct {
 	BuildPackModuleRuntimeParams
 }
 
-func newPublishContext(name, path string) PublishContext{
+func newPublishContext(name, path string) PublishContext {
 	return PublishContext{
-		Name: name,
-		Path: path,
+		Name:     name,
+		Path:     path,
 		metadata: make(map[string]interface{}),
 	}
 }
@@ -89,8 +89,13 @@ func publisherOptions() string {
 	return strings.Join(names, "/")
 }
 
-func getPublisher(builderName string) Publisher {
-	publisher, ok := publishers[builderName]
+func doesPublisherExist(publisherName string) bool {
+	_, ok := publishers[publisherName]
+	return ok
+}
+
+func getPublisher(publisherName string) Publisher {
+	publisher, ok := publishers[publisherName]
 	if !ok {
 		return &EmptyPublisher{}
 	}

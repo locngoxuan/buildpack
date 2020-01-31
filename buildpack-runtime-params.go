@@ -55,11 +55,11 @@ type BuildPackModuleRuntimeParams struct {
 
 type VersionRuntimeParams struct {
 	Version
-	AddLabel bool
+	Release bool
 }
 
 func (vrt *VersionRuntimeParams) version(label string, buildNumber int) string {
-	if vrt.AddLabel {
+	if vrt.Release {
 		return vrt.withoutLabel()
 	}
 	return vrt.withLabel(label)

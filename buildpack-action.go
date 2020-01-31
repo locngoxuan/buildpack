@@ -300,6 +300,8 @@ func buildAndPublish(bp *BuildPack) *BuildError {
 	bp.Phase = phaseInitPublisher
 	//init publish directory
 	publishDirectory := bp.getPublishDirectory()
+	//remove before create new one
+	_ = os.RemoveAll(publishDirectory)
 	err := os.MkdirAll(publishDirectory, 0777)
 	if err != nil {
 		return bp.Error("", err)
@@ -334,6 +336,11 @@ func buildAndPublish(bp *BuildPack) *BuildError {
 	for _, rtModule := range bp.RuntimeParams.Modules {
 		buildInfo(*bp, fmt.Sprintf("build module %s", rtModule.Name))
 		builder := _builders[rtModule.Name]
+		bp.Phase = phaseUnitTest
+		err = builder.UnitTest(_builderContexts[rtModule.Name])
+		if err != nil{
+			return bp.Error("", err)
+		}
 		bp.Phase = phaseBuild
 		err = builder.Build(_builderContexts[rtModule.Name])
 		if err != nil {
@@ -380,7 +387,7 @@ func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 		return bp.Error("", err)
 	}
 
-	err = bp.InitRuntimeParams(true, args)
+	err = bp.InitRuntimeParams(false, args)
 	if err != nil {
 		return bp.Error("", err)
 	}
@@ -397,7 +404,7 @@ func ActionReleaseHandler(bp *BuildPack) *BuildError {
 		return bp.Error("", err)
 	}
 
-	err = bp.InitRuntimeParams(false, args)
+	err = bp.InitRuntimeParams(true, args)
 	if err != nil {
 		return bp.Error("", err)
 	}

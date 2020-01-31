@@ -25,6 +25,7 @@ func initCommanActionArguments(f *flag.FlagSet) (*ActionArguments, error) {
 		readContainer().
 		readSkipClean().
 		readSkipPublish().
+		readSkipTest().
 		parse()
 	if err != nil {
 		return nil, err
@@ -32,15 +33,21 @@ func initCommanActionArguments(f *flag.FlagSet) (*ActionArguments, error) {
 	return args, nil
 }
 
+func (a *ActionArguments) readSkipTest() *ActionArguments{
+	s := a.Flag.Bool("skip-ut", false, "skip unit test while running build")
+	a.Values["skip-ut"] = s
+	return a
+}
+
 func (a *ActionArguments) readSkipPublish() *ActionArguments {
-	s := a.Flag.Bool("--skip-publish", false, "skip publish to artifactory")
-	a.Values["--skip-publish"] = s
+	s := a.Flag.Bool("skip-publish", false, "skip publish to artifactory")
+	a.Values["skip-publish"] = s
 	return a
 }
 
 func (a *ActionArguments) readSkipClean() *ActionArguments {
-	s := a.Flag.Bool("--skip-clean", false, "skip cleaning after build and publish")
-	a.Values["--skip-clean"] = s
+	s := a.Flag.Bool("skip-clean", false, "skip cleaning after build and publish")
+	a.Values["skip-clean"] = s
 	return a
 }
 
@@ -95,7 +102,7 @@ func (a *ActionArguments) container() bool {
 }
 
 func (a *ActionArguments) skipClean() bool {
-	s, ok := a.Values["--skip-clean"]
+	s, ok := a.Values["skip-clean"]
 	if !ok {
 		return false
 	}
@@ -103,7 +110,15 @@ func (a *ActionArguments) skipClean() bool {
 }
 
 func (a *ActionArguments) skipPublish() bool {
-	s, ok := a.Values["--skip-publish"]
+	s, ok := a.Values["skip-publish"]
+	if !ok {
+		return false
+	}
+	return *(s.(*bool))
+}
+
+func (a *ActionArguments) skipUnitTest() bool {
+	s, ok := a.Values["skip-ut"]
 	if !ok {
 		return false
 	}

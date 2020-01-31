@@ -37,6 +37,7 @@ const (
 
 	phaseInitBuilder   = "init-builder"
 	phaseInitPublisher = "init-publisher"
+	phaseUnitTest      = "unit-test"
 	phaseBuild         = "build"
 	phasePrePublish    = "pre-publish"
 	phasePublish       = "publish"
@@ -97,7 +98,7 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 	runtimeParams := initRuntimeParams(bp.Config)
 	runtimeParams.VersionRuntimeParams = VersionRuntimeParams{
 		*v,
-		!release,
+		release,
 	}
 	runtimeParams.UseContainerBuild = argument.container()
 	runtimeParams.Modules = make([]BuildPackModuleRuntimeParams, 0)

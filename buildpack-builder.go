@@ -11,6 +11,7 @@ type Builder interface {
 
 	Verify(ctx BuildContext) error
 	Clean(ctx BuildContext) error
+	UnitTest(ctx BuildContext) error
 	Build(ctx BuildContext) error
 }
 
@@ -21,6 +22,15 @@ type BuildContext struct {
 	metadata   map[string]interface{}
 	BuildPack
 	BuildPackModuleRuntimeParams
+}
+
+func newBuildContext(workingDir, name, path string) BuildContext {
+	return BuildContext{
+		WorkingDir: workingDir,
+		Name:       name,
+		Path:       path,
+		metadata: make(map[string]interface{}),
+	}
 }
 
 func (c *BuildContext) Add(key string, value interface{}) {

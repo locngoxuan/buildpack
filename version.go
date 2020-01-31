@@ -10,26 +10,26 @@ import (
 type Version struct {
 	Major int
 	Minor int
-	Path  int
+	Patch int
 }
 
 func (v *Version) withoutLabel() string {
-	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Path)
+	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
 }
 
 func (v *Version) withLabel(label string) string {
-	return fmt.Sprintf("%d.%d.%d-%s", v.Major, v.Minor, v.Path, label)
+	return fmt.Sprintf("%d.%d.%d-%s", v.Major, v.Minor, v.Patch, label)
 }
 
 func (v *Version) withLabelAndBuildNumber(label string, buildNumber int) string {
-	return fmt.Sprintf("%d.%d.%d-%s.%d", v.Major, v.Minor, v.Path, label, buildNumber)
+	return fmt.Sprintf("%d.%d.%d-%s.%d", v.Major, v.Minor, v.Patch, label, buildNumber)
 }
 
-func (v *Version) nextPath() *Version {
+func (v *Version) nextPatch() *Version {
 	return &Version{
 		Major: v.Major,
 		Minor: v.Minor,
-		Path:  v.Path + 1,
+		Patch: v.Patch + 1,
 	}
 }
 
@@ -37,7 +37,7 @@ func (v *Version) nextMinorVersion() *Version {
 	return &Version{
 		Major: v.Major,
 		Minor: v.Minor + 1,
-		Path:  0,
+		Patch: 0,
 	}
 }
 
@@ -45,7 +45,7 @@ func (v *Version) nextMajorVersion() *Version {
 	return &Version{
 		Major: v.Major + 1,
 		Minor: 0,
-		Path:  0,
+		Patch: 0,
 	}
 }
 
@@ -70,7 +70,7 @@ func fromString(version string) (*Version, error) {
 	if err != nil {
 		return nil, errors.New("minor is not a number")
 	}
-	v.Path, err = strconv.Atoi(numbers[2])
+	v.Patch, err = strconv.Atoi(numbers[2])
 	if err != nil {
 		return nil, errors.New("path is not a number")
 	}

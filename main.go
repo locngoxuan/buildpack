@@ -40,7 +40,7 @@ func buildError(err BuildError) {
 
 func main() {
 	if len(os.Args) <= 1 {
-		f := flag.NewFlagSet("buildpack [init/snapshot/release] [OPTIONS]", flag.ContinueOnError)
+		f := flag.NewFlagSet("buildpack [init/verify/snapshot/release] [OPTIONS]", flag.ContinueOnError)
 		f.Usage()
 		return
 	}

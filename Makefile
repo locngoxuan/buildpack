@@ -4,16 +4,16 @@ BUILD_NAME=buildpack
 INSTALL_DIR=/usr/local/bin
 
 build:
-	env CGO_ENABLED=0 go build -ldflags="-s -w" -o ./bin/${BUILD_NAME} -a -v .
+	env CGO_ENABLED=0 go build -ldflags="-s -w" -o ./bin/${BUILD_NAME} -a .
 
 linux:
-	env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o ./bin/${BUILD_NAME}-linux -a -v .
+	env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o ./bin/${BUILD_NAME}-linux -a .
 
 windows:
-	env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o ./bin/${BUILD_NAME}-wins.exe -a -v .
+	env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o ./bin/${BUILD_NAME}-wins.exe -a .
 
 macos:
-	env GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o ./bin/${BUILD_NAME}-darwin -a -v .
+	env GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o ./bin/${BUILD_NAME}-darwin -a .
 
 compress:
 	upx --brute ./bin/${BUILD_NAME}

@@ -23,6 +23,14 @@ type PublishContext struct {
 	BuildPackModuleRuntimeParams
 }
 
+func newPublishContext(name, path string) PublishContext{
+	return PublishContext{
+		Name: name,
+		Path: path,
+		metadata: make(map[string]interface{}),
+	}
+}
+
 func (c *PublishContext) Add(key string, value interface{}) {
 	c.metadata[key] = value
 }
@@ -70,7 +78,7 @@ const (
 
 func init() {
 	publishers = make(map[string]Publisher)
-	publishers[publisherJfrogMvn] = &PublisherJfrogMvn{}
+	publishers[publisherJfrogMvn] = &PublisherJfrogMVN{}
 }
 
 func publisherOptions() string {

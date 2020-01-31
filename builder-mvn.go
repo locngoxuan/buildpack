@@ -60,12 +60,11 @@ func (b *BuilderMvn) WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error 
 }
 
 func (b *BuilderMvn) CreateContext(bp BuildPack, rtOpt BuildPackModuleRuntimeParams) (BuildContext, error) {
+	ctx := newBuildContext(bp.getModuleWorkingDir(rtOpt.Path), rtOpt.Name, rtOpt.Path)
 	opt, err := readMvnBuildConfig(bp.getBuilderConfigPath(rtOpt.Path))
-	ctx := BuildContext{}
 	if err != nil {
 		return ctx, err
 	}
-	ctx.WorkingDir = bp.getModuleWorkingDir(rtOpt.Path)
 	b.BuilderMvnOption = opt
 	if len(strings.TrimSpace(b.M2)) == 0 {
 		b.M2 = filepath.Join(os.Getenv("HOME"), ".m2")
@@ -77,10 +76,7 @@ func (b *BuilderMvn) CreateContext(bp BuildPack, rtOpt BuildPackModuleRuntimePar
 		b.RunFnc = b.runMvnContainer
 	}
 
-	ctx.Name = rtOpt.Name
-	ctx.Path = rtOpt.Path
 	ctx.Label = labelSnapshot
-	ctx.BuildPackModuleRuntimeParams = rtOpt
 	v := bp.RuntimeParams.VersionRuntimeParams.version(rtOpt.Label, rtOpt.BuildNumber)
 	b.BuildOptions = append(b.BuildOptions, fmt.Sprintf("-Drevision=%s", v))
 	return ctx, nil
@@ -93,11 +89,18 @@ func (b *BuilderMvn) Clean(ctx BuildContext) error {
 	return b.RunFnc(ctx, arg...)
 }
 
+func (b *BuilderMvn) UnitTest(ctx BuildContext) error {
+	arg := make([]string, 0)
+	arg = append(arg, "test")
+	arg = append(arg, b.BuildOptions...)
+	return b.RunFnc(ctx, arg...)
+}
+
 func (b *BuilderMvn) Build(ctx BuildContext) error {
 	arg := make([]string, 0)
-	arg = append(arg, "install")
+	arg = append(arg, "install", "-DskipTests")
 	//only for mvn build: add label means build SNAPSHOT
-	if ctx.RuntimeParams.AddLabel {
+	if !ctx.RuntimeParams.Release {
 		arg = append(arg, "-U")
 	}
 	arg = append(arg, b.BuildOptions...)

@@ -6,13 +6,33 @@ import (
 )
 
 type Builder interface {
-	LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp BuildPack) error
-	WriteConfig(name, path string, opt BuildPackModuleConfig) error
-	Verify() error
-	Clean() error
-	Build() error
+	CreateContext(bp BuildPack, opt BuildPackModuleRuntimeParams) (BuildContext, error)
+	WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error
 
-	SetBuilderPack(bp BuildPack)
+	Verify(ctx BuildContext) error
+	Clean(ctx BuildContext) error
+	Build(ctx BuildContext) error
+}
+
+type BuildContext struct {
+	WorkingDir string
+	Name       string
+	Path       string
+	metadata   map[string]interface{}
+	BuildPack
+	BuildPackModuleRuntimeParams
+}
+
+func (c *BuildContext) Add(key string, value interface{}) {
+	c.metadata[key] = value
+}
+
+func (c *BuildContext) Get(key string) (interface{}, error) {
+	v, ok := c.metadata[key]
+	if !ok {
+		return nil, errors.New("not found metadata by key " + key)
+	}
+	return v, nil
 }
 
 var builders map[string]Builder

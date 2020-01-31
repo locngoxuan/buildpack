@@ -11,19 +11,13 @@ const (
 	dockerDefaultHost = "unix:///var/run/docker.sock"
 )
 
-var containerIDs map[string]struct{}
-
-func removeContainerAtEnd(id string) {
-	containerIDs[id] = struct{}{}
-}
-
 func removeAllContainer(pack BuildPack) {
 	ctx := context.Background()
 	cli, err := newDockerClient(ctx, pack.RuntimeParams.DockerConfig)
 	if err != nil {
 		return
 	}
-	for id, _ := range containerIDs {
+	for _, id := range pack.RuntimeParams.CreatedContainerIDs() {
 		_ = cli.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
 			Force: true,
 		})

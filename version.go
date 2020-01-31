@@ -13,22 +13,40 @@ type Version struct {
 	Path  int
 }
 
-func (v *Version) releaseVersion() string {
+func (v *Version) withoutLabel() string {
 	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Path)
 }
 
-func (v *Version) snapshotVersion() string {
-	return fmt.Sprintf("%d.%d.%d-SNAPSHOT", v.Major, v.Minor, v.Path)
+func (v *Version) withLabel(label string) string {
+	return fmt.Sprintf("%d.%d.%d-%s", v.Major, v.Minor, v.Path, label)
 }
 
-func (v *Version) nextVersion() *Version {
-	nv := &Version{
+func (v *Version) withLabelAndBuildNumber(label string, buildNumber int) string {
+	return fmt.Sprintf("%d.%d.%d-%s.%d", v.Major, v.Minor, v.Path, label, buildNumber)
+}
+
+func (v *Version) nextPath() *Version {
+	return &Version{
 		Major: v.Major,
 		Minor: v.Minor,
+		Path:  v.Path + 1,
 	}
+}
 
-	nv.Minor = nv.Minor + 1
-	return nv
+func (v *Version) nextMinorVersion() *Version {
+	return &Version{
+		Major: v.Major,
+		Minor: v.Minor + 1,
+		Path:  0,
+	}
+}
+
+func (v *Version) nextMajorVersion() *Version {
+	return &Version{
+		Major: v.Major + 1,
+		Minor: 0,
+		Path:  0,
+	}
 }
 
 func (v *Version) branchBase() string {

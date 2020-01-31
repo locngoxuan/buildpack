@@ -20,6 +20,7 @@ type BuildPack struct {
 	Action        string
 	Phase         string
 	Root          string
+	SkipClean     bool
 	Flag          *flag.FlagSet
 	Config        BuildPackConfig
 	RuntimeParams BuildPackRuntimeParams
@@ -36,7 +37,6 @@ const (
 
 	phaseInitBuilder   = "init-builder"
 	phaseInitPublisher = "init-publisher"
-	phasePreBuild      = "prebuild"
 	phaseBuild         = "build"
 	phasePrePublish    = "pre-publish"
 	phasePublish       = "publish"
@@ -77,7 +77,7 @@ func (b *BuildPack) Handle() *BuildError {
 	return actionHandler(b)
 }
 
-func (bp *BuildPack) InitRuntimeParams(argument *ActionArguments) error {
+func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) error {
 	var err error
 	bp.Config, err = readFromConfigFile()
 	if err != nil {
@@ -94,19 +94,11 @@ func (bp *BuildPack) InitRuntimeParams(argument *ActionArguments) error {
 		return err
 	}
 
-	runtimeParams := BuildPackRuntimeParams{
-		Version: *v,
-		ArtifactoryRuntimeParams: ArtifactoryRuntimeParams{
-			bp.Config.ArtifactoryConfig,
-		},
-		GitRuntimeParams: GitRuntimeParams{
-			bp.Config.GitConfig,
-		},
-		DockerRuntimeParams: DockerRuntimeParams{
-			bp.Config.DockerConfig,
-		},
+	runtimeParams := initRuntimeParams(bp.Config)
+	runtimeParams.VersionRuntimeParams = VersionRuntimeParams{
+		*v,
+		!release,
 	}
-
 	runtimeParams.UseContainerBuild = argument.container()
 	runtimeParams.Modules = make([]BuildPackModuleRuntimeParams, 0)
 	moduleNames := argument.modules()
@@ -147,5 +139,6 @@ func (bp *BuildPack) InitRuntimeParams(argument *ActionArguments) error {
 	})
 	//end parsing and sorting modules
 	bp.RuntimeParams = runtimeParams
+	bp.SkipClean = argument.skipClean()
 	return nil
 }

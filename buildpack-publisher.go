@@ -1,44 +1,64 @@
 package main
 
 import (
+	"errors"
 	"strings"
 )
 
 type Publisher interface {
-	WriteConfig(name, path string, opt BuildPackModuleConfig) error
-	SetBuildPack(bp BuildPack)
-	Verify() error
-	LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp BuildPack) error
-	Pre() error
-	Publish() error
-	Clean() error
+	WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error
+	CreateContext(bp BuildPack, rtOpt BuildPackModuleRuntimeParams) (PublishContext, error)
+
+	Verify(ctx PublishContext) error
+	Pre(ctx PublishContext) error
+	Publish(ctx PublishContext) error
+	Clean(ctx PublishContext) error
+}
+
+type PublishContext struct {
+	Name     string
+	Path     string
+	metadata map[string]interface{}
+	BuildPack
+	BuildPackModuleRuntimeParams
+}
+
+func (c *PublishContext) Add(key string, value interface{}) {
+	c.metadata[key] = value
+}
+
+func (c *PublishContext) Get(key string) (interface{}, error) {
+	v, ok := c.metadata[key]
+	if !ok {
+		return nil, errors.New("not found metadata by key " + key)
+	}
+	return v, nil
 }
 
 type EmptyPublisher struct {
 }
 
-func (p *EmptyPublisher) Verify() error {
+func (p *EmptyPublisher) WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error {
 	return nil
 }
 
-func (p *EmptyPublisher) WriteConfig(name, path string, opt BuildPackModuleConfig) error {
+func (p *EmptyPublisher) CreateContext(bp BuildPack, rtOpt BuildPackModuleRuntimeParams) (PublishContext, error) {
+	return PublishContext{}, nil
+}
+
+func (p *EmptyPublisher) Verify(ctx PublishContext) error {
 	return nil
 }
 
-func (p *EmptyPublisher) SetBuildPack(bp BuildPack) {
+func (p *EmptyPublisher) Pre(ctx PublishContext) error {
+	return nil
+}
 
+func (p *EmptyPublisher) Publish(ctx PublishContext) error {
+	return nil
 }
 
-func (p *EmptyPublisher) LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp BuildPack) error {
-	return nil
-}
-func (p *EmptyPublisher) Pre() error {
-	return nil
-}
-func (p *EmptyPublisher) Publish() error {
-	return nil
-}
-func (p *EmptyPublisher) Clean() error {
+func (p *EmptyPublisher) Clean(ctx PublishContext) error {
 	return nil
 }
 

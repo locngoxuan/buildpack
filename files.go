@@ -7,6 +7,14 @@ import (
 	"path/filepath"
 )
 
+func (bp *BuildPack) getPublishDirectory() string {
+	p, err := filepath.Abs(filepath.Join(bp.Root, publishDir))
+	if err != nil {
+		buildError(*bp.Error("", err))
+	}
+	return p
+}
+
 func (bp *BuildPack) getBuildPackConfigPath() string {
 	p, err := filepath.Abs(filepath.Join(bp.Root, fileBuildPackConfig))
 	if err != nil {

@@ -18,6 +18,32 @@ func newActionArguments(f *flag.FlagSet) *ActionArguments {
 	}
 }
 
+func initCommanActionArguments(f *flag.FlagSet) (*ActionArguments, error) {
+	args := newActionArguments(f)
+	err := args.readVersion().
+		readModules().
+		readContainer().
+		readSkipClean().
+		readSkipPublish().
+		parse()
+	if err != nil {
+		return nil, err
+	}
+	return args, nil
+}
+
+func (a *ActionArguments) readSkipPublish() *ActionArguments {
+	s := a.Flag.Bool("--skip-publish", false, "skip publish to artifactory")
+	a.Values["--skip-publish"] = s
+	return a
+}
+
+func (a *ActionArguments) readSkipClean() *ActionArguments {
+	s := a.Flag.Bool("--skip-clean", false, "skip cleaning after build and publish")
+	a.Values["--skip-clean"] = s
+	return a
+}
+
 func (a *ActionArguments) readVersion() *ActionArguments {
 	s := a.Flag.String("v", "", "version number")
 	a.Values["v"] = s
@@ -27,6 +53,12 @@ func (a *ActionArguments) readVersion() *ActionArguments {
 func (a *ActionArguments) readModules() *ActionArguments {
 	s := a.Flag.String("m", "", "modules")
 	a.Values["m"] = s
+	return a
+}
+
+func (a *ActionArguments) readContainer() *ActionArguments {
+	s := a.Flag.Bool("container", false, "using docker environment rather than host environment")
+	a.Values["container"] = s
 	return a
 }
 
@@ -54,14 +86,24 @@ func (a *ActionArguments) modules() []string {
 	return strings.Split(v, ",")
 }
 
-func (a *ActionArguments) readContainer() *ActionArguments {
-	s := a.Flag.Bool("container", false, "using docker environment rather than host environment")
-	a.Values["container"] = s
-	return a
-}
-
 func (a *ActionArguments) container() bool {
 	s, ok := a.Values["container"]
+	if !ok {
+		return false
+	}
+	return *(s.(*bool))
+}
+
+func (a *ActionArguments) skipClean() bool {
+	s, ok := a.Values["--skip-clean"]
+	if !ok {
+		return false
+	}
+	return *(s.(*bool))
+}
+
+func (a *ActionArguments) skipPublish() bool {
+	s, ok := a.Values["--skip-publish"]
 	if !ok {
 		return false
 	}

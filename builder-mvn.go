@@ -21,17 +21,11 @@ const (
 	pomFile           = "pom.xml"
 	pomFlattened      = ".flattened-pom.xml"
 	builderTypeMvn    = "mvn"
+	labelSnapshot     = "SNAPSHOT"
 )
 
 type BuilderMvn struct {
-	RunFnc        RunMvn
-	WorkingDir    string
-	BuildSnapshot bool
-	Version       string
-	Label         string
-	Name          string
-	Path          string
-	BuildPack
+	RunFnc RunMvn
 	BuilderMvnOption
 }
 
@@ -41,17 +35,13 @@ type BuilderMvnOption struct {
 	BuildOptions []string `yaml:"options,omitempty"`
 }
 
-type RunMvn func(arg ...string) error
+type RunMvn func(ctx BuildContext, arg ...string) error
 
-func (b *BuilderMvn) Verify() error {
+func (b *BuilderMvn) Verify(ctx BuildContext) error {
 	return nil
 }
 
-func (b *BuilderMvn) SetBuilderPack(bp BuildPack) {
-	b.BuildPack = bp
-}
-
-func (b *BuilderMvn) WriteConfig(name, path string, opt BuildPackModuleConfig) error {
+func (b *BuilderMvn) WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error {
 	mvnOpt := &BuilderMvnOption{
 		Type: builderTypeMvn,
 		M2:   "",
@@ -62,59 +52,56 @@ func (b *BuilderMvn) WriteConfig(name, path string, opt BuildPackModuleConfig) e
 		return errors.New("can not marshal builder config to yaml")
 	}
 
-	err = ioutil.WriteFile(b.BuildPack.getBuilderConfigPath(path), bytes, 0644)
+	err = ioutil.WriteFile(bp.getBuilderConfigPath(opt.Path), bytes, 0644)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func (b *BuilderMvn) LoadConfig(rtOpt BuildPackModuleRuntimeParams, bp BuildPack) error {
-	opt, err := readMvnBuildConfig(b.BuildPack.getBuilderConfigPath(rtOpt.Path))
+func (b *BuilderMvn) CreateContext(bp BuildPack, rtOpt BuildPackModuleRuntimeParams) (BuildContext, error) {
+	opt, err := readMvnBuildConfig(bp.getBuilderConfigPath(rtOpt.Path))
+	ctx := BuildContext{}
 	if err != nil {
-		return err
+		return ctx, err
 	}
-	b.WorkingDir = bp.getModuleWorkingDir(rtOpt.Path)
+	ctx.WorkingDir = bp.getModuleWorkingDir(rtOpt.Path)
 	b.BuilderMvnOption = opt
 	if len(strings.TrimSpace(b.M2)) == 0 {
 		b.M2 = filepath.Join(os.Getenv("HOME"), ".m2")
 	}
 
-	b.BuildSnapshot = true
-	if bp.Action == actionRelease {
-		b.BuildSnapshot = false
-	}
-
-	b.BuildPack = bp
+	ctx.BuildPack = bp
 	b.RunFnc = b.runMvnLocal
 	if bp.RuntimeParams.UseContainerBuild {
 		b.RunFnc = b.runMvnContainer
 	}
 
-	b.Version = bp.RuntimeParams.Version
-	b.Label = rtOpt.Label
-	if b.BuildSnapshot {
-		b.Version = fmt.Sprintf("%s-%s", bp.RuntimeParams.Version, b.Label)
-	}
-	b.BuildOptions = append(b.BuildOptions, fmt.Sprintf("-Drevision=%s", b.Version))
-	return nil
+	ctx.Name = rtOpt.Name
+	ctx.Path = rtOpt.Path
+	ctx.Label = labelSnapshot
+	ctx.BuildPackModuleRuntimeParams = rtOpt
+	v := bp.RuntimeParams.VersionRuntimeParams.version(rtOpt.Label, rtOpt.BuildNumber)
+	b.BuildOptions = append(b.BuildOptions, fmt.Sprintf("-Drevision=%s", v))
+	return ctx, nil
 }
 
-func (b *BuilderMvn) Clean() error {
+func (b *BuilderMvn) Clean(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "clean")
 	arg = append(arg, b.BuildOptions...)
-	return b.RunFnc(arg...)
+	return b.RunFnc(ctx, arg...)
 }
 
-func (b *BuilderMvn) Build() error {
+func (b *BuilderMvn) Build(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "install")
-	if b.BuildSnapshot {
+	//only for mvn build: add label means build SNAPSHOT
+	if ctx.RuntimeParams.AddLabel {
 		arg = append(arg, "-U")
 	}
 	arg = append(arg, b.BuildOptions...)
-	return b.RunFnc(arg...)
+	return b.RunFnc(ctx, arg...)
 }
 
 func readMvnBuildConfig(configFile string) (option BuilderMvnOption, err error) {
@@ -137,18 +124,18 @@ func readMvnBuildConfig(configFile string) (option BuilderMvnOption, err error) 
 	return
 }
 
-func (b *BuilderMvn) runMvnLocal(arg ...string) error {
-	arg = append(arg, "-f", b.BuildPack.getBuilderSpecificFile(b.Path, pomFile))
+func (b *BuilderMvn) runMvnLocal(ctx BuildContext, arg ...string) error {
+	arg = append(arg, "-f", ctx.getBuilderSpecificFile(ctx.Path, pomFile))
 	cmd := exec.Command("mvn", arg...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
 
-func (b *BuilderMvn) runMvnContainer(arg ...string) error {
+func (b *BuilderMvn) runMvnContainer(bctx BuildContext, arg ...string) error {
 	ctx := context.Background()
 
-	cli, err := newDockerClient(ctx, b.RuntimeParams.DockerConfig)
+	cli, err := newDockerClient(ctx, bctx.RuntimeParams.DockerConfig)
 	if err != nil {
 		return errors.New(fmt.Sprintf("can not connect to docker host: %s", err.Error()))
 	}
@@ -158,7 +145,7 @@ func (b *BuilderMvn) runMvnContainer(arg ...string) error {
 	for _, v := range arg {
 		cmd = append(cmd, v)
 	}
-	buildInfo(b.BuildPack, fmt.Sprintf("docker run -it --rm %s %+v", mvnContainerImage, cmd))
+	buildInfo(bctx.BuildPack, fmt.Sprintf("docker run -it --rm %s %+v", mvnContainerImage, cmd))
 
 	pullResp, err := cli.ImagePull(ctx, mvnContainerImage, types.ImagePullOptions{})
 	if err != nil {
@@ -172,7 +159,7 @@ func (b *BuilderMvn) runMvnContainer(arg ...string) error {
 	mounts := []mount.Mount{
 		{
 			Type:   mount.TypeBind,
-			Source: b.WorkingDir,
+			Source: bctx.WorkingDir,
 			Target: "/working",
 		},
 	}
@@ -198,7 +185,7 @@ func (b *BuilderMvn) runMvnContainer(arg ...string) error {
 		return err
 	}
 
-	removeContainerAtEnd(createRsp.ID)
+	bctx.RuntimeParams.Run(createRsp.ID)
 
 	attachRsp, err := cli.ContainerAttach(ctx, createRsp.ID, types.ContainerAttachOptions{
 		Stream: true,

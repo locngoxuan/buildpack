@@ -11,9 +11,9 @@ import (
 
 type BuildPackConfig struct {
 	Version           string `yaml:"version,omitempty"`
-	ArtifactoryConfig `yaml:"artifactory,omitempty"`
-	DockerConfig      `yaml:"docker,omitempty"`
 	GitConfig         `yaml:"git,omitempty"`
+	DockerConfig      `yaml:"docker,omitempty"`
+	ArtifactoryConfig `yaml:"artifactory,omitempty"`
 	Modules           []BuildPackModuleConfig `yaml:"modules,omitempty"`
 }
 

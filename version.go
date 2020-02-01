@@ -49,8 +49,12 @@ func (v *Version) nextMajorVersion() *Version {
 	}
 }
 
-func (v *Version) branchBase() string {
+func (v *Version) branchBaseMinor() string {
 	return fmt.Sprintf("%d.%d.x", v.Major, v.Minor)
+}
+
+func (v *Version) branchBaseMajor() string {
+	return fmt.Sprintf("%d.x.x", v.Major)
 }
 
 // convert from major.minor.path-label.buildNumber to version

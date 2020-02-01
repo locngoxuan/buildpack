@@ -13,11 +13,11 @@ const (
 
 func removeAllContainer(pack BuildPack) {
 	ctx := context.Background()
-	cli, err := newDockerClient(ctx, pack.RuntimeParams.DockerConfig)
+	cli, err := newDockerClient(ctx, pack.Runtime.DockerConfig)
 	if err != nil {
 		return
 	}
-	for _, id := range pack.RuntimeParams.CreatedContainerIDs() {
+	for _, id := range pack.Runtime.CreatedContainerIDs() {
 		_ = cli.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
 			Force: true,
 		})

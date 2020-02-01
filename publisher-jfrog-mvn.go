@@ -98,14 +98,14 @@ func (p *PublisherJfrogMVN) Verify(ctx PublishContext) error {
 func (p *PublisherJfrogMVN) Pre(ctx PublishContext) error {
 	rtModule := ctx.BuildPackModuleRuntimeParams
 	pom := getPOMFromContext(ctx)
-	version := ctx.RuntimeParams.VersionRuntimeParams.version(labelSnapshot, 0)
+	version := ctx.Runtime.VersionRuntimeParams.version(labelSnapshot, 0)
 
 	uploadParams := make([]JfrogMVNUpload, 0)
 	//generic information for upload
-	artifact := ctx.RuntimeParams.URL
-	repository := ctx.RuntimeParams.Repository.Release
-	if !ctx.RuntimeParams.Release {
-		repository = ctx.RuntimeParams.Repository.Snapshot
+	artifact := ctx.Runtime.URL
+	repository := ctx.Runtime.Repository.Release
+	if !ctx.Runtime.Release {
+		repository = ctx.Runtime.Repository.Snapshot
 	}
 
 	args := strings.Split(pom.GroupId, ".")
@@ -135,8 +135,8 @@ func (p *PublisherJfrogMVN) Pre(ctx PublishContext) error {
 		Destination: fmt.Sprintf("%s/%s/%s/%s", artifact, repository, modulePath, pomName),
 		Source:      pomPublished,
 		Version:     version,
-		Username:    ctx.RuntimeParams.Username,
-		Password:    ctx.RuntimeParams.Password,
+		Username:    ctx.Runtime.Username,
+		Password:    ctx.Runtime.Password,
 		CheckSum: CheckSum{
 			SHA256: pomSumSHA256,
 			MD5:    pomSumMD5,
@@ -170,8 +170,8 @@ func (p *PublisherJfrogMVN) Pre(ctx PublishContext) error {
 			Destination: fmt.Sprintf("%s/%s/%s/%s", artifact, repository, modulePath, jarName),
 			Source:      jarPublished,
 			Version:     version,
-			Username:    ctx.RuntimeParams.Username,
-			Password:    ctx.RuntimeParams.Password,
+			Username:    ctx.Runtime.Username,
+			Password:    ctx.Runtime.Password,
 			CheckSum: CheckSum{
 				SHA256: jarSumSHA256,
 				MD5:    jarSumMD5,

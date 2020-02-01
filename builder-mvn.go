@@ -72,12 +72,12 @@ func (b *BuilderMvn) CreateContext(bp BuildPack, rtOpt BuildPackModuleRuntimePar
 
 	ctx.BuildPack = bp
 	b.RunFnc = b.runMvnLocal
-	if bp.RuntimeParams.UseContainerBuild {
+	if bp.Runtime.UseContainerBuild {
 		b.RunFnc = b.runMvnContainer
 	}
 
 	ctx.Label = labelSnapshot
-	v := bp.RuntimeParams.VersionRuntimeParams.version(rtOpt.Label, rtOpt.BuildNumber)
+	v := bp.Runtime.VersionRuntimeParams.version(rtOpt.Label, rtOpt.BuildNumber)
 	b.BuildOptions = append(b.BuildOptions, fmt.Sprintf("-Drevision=%s", v))
 	return ctx, nil
 }
@@ -100,7 +100,7 @@ func (b *BuilderMvn) Build(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "install", "-DskipTests")
 	//only for mvn build: add label means build SNAPSHOT
-	if !ctx.RuntimeParams.Release {
+	if !ctx.Runtime.Release {
 		arg = append(arg, "-U")
 	}
 	arg = append(arg, b.BuildOptions...)
@@ -138,7 +138,7 @@ func (b *BuilderMvn) runMvnLocal(ctx BuildContext, arg ...string) error {
 func (b *BuilderMvn) runMvnContainer(bctx BuildContext, arg ...string) error {
 	ctx := context.Background()
 
-	cli, err := newDockerClient(ctx, bctx.RuntimeParams.DockerConfig)
+	cli, err := newDockerClient(ctx, bctx.Runtime.DockerConfig)
 	if err != nil {
 		return errors.New(fmt.Sprintf("can not connect to docker host: %s", err.Error()))
 	}
@@ -188,7 +188,7 @@ func (b *BuilderMvn) runMvnContainer(bctx BuildContext, arg ...string) error {
 		return err
 	}
 
-	bctx.RuntimeParams.Run(createRsp.ID)
+	bctx.Runtime.Run(createRsp.ID)
 
 	attachRsp, err := cli.ContainerAttach(ctx, createRsp.ID, types.ContainerAttachOptions{
 		Stream: true,

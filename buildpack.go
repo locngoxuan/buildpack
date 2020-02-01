@@ -17,13 +17,17 @@ type BuildError struct {
 type ActionHandler func(bp *BuildPack) *BuildError
 
 type BuildPack struct {
-	Action        string
-	Phase         string
-	Root          string
-	SkipClean     bool
-	Flag          *flag.FlagSet
-	Config        BuildPackConfig
-	RuntimeParams BuildPackRuntimeParams
+	Action       string
+	Phase        string
+	Root         string
+	SkipClean    bool
+	SkipUnitTest bool
+	SkipPublish  bool
+	Flag         *flag.FlagSet
+	Config       BuildPackConfig
+	Runtime      BuildPackRuntimeParams
+
+	GitClient
 }
 
 const (
@@ -42,6 +46,7 @@ const (
 	phasePrePublish    = "pre-publish"
 	phasePublish       = "publish"
 	phaseCleanAll      = "clean-all"
+	phaseBranching     = "branching"
 )
 
 func newBuildPack(action string, f *flag.FlagSet) (*BuildPack, error) {
@@ -51,12 +56,12 @@ func newBuildPack(action string, f *flag.FlagSet) (*BuildPack, error) {
 	}
 
 	return &BuildPack{
-		Action:        action,
-		Flag:          f,
-		Root:          root,
-		Phase:         phaseInit,
-		Config:        BuildPackConfig{},
-		RuntimeParams: BuildPackRuntimeParams{},
+		Action:  action,
+		Flag:    f,
+		Root:    root,
+		Phase:   phaseInit,
+		Config:  BuildPackConfig{},
+		Runtime: BuildPackRuntimeParams{},
 	}, nil
 }
 
@@ -75,6 +80,11 @@ func (b *BuildPack) Handle() *BuildError {
 		return b.Error("action not found", nil)
 	}
 	b.Phase = phaseLoadConfig
+	var err error
+	b.GitClient, err = initGitClient(b.Root)
+	if err != nil {
+		return b.Error("", err)
+	}
 	return actionHandler(b)
 }
 
@@ -139,7 +149,9 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 		return runtimeParams.Modules[i].Position < runtimeParams.Modules[j].Position
 	})
 	//end parsing and sorting modules
-	bp.RuntimeParams = runtimeParams
+	bp.Runtime = runtimeParams
 	bp.SkipClean = argument.skipClean()
+	bp.SkipPublish = argument.skipPublish()
+	bp.SkipUnitTest = argument.skipUnitTest()
 	return nil
 }

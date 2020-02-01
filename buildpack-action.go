@@ -441,6 +441,20 @@ func ActionReleaseHandler(bp *BuildPack) *BuildError {
 	if err != nil {
 		return bp.Error("", err)
 	}
+
+	bp.Phase = phasePumpVersion
+	bp.Runtime.VersionRuntimeParams.nextMinorVersion()
+	bp.Config.Version = bp.Runtime.VersionRuntimeParams.Version.withoutLabel()
+	buildInfo(*bp, fmt.Sprintf("pump version to %s", bp.Config.Version))
+	bytes, err := yaml.Marshal(bp.Config)
+	if err != nil {
+		return bp.Error("", errors.New("can not marshal build pack config to yaml"))
+	}
+
+	err = ioutil.WriteFile(fileBuildPackConfig, bytes, 0644)
+	if err != nil {
+		return bp.Error("", err)
+	}
 	return nil
 }
 

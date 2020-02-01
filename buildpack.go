@@ -47,6 +47,7 @@ const (
 	phasePublish       = "publish"
 	phaseCleanAll      = "clean-all"
 	phaseBranching     = "branching"
+	phasePumpVersion   = "pump-version"
 )
 
 func newBuildPack(action string, f *flag.FlagSet) (*BuildPack, error) {

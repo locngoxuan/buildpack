@@ -3,12 +3,11 @@ package builder
 import (
 	"github.com/pkg/errors"
 	. "scm.wcs.fortna.com/lngo/buildpack"
-	"strings"
 )
 
 type Builder interface {
-	CreateContext(bp BuildPack, opt BuildPackModuleRuntimeParams) (BuildContext, error)
-	WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error
+	CreateContext(bp BuildPack, opt ModuleRuntime) (BuildContext, error)
+	WriteConfig(bp BuildPack, opt ModuleConfig) error
 
 	Verify(ctx BuildContext) error
 	Clean(ctx BuildContext) error
@@ -22,7 +21,7 @@ type BuildContext struct {
 	Path       string
 	metadata   map[string]interface{}
 	BuildPack
-	BuildPackModuleRuntimeParams
+	ModuleRuntime
 }
 
 func NewBuildContext(workingDir, name, path string) BuildContext {
@@ -50,15 +49,12 @@ var builders map[string]Builder
 
 func init() {
 	builders = make(map[string]Builder)
-	builders[buildTypeMvn] = &BuilderMvn{}
+	builders[buildTypeMvn] = &MVN{}
 }
 
-func builderOptions() string {
-	names := make([]string, 0)
-	for name, _ := range builders {
-		names = append(names, name)
-	}
-	return strings.Join(names, "/")
+func VerifyBuilder(name string) bool {
+	_, exist := builders[name]
+	return exist
 }
 
 func GetBuilder(builderName string) (Builder, error) {

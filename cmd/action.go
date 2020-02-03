@@ -12,14 +12,16 @@ import (
 	"strings"
 )
 
+type ActionHandler func(bp *BuildPack) *BuildError
+
 var actions map[string]ActionHandler
 
 const (
 	actionInit           = "init"
-	actionGenerateConfig = "_example"
+	actionGenerateConfig = "config"
 	actionSnapshot       = "snapshot"
 	actionRelease        = "release"
-	actionCheckConfig    = "check-_example"
+	actionCheckConfig    = "check-config"
 )
 
 func init() {
@@ -41,9 +43,7 @@ func VerifyAction(action string) error {
 
 func ActionInitHandler(bp *BuildPack) *BuildError {
 	bp.Phase = PhaseBuildConfig
-	actionArgs := NewActionArguments(bp.Flag)
-	err := actionArgs.ReadVersion().Parse()
-
+	actionArgs, err := NewActionArguments(bp.Flag)
 	if err != nil {
 		return bp.Error("", err)
 	}
@@ -64,8 +64,7 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 }
 
 func ActionGenerateConfig(bp *BuildPack) *BuildError {
-	args := NewActionArguments(bp.Flag)
-	err := args.Parse()
+	args, err := NewActionArguments(bp.Flag)
 	if err != nil {
 		return bp.Error("", err)
 	}
@@ -107,9 +106,7 @@ func ActionGenerateConfig(bp *BuildPack) *BuildError {
 }
 
 func ActionCheckConfig(bp *BuildPack) *BuildError {
-	actionArgs := NewActionArguments(bp.Flag)
-	err := actionArgs.ReadModules().Parse()
-
+	actionArgs, err := NewActionArguments(bp.Flag)
 	if err != nil {
 		return bp.Error("", err)
 	}
@@ -269,8 +266,7 @@ func buildAndPublish(bp *BuildPack) error {
 
 func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 	// read configuration then pre runtime-params for doing snapshot
-	args := InitCommanActionArguments(bp.Flag)
-	err := args.Parse()
+	args, err := NewActionArguments(bp.Flag)
 	if err != nil {
 		return bp.Error("", err)
 	}
@@ -291,8 +287,7 @@ func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 
 func ActionReleaseHandler(bp *BuildPack) *BuildError {
 	// read configuration then pre runtime-params for doing release
-	args := InitCommanActionArguments(bp.Flag)
-	err := args.Parse()
+	args, err := NewActionArguments(bp.Flag)
 	if err != nil {
 		return bp.Error("", err)
 	}
@@ -309,25 +304,25 @@ func ActionReleaseHandler(bp *BuildPack) *BuildError {
 	}
 
 	bp.Phase = PhaseBranching
-	versionStr := bp.Runtime.VersionRuntimeParams.BranchBaseMinor()
+	versionStr := bp.Runtime.VersionRuntime.BranchBaseMinor()
 	LogInfo(*bp, fmt.Sprintf("tagging version %s", versionStr))
-	err = bp.Tag(bp.Runtime.GitRuntimeParams, versionStr)
+	err = bp.Tag(bp.Runtime.GitRuntime, versionStr)
 	if err != nil {
 		return bp.Error("", err)
 	}
 	LogInfo(*bp, fmt.Sprintf("branching version %s", versionStr))
-	err = bp.Branch(bp.Runtime.GitRuntimeParams, versionStr)
+	err = bp.Branch(bp.Runtime.GitRuntime, versionStr)
 	if err != nil {
 		return bp.Error("", err)
 	}
 
 	bp.Phase = PhasePumpVersion
-	bp.Runtime.VersionRuntimeParams.NextMinorVersion()
-	bp.Config.Version = bp.Runtime.VersionRuntimeParams.Version.WithoutLabel()
+	bp.Runtime.VersionRuntime.NextMinorVersion()
+	bp.Config.Version = bp.Runtime.VersionRuntime.Version.WithoutLabel()
 	LogInfo(*bp, fmt.Sprintf("pump version to %s", bp.Config.Version))
 	bytes, err := yaml.Marshal(bp.Config)
 	if err != nil {
-		return bp.Error("", errors.New("can not marshal build pack _example to yaml"))
+		return bp.Error("", errors.New("can not marshal build pack config to yaml"))
 	}
 
 	err = ioutil.WriteFile(FileBuildPackConfig, bytes, 0644)

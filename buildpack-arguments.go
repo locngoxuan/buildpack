@@ -17,6 +17,13 @@ func (i *arrayFlags) Set(value string) error {
 	return nil
 }
 
+type SkipOption struct {
+	SkipContainer bool
+	SkipUnitTest  bool
+	SkipPublish   bool
+	SkipClean     bool
+}
+
 type RepoArgument struct {
 	Id       string
 	Username string
@@ -29,99 +36,100 @@ type ActionArguments struct {
 	Values map[string]interface{}
 }
 
-func NewActionArguments(f *flag.FlagSet) *ActionArguments {
-	return &ActionArguments{
+func NewActionArguments(f *flag.FlagSet) (*ActionArguments, error) {
+	args := &ActionArguments{
 		Flag:   f,
 		Values: make(map[string]interface{}),
 	}
+	err := args.readVersion().
+		readModules().
+		readRepoIds().
+		readRepoUserName().
+		readRepoPassword().
+		readRepoAccessToken().
+		readGitAccessToken().
+		readSkipContainer().
+		readSkipClean().
+		readSkipPublish().
+		readSkipTest().
+		parse()
+	if err != nil {
+		return nil, err
+	}
+	return args, nil
 }
 
-func InitCommanActionArguments(f *flag.FlagSet) *ActionArguments {
-	args := NewActionArguments(f)
-	return args.ReadVersion().
-		ReadModules().
-		ReadContainer().
-		ReadRepoIds().
-		ReadRepoUserName().
-		ReadRepoPassword().
-		ReadRepoAccessToken().
-		ReadGitAccessToken().
-		ReadSkipClean().
-		ReadSkipPublish().
-		ReadSkipTest()
-}
-
-func (a *ActionArguments) ReadGitAccessToken() *ActionArguments {
+func (a *ActionArguments) readGitAccessToken() *ActionArguments {
 	s := a.Flag.String("git-token", "", "access-token of git")
 	a.Values["git-token"] = s
 	return a
 }
 
-func (a *ActionArguments) ReadRepoIds() *ActionArguments {
+func (a *ActionArguments) readRepoIds() *ActionArguments {
 	var arrVals arrayFlags
 	a.Flag.Var(&arrVals, "repo-id", "list of repository id")
 	a.Values["repo-id"] = arrVals
 	return a
 }
 
-func (a *ActionArguments) ReadRepoUserName() *ActionArguments {
+func (a *ActionArguments) readRepoUserName() *ActionArguments {
 	var arrVals arrayFlags
 	a.Flag.Var(&arrVals, "repo-user", "list username follow order of ids")
 	a.Values["repo-user"] = arrVals
 	return a
 }
 
-func (a *ActionArguments) ReadRepoPassword() *ActionArguments {
+func (a *ActionArguments) readRepoPassword() *ActionArguments {
 	var arrVals arrayFlags
 	a.Flag.Var(&arrVals, "repo-pass", "list password follow order of ids")
 	a.Values["repo-pass"] = arrVals
 	return a
 }
 
-func (a *ActionArguments) ReadRepoAccessToken() *ActionArguments {
+func (a *ActionArguments) readRepoAccessToken() *ActionArguments {
 	var arrVals arrayFlags
 	a.Flag.Var(&arrVals, "repo-token", "list access token follow order of ids")
 	a.Values["repo-token"] = arrVals
 	return a
 }
 
-func (a *ActionArguments) ReadSkipTest() *ActionArguments {
+func (a *ActionArguments) readSkipTest() *ActionArguments {
 	s := a.Flag.Bool("skip-ut", false, "skip unit test while running build")
 	a.Values["skip-ut"] = s
 	return a
 }
 
-func (a *ActionArguments) ReadSkipPublish() *ActionArguments {
+func (a *ActionArguments) readSkipPublish() *ActionArguments {
 	s := a.Flag.Bool("skip-publish", false, "skip publish to artifactory")
 	a.Values["skip-publish"] = s
 	return a
 }
 
-func (a *ActionArguments) ReadSkipClean() *ActionArguments {
+func (a *ActionArguments) readSkipClean() *ActionArguments {
 	s := a.Flag.Bool("skip-clean", false, "skip cleaning after build and publish")
 	a.Values["skip-clean"] = s
 	return a
 }
 
-func (a *ActionArguments) ReadVersion() *ActionArguments {
+func (a *ActionArguments) readVersion() *ActionArguments {
 	s := a.Flag.String("v", "", "version number")
 	a.Values["v"] = s
 	return a
 }
 
-func (a *ActionArguments) ReadModules() *ActionArguments {
+func (a *ActionArguments) readModules() *ActionArguments {
 	s := a.Flag.String("m", "", "modules")
 	a.Values["m"] = s
 	return a
 }
 
-func (a *ActionArguments) ReadContainer() *ActionArguments {
-	s := a.Flag.Bool("container", false, "using docker environment rather than host environment")
-	a.Values["container"] = s
+func (a *ActionArguments) readSkipContainer() *ActionArguments {
+	s := a.Flag.Bool("skip-container", false, "using docker environment rather than host environment")
+	a.Values["skip-container"] = s
 	return a
 }
 
-func (a *ActionArguments) Parse() error {
+func (a *ActionArguments) parse() error {
 	return a.Flag.Parse(os.Args[2:])
 }
 
@@ -145,8 +153,8 @@ func (a *ActionArguments) Modules() []string {
 	return strings.Split(v, ",")
 }
 
-func (a *ActionArguments) Container() bool {
-	s, ok := a.Values["container"]
+func (a *ActionArguments) SkipContainer() bool {
+	s, ok := a.Values["skip-container"]
 	if !ok {
 		return false
 	}

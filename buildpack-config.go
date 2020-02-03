@@ -9,15 +9,15 @@ import (
 	"path/filepath"
 )
 
-type BuildPackConfig struct {
+type Config struct {
 	Version      string `yaml:"version,omitempty"`
 	GitConfig    `yaml:"git,omitempty"`
 	DockerConfig `yaml:"docker,omitempty"`
-	Repos        []RepositoryConfig      `yaml:"repositories,omitempty"`
-	Modules      []BuildPackModuleConfig `yaml:"modules,omitempty"`
+	Repos        []RepositoryConfig `yaml:"repositories,omitempty"`
+	Modules      []ModuleConfig     `yaml:"modules,omitempty"`
 }
 
-func (c *BuildPackConfig) GetRepositoryType(id string) string {
+func (c *Config) GetRepositoryType(id string) string {
 	for _, v := range c.Repos {
 		if v.Id == id {
 			return v.Type
@@ -26,7 +26,7 @@ func (c *BuildPackConfig) GetRepositoryType(id string) string {
 	return ""
 }
 
-type BuildPackModuleConfig struct {
+type ModuleConfig struct {
 	Position            int    `yaml:"position,omitempty"`
 	Name                string `yaml:"name,omitempty"`
 	Path                string `yaml:"path,omitempty"`
@@ -74,7 +74,7 @@ type DockerRegistryConfig struct {
 	Password string `yaml:"password,omitempty"`
 }
 
-func readFromConfigFile() (buildPackConfig BuildPackConfig, err error) {
+func readFromConfigFile() (buildPackConfig Config, err error) {
 	pwd, err := filepath.Abs(filepath.Dir("."))
 	if err != nil {
 		return
@@ -88,12 +88,12 @@ func readFromConfigFile() (buildPackConfig BuildPackConfig, err error) {
 
 	yamlFile, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("read application _example file get error %v", err))
+		err = errors.New(fmt.Sprintf("read application config file get error %v", err))
 		return
 	}
 	err = yaml.Unmarshal(yamlFile, &buildPackConfig)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("unmarshal application _example file get error %v", err))
+		err = errors.New(fmt.Sprintf("unmarshal application config file get error %v", err))
 		return
 	}
 	return

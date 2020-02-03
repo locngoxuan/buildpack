@@ -70,7 +70,7 @@ func InitGitClient(root string) (cli GitClient, err error) {
 	}
 
 	if len(remotes) == 0 {
-		err = errors.New("not found remote from git _example")
+		err = errors.New("not found remote from git config")
 		return
 	}
 
@@ -95,13 +95,13 @@ func InitGitClient(root string) (cli GitClient, err error) {
 	}
 
 	if cli.Remote == nil {
-		err = errors.New("not found remote from git _example")
+		err = errors.New("not found remote from git config")
 		return
 	}
 	return
 }
 
-func auth(remote *git.Remote, gitConfig GitRuntimeParams) (transport.AuthMethod, error) {
+func auth(remote *git.Remote, gitConfig GitRuntime) (transport.AuthMethod, error) {
 	if _, yes := useHttp(remote); yes {
 		return &http.BasicAuth{
 			Username: "token",
@@ -126,7 +126,7 @@ func useHttp(r *git.Remote) (string, bool) {
 	return "", false
 }
 
-func (c *GitClient) Verify(gitConfig GitRuntimeParams) error {
+func (c *GitClient) Verify(gitConfig GitRuntime) error {
 	url, _ := useHttp(c.Remote)
 	auth, err := auth(c.Remote, gitConfig)
 	if err != nil {
@@ -143,7 +143,7 @@ func (c *GitClient) Verify(gitConfig GitRuntimeParams) error {
 	return err
 }
 
-func (c *GitClient) Tag(gitConfig GitRuntimeParams, version string) error {
+func (c *GitClient) Tag(gitConfig GitRuntime, version string) error {
 	reference, err := c.Repo.Storer.Reference(c.CurrentBranch.Name())
 	if err != nil {
 		return err
@@ -198,7 +198,7 @@ func (c *GitClient) Tag(gitConfig GitRuntimeParams, version string) error {
 	return nil
 }
 
-func (c *GitClient) Branch(gitConfig GitRuntimeParams, branchName string) error {
+func (c *GitClient) Branch(gitConfig GitRuntime, branchName string) error {
 	newBranchName := plumbing.NewBranchReferenceName(branchName)
 
 	wt, err := c.Repo.Worktree()

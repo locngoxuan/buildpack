@@ -14,19 +14,14 @@ type BuildError struct {
 	Message string
 }
 
-type ActionHandler func(bp *BuildPack) *BuildError
-
 type BuildPack struct {
-	Action       string
-	Phase        string
-	Root         string
-	SkipClean    bool
-	SkipUnitTest bool
-	SkipPublish  bool
-	Flag         *flag.FlagSet
-	Config       BuildPackConfig
-	Runtime      BuildPackRuntimeParams
+	Action string
+	Phase  string
+	Root   string
+	Flag   *flag.FlagSet
 
+	Config
+	Runtime
 	GitClient
 }
 
@@ -36,9 +31,9 @@ const (
 	PublishDirectory    = "publish"
 
 	PhaseInit        = "init"
-	PhaseLoadConfig  = "load-_example"
-	PhaseBuildConfig = "build-_example"
-	PhaseSaveConfig  = "save-_example"
+	PhaseLoadConfig  = "load-config"
+	PhaseBuildConfig = "build-config"
+	PhaseSaveConfig  = "save-config"
 
 	PhaseInitBuilder   = "init-builder"
 	PhaseInitPublisher = "init-publisher"
@@ -107,8 +102,8 @@ func NewBuildPack(action string, f *flag.FlagSet) (*BuildPack, error) {
 		Flag:    f,
 		Root:    root,
 		Phase:   PhaseInit,
-		Config:  BuildPackConfig{},
-		Runtime: BuildPackRuntimeParams{},
+		Config:  Config{},
+		Runtime: Runtime{},
 	}, nil
 }
 
@@ -139,26 +134,25 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 	}
 
 	runtimeParams := InitRuntimeParams(bp.Config)
-	runtimeParams.VersionRuntimeParams = VersionRuntimeParams{
+	runtimeParams.VersionRuntime = VersionRuntime{
 		*v,
 		release,
 	}
-	runtimeParams.UseContainerBuild = argument.Container()
-	runtimeParams.Modules = make([]BuildPackModuleRuntimeParams, 0)
+	runtimeParams.Modules = make([]ModuleRuntime, 0)
 	moduleNames := argument.Modules()
 	//parsing module
-	findModuleConfig := func(name string) (BuildPackModuleConfig, error) {
+	findModuleConfig := func(name string) (ModuleConfig, error) {
 		for _, v := range bp.Config.Modules {
 			if v.Name == name {
 				return v, nil
 			}
 		}
-		return BuildPackModuleConfig{}, errors.New("not found module by name " + name)
+		return ModuleConfig{}, errors.New("not found module by name " + name)
 	}
 
 	if len(moduleNames) == 0 {
 		for _, mc := range bp.Config.Modules {
-			runtimeParams.Modules = append(runtimeParams.Modules, BuildPackModuleRuntimeParams{
+			runtimeParams.Modules = append(runtimeParams.Modules, ModuleRuntime{
 				mc,
 			})
 		}
@@ -172,7 +166,7 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 			if err != nil {
 				return err
 			}
-			runtimeParams.Modules = append(runtimeParams.Modules, BuildPackModuleRuntimeParams{
+			runtimeParams.Modules = append(runtimeParams.Modules, ModuleRuntime{
 				mc,
 			})
 		}
@@ -183,6 +177,7 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 	})
 	//end parsing and sorting modules
 	bp.Runtime = runtimeParams
+	bp.SkipContainer = argument.SkipContainer()
 	bp.SkipClean = argument.SkipClean()
 	bp.SkipPublish = argument.SkipPublish()
 	bp.SkipUnitTest = argument.SkipUnitTest()

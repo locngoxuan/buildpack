@@ -20,11 +20,11 @@ const (
 	labelSnapshot = "SNAPSHOT"
 )
 
-type ArtifactoryMVNPublisher struct {
-	uploads []JfrogMVNUpload
+type ArtifactoryMvn struct {
+	uploads []MVNUploadParam
 }
 
-type JfrogMVNUpload struct {
+type MVNUploadParam struct {
 	Destination string
 	Source      string
 	Version     string
@@ -45,14 +45,14 @@ type POM struct {
 	Classifier string   `xml:"packaging"`
 }
 
-func (p *ArtifactoryMVNPublisher) WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error {
+func (p *ArtifactoryMvn) WriteConfig(bp BuildPack, opt ModuleConfig) error {
 	return nil
 }
 
-func (p *ArtifactoryMVNPublisher) CreateContext(bp BuildPack, rtOpt BuildPackModuleRuntimeParams) (PublishContext, error) {
+func (p *ArtifactoryMvn) CreateContext(bp BuildPack, rtOpt ModuleRuntime) (PublishContext, error) {
 	ctx := NewPublishContext(rtOpt.Name, rtOpt.Path)
 	ctx.BuildPack = bp
-	ctx.BuildPackModuleRuntimeParams = rtOpt
+	ctx.ModuleRuntime = rtOpt
 
 	pwd, err := filepath.Abs(bp.GetModuleWorkingDir(rtOpt.Path))
 	if err != nil {
@@ -67,14 +67,14 @@ func (p *ArtifactoryMVNPublisher) CreateContext(bp BuildPack, rtOpt BuildPackMod
 
 	yamlFile, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("read application _example file get error %v", err))
+		err = errors.New(fmt.Sprintf("read application config file get error %v", err))
 		return ctx, err
 	}
 
 	var pomProject POM
 	err = xml.Unmarshal(yamlFile, &pomProject)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("unmarshal application _example file get error %v", err))
+		err = errors.New(fmt.Sprintf("unmarshal application config file get error %v", err))
 		return ctx, err
 	}
 	addPOMToContext(ctx, pomProject)
@@ -97,16 +97,16 @@ func addPOMToContext(ctx PublishContext, pom POM) {
 	ctx.Add("pom", pom)
 }
 
-func (p *ArtifactoryMVNPublisher) Verify(ctx PublishContext) error {
+func (p *ArtifactoryMvn) Verify(ctx PublishContext) error {
 	return nil
 }
 
-func (p *ArtifactoryMVNPublisher) Pre(ctx PublishContext) error {
-	rtModule := ctx.BuildPackModuleRuntimeParams
+func (p *ArtifactoryMvn) Pre(ctx PublishContext) error {
+	rtModule := ctx.ModuleRuntime
 	pom := getPOMFromContext(ctx)
-	version := ctx.Runtime.VersionRuntimeParams.GetVersion(labelSnapshot, 0)
+	version := ctx.Runtime.VersionRuntime.GetVersion(labelSnapshot, 0)
 
-	uploadParams := make([]JfrogMVNUpload, 0)
+	uploadParams := make([]MVNUploadParam, 0)
 	//generic information for upload
 	artifact := ctx.RepositoryConfig.URL
 	repository := ctx.RepositoryConfig.ChannelConfig.Stable
@@ -137,7 +137,7 @@ func (p *ArtifactoryMVNPublisher) Pre(ctx PublishContext) error {
 	if err != nil {
 		return err
 	}
-	pomParam := JfrogMVNUpload{
+	pomParam := MVNUploadParam{
 		Destination: fmt.Sprintf("%s/%s/%s/%s", artifact, repository, modulePath, pomName),
 		Source:      pomPublished,
 		Version:     version,
@@ -172,7 +172,7 @@ func (p *ArtifactoryMVNPublisher) Pre(ctx PublishContext) error {
 		if err != nil {
 			return err
 		}
-		jarParam := JfrogMVNUpload{
+		jarParam := MVNUploadParam{
 			Destination: fmt.Sprintf("%s/%s/%s/%s", artifact, repository, modulePath, jarName),
 			Source:      jarPublished,
 			Version:     version,
@@ -195,7 +195,7 @@ func (p *ArtifactoryMVNPublisher) Pre(ctx PublishContext) error {
 	return nil
 }
 
-func (p *ArtifactoryMVNPublisher) Publish(ctx PublishContext) error {
+func (p *ArtifactoryMvn) Publish(ctx PublishContext) error {
 	for _, upload := range p.uploads {
 		err := uploadFile(upload)
 		if err != nil {
@@ -205,11 +205,11 @@ func (p *ArtifactoryMVNPublisher) Publish(ctx PublishContext) error {
 	return nil
 }
 
-func (p *ArtifactoryMVNPublisher) Clean(ctx PublishContext) error {
+func (p *ArtifactoryMvn) Clean(ctx PublishContext) error {
 	return nil
 }
 
-func uploadFile(param JfrogMVNUpload) error {
+func uploadFile(param MVNUploadParam) error {
 	data, err := os.Open(param.Source)
 	if err != nil {
 		return err

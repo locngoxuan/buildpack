@@ -3,12 +3,11 @@ package publisher
 import (
 	"errors"
 	. "scm.wcs.fortna.com/lngo/buildpack"
-	"strings"
 )
 
 type Publisher interface {
-	WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error
-	CreateContext(bp BuildPack, rtOpt BuildPackModuleRuntimeParams) (PublishContext, error)
+	WriteConfig(bp BuildPack, opt ModuleConfig) error
+	CreateContext(bp BuildPack, rtOpt ModuleRuntime) (PublishContext, error)
 
 	Verify(ctx PublishContext) error
 	Pre(ctx PublishContext) error
@@ -22,7 +21,7 @@ type PublishContext struct {
 	metadata map[string]interface{}
 	BuildPack
 	RepositoryConfig
-	BuildPackModuleRuntimeParams
+	ModuleRuntime
 }
 
 func NewPublishContext(name, path string) PublishContext {
@@ -48,11 +47,11 @@ func (c *PublishContext) Get(key string) (interface{}, error) {
 type EmptyPublisher struct {
 }
 
-func (p *EmptyPublisher) WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error {
+func (p *EmptyPublisher) WriteConfig(bp BuildPack, opt ModuleConfig) error {
 	return nil
 }
 
-func (p *EmptyPublisher) CreateContext(bp BuildPack, rtOpt BuildPackModuleRuntimeParams) (PublishContext, error) {
+func (p *EmptyPublisher) CreateContext(bp BuildPack, rtOpt ModuleRuntime) (PublishContext, error) {
 	return PublishContext{}, nil
 }
 
@@ -80,20 +79,12 @@ const (
 
 func init() {
 	publishers = make(map[string]Publisher)
-	publishers[publisherJfrogMvn] = &ArtifactoryMVNPublisher{}
+	publishers[publisherJfrogMvn] = &ArtifactoryMvn{}
 }
 
-func publisherOptions() string {
-	names := make([]string, 0)
-	for name, _ := range publishers {
-		names = append(names, name)
-	}
-	return strings.Join(names, "/")
-}
-
-func doesPublisherExist(publisherName string) bool {
-	_, ok := publishers[publisherName]
-	return ok
+func VerifyPublisher(publisherName string) bool {
+	_, exist := publishers[publisherName]
+	return exist
 }
 
 func GetPublisher(publisherName string) Publisher {

@@ -25,32 +25,32 @@ const (
 	buildTypeMvn = "mvn"
 )
 
-type BuilderMvn struct {
-	RunFnc RunMvn
-	BuilderMvnOption
+type MVN struct {
+	RunFnc Run
+	MVNOption
 }
 
-type BuilderMvnOption struct {
+type MVNOption struct {
 	Type         string   `yaml:"type,omitempty"`
 	M2           string   `yaml:"m2,omitempty"`
 	BuildOptions []string `yaml:"options,omitempty"`
 }
 
-type RunMvn func(ctx BuildContext, arg ...string) error
+type Run func(ctx BuildContext, arg ...string) error
 
-func (b *BuilderMvn) Verify(ctx BuildContext) error {
+func (b *MVN) Verify(ctx BuildContext) error {
 	return nil
 }
 
-func (b *BuilderMvn) WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error {
-	mvnOpt := &BuilderMvnOption{
+func (b *MVN) WriteConfig(bp BuildPack, opt ModuleConfig) error {
+	mvnOpt := &MVNOption{
 		Type: buildTypeMvn,
 		M2:   "",
 	}
 
 	bytes, err := yaml.Marshal(mvnOpt)
 	if err != nil {
-		return errors.New("can not marshal builder _example to yaml")
+		return errors.New("can not marshal builder config to yaml")
 	}
 
 	err = ioutil.WriteFile(bp.GetBuilderConfigPath(opt.Path), bytes, 0644)
@@ -60,44 +60,44 @@ func (b *BuilderMvn) WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error 
 	return nil
 }
 
-func (b *BuilderMvn) CreateContext(bp BuildPack, rtOpt BuildPackModuleRuntimeParams) (BuildContext, error) {
+func (b *MVN) CreateContext(bp BuildPack, rtOpt ModuleRuntime) (BuildContext, error) {
 	ctx := NewBuildContext(bp.GetModuleWorkingDir(rtOpt.Path), rtOpt.Name, rtOpt.Path)
 	opt, err := readMvnBuildConfig(bp.GetBuilderConfigPath(rtOpt.Path))
 	if err != nil {
 		return ctx, err
 	}
-	b.BuilderMvnOption = opt
+	b.MVNOption = opt
 	if len(strings.TrimSpace(b.M2)) == 0 {
 		b.M2 = filepath.Join(os.Getenv("HOME"), ".m2")
 	}
 
 	ctx.BuildPack = bp
-	b.RunFnc = b.runMvnLocal
-	if bp.Runtime.UseContainerBuild {
-		b.RunFnc = b.runMvnContainer
+	b.RunFnc = b.runMvnContainer
+	if bp.Runtime.SkipContainer {
+		b.RunFnc = b.runMvnLocal
 	}
 
 	ctx.Label = labelSnapshot
-	v := bp.Runtime.VersionRuntimeParams.GetVersion(rtOpt.Label, rtOpt.BuildNumber)
+	v := bp.Runtime.VersionRuntime.GetVersion(rtOpt.Label, rtOpt.BuildNumber)
 	b.BuildOptions = append(b.BuildOptions, fmt.Sprintf("-Drevision=%s", v))
 	return ctx, nil
 }
 
-func (b *BuilderMvn) Clean(ctx BuildContext) error {
+func (b *MVN) Clean(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "clean")
 	arg = append(arg, b.BuildOptions...)
 	return b.RunFnc(ctx, arg...)
 }
 
-func (b *BuilderMvn) UnitTest(ctx BuildContext) error {
+func (b *MVN) UnitTest(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "test")
 	arg = append(arg, b.BuildOptions...)
 	return b.RunFnc(ctx, arg...)
 }
 
-func (b *BuilderMvn) Build(ctx BuildContext) error {
+func (b *MVN) Build(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "install", "-DskipTests")
 	//only for mvn build: add label means build SNAPSHOT
@@ -108,7 +108,7 @@ func (b *BuilderMvn) Build(ctx BuildContext) error {
 	return b.RunFnc(ctx, arg...)
 }
 
-func readMvnBuildConfig(configFile string) (option BuilderMvnOption, err error) {
+func readMvnBuildConfig(configFile string) (option MVNOption, err error) {
 	_, err = os.Stat(configFile)
 	if os.IsNotExist(err) {
 		err = errors.New("configuration file not found")
@@ -117,18 +117,18 @@ func readMvnBuildConfig(configFile string) (option BuilderMvnOption, err error) 
 
 	yamlFile, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("read application _example file get error %v", err))
+		err = errors.New(fmt.Sprintf("read application config file get error %v", err))
 		return
 	}
 	err = yaml.Unmarshal(yamlFile, &option)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("unmarshal application _example file get error %v", err))
+		err = errors.New(fmt.Sprintf("unmarshal application config file get error %v", err))
 		return
 	}
 	return
 }
 
-func (b *BuilderMvn) runMvnLocal(ctx BuildContext, arg ...string) error {
+func (b *MVN) runMvnLocal(ctx BuildContext, arg ...string) error {
 	arg = append(arg, "-f", ctx.GetBuilderSpecificFile(ctx.Path, pomFile))
 	cmd := exec.Command("mvn", arg...)
 	cmd.Stdout = os.Stdout
@@ -136,7 +136,7 @@ func (b *BuilderMvn) runMvnLocal(ctx BuildContext, arg ...string) error {
 	return cmd.Run()
 }
 
-func (b *BuilderMvn) runMvnContainer(bctx BuildContext, arg ...string) error {
+func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 	ctx := context.Background()
 
 	cli, err := NewDockerClient(ctx, bctx.Runtime.DockerConfig)

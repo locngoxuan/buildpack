@@ -1,4 +1,4 @@
-package main
+package buildpack
 
 import (
 	"fmt"
@@ -7,59 +7,59 @@ import (
 	"path/filepath"
 )
 
-func (bp *BuildPack) getPublishDirectory() string {
+func (bp *BuildPack) GetPublishDirectory() string {
 	p, err := filepath.Abs(filepath.Join(bp.Root, publishDir))
 	if err != nil {
-		buildError(*bp.Error("", err))
+		LogFatal(*bp.Error("", err))
 	}
 	return p
 }
 
-func (bp *BuildPack) getBuildPackConfigPath() string {
+func (bp *BuildPack) GetBuildPackConfigPath() string {
 	p, err := filepath.Abs(filepath.Join(bp.Root, fileBuildPackConfig))
 	if err != nil {
-		buildError(*bp.Error("", err))
+		LogFatal(*bp.Error("", err))
 	}
 	return p
 }
 
-func (bp *BuildPack) getBuilderConfigPath(modulePath string) string {
+func (bp *BuildPack) GetBuilderConfigPath(modulePath string) string {
 	p, err := filepath.Abs(filepath.Join(bp.Root, modulePath, fileBuilderConfig))
 	if err != nil {
-		buildError(*bp.Error("", err))
+		LogFatal(*bp.Error("", err))
 	}
 	return p
 }
 
-func (bp *BuildPack) getBuilderSpecificFile(modulePath, filename string) string {
+func (bp *BuildPack) GetBuilderSpecificFile(modulePath, filename string) string {
 	p, err := filepath.Abs(filepath.Join(bp.Root, modulePath, filename))
 	if err != nil {
-		buildError(*bp.Error("", err))
+		LogFatal(*bp.Error("", err))
 	}
 	return p
 }
 
-func (bp *BuildPack) getModuleWorkingDir(modulePath string) string {
+func (bp *BuildPack) GetModuleWorkingDir(modulePath string) string {
 	p, err := filepath.Abs(filepath.Join(bp.Root, modulePath))
 	if err != nil {
-		buildError(*bp.Error("", err))
+		LogFatal(*bp.Error("", err))
 	}
 	return p
 }
 
-func (bp *BuildPack) buildPathOnRoot(args ...string) string {
+func (bp *BuildPack) BuildPathOnRoot(args ...string) string {
 	parts := []string{
 		bp.Root,
 	}
 	parts = append(parts, args...)
 	p, err := filepath.Abs(filepath.Join(parts...))
 	if err != nil {
-		buildError(*bp.Error("", err))
+		LogFatal(*bp.Error("", err))
 	}
 	return p
 }
 
-func copyFile(src, dst string) error {
+func CopyFile(src, dst string) error {
 	sourceFileStat, err := os.Stat(src)
 	if err != nil {
 		return err

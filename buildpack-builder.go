@@ -1,7 +1,8 @@
-package main
+package buildpack
 
 import (
 	"github.com/pkg/errors"
+	"scm.wcs.fortna.com/lngo/buildpack/builder"
 	"strings"
 )
 
@@ -24,12 +25,12 @@ type BuildContext struct {
 	BuildPackModuleRuntimeParams
 }
 
-func newBuildContext(workingDir, name, path string) BuildContext {
+func NewBuildContext(workingDir, name, path string) BuildContext {
 	return BuildContext{
 		WorkingDir: workingDir,
 		Name:       name,
 		Path:       path,
-		metadata: make(map[string]interface{}),
+		metadata:   make(map[string]interface{}),
 	}
 }
 
@@ -49,7 +50,7 @@ var builders map[string]Builder
 
 func init() {
 	builders = make(map[string]Builder)
-	builders[builderTypeMvn] = &BuilderMvn{}
+	builders[builderTypeMvn] = &builder.BuilderMvn{}
 }
 
 func builderOptions() string {

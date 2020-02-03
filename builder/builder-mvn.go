@@ -1,4 +1,4 @@
-package main
+package builder
 
 import (
 	"context"
@@ -13,15 +13,16 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	. "scm.wcs.fortna.com/lngo/buildpack"
 	"strings"
 )
 
 const (
 	mvnContainerImage = "docker.io/xuanloc0511/mvn:3.6.3"
 	pomFile           = "pom.xml"
-	pomFlattened      = ".flattened-pom.xml"
-	builderTypeMvn    = "mvn"
 	labelSnapshot     = "SNAPSHOT"
+
+	BuildTypeMvn = "mvn"
 )
 
 type BuilderMvn struct {
@@ -43,16 +44,16 @@ func (b *BuilderMvn) Verify(ctx BuildContext) error {
 
 func (b *BuilderMvn) WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error {
 	mvnOpt := &BuilderMvnOption{
-		Type: builderTypeMvn,
+		Type: BuildTypeMvn,
 		M2:   "",
 	}
 
 	bytes, err := yaml.Marshal(mvnOpt)
 	if err != nil {
-		return errors.New("can not marshal builder config to yaml")
+		return errors.New("can not marshal builder _example to yaml")
 	}
 
-	err = ioutil.WriteFile(bp.getBuilderConfigPath(opt.Path), bytes, 0644)
+	err = ioutil.WriteFile(bp.GetBuilderConfigPath(opt.Path), bytes, 0644)
 	if err != nil {
 		return err
 	}
@@ -60,8 +61,8 @@ func (b *BuilderMvn) WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error 
 }
 
 func (b *BuilderMvn) CreateContext(bp BuildPack, rtOpt BuildPackModuleRuntimeParams) (BuildContext, error) {
-	ctx := newBuildContext(bp.getModuleWorkingDir(rtOpt.Path), rtOpt.Name, rtOpt.Path)
-	opt, err := readMvnBuildConfig(bp.getBuilderConfigPath(rtOpt.Path))
+	ctx := NewBuildContext(bp.GetModuleWorkingDir(rtOpt.Path), rtOpt.Name, rtOpt.Path)
+	opt, err := readMvnBuildConfig(bp.GetBuilderConfigPath(rtOpt.Path))
 	if err != nil {
 		return ctx, err
 	}
@@ -77,7 +78,7 @@ func (b *BuilderMvn) CreateContext(bp BuildPack, rtOpt BuildPackModuleRuntimePar
 	}
 
 	ctx.Label = labelSnapshot
-	v := bp.Runtime.VersionRuntimeParams.version(rtOpt.Label, rtOpt.BuildNumber)
+	v := bp.Runtime.VersionRuntimeParams.GetVersion(rtOpt.Label, rtOpt.BuildNumber)
 	b.BuildOptions = append(b.BuildOptions, fmt.Sprintf("-Drevision=%s", v))
 	return ctx, nil
 }
@@ -116,19 +117,19 @@ func readMvnBuildConfig(configFile string) (option BuilderMvnOption, err error) 
 
 	yamlFile, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("read application config file get error %v", err))
+		err = errors.New(fmt.Sprintf("read application _example file get error %v", err))
 		return
 	}
 	err = yaml.Unmarshal(yamlFile, &option)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("unmarshal application config file get error %v", err))
+		err = errors.New(fmt.Sprintf("unmarshal application _example file get error %v", err))
 		return
 	}
 	return
 }
 
 func (b *BuilderMvn) runMvnLocal(ctx BuildContext, arg ...string) error {
-	arg = append(arg, "-f", ctx.getBuilderSpecificFile(ctx.Path, pomFile))
+	arg = append(arg, "-f", ctx.GetBuilderSpecificFile(ctx.Path, pomFile))
 	cmd := exec.Command("mvn", arg...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
@@ -138,7 +139,7 @@ func (b *BuilderMvn) runMvnLocal(ctx BuildContext, arg ...string) error {
 func (b *BuilderMvn) runMvnContainer(bctx BuildContext, arg ...string) error {
 	ctx := context.Background()
 
-	cli, err := newDockerClient(ctx, bctx.Runtime.DockerConfig)
+	cli, err := NewDockerClient(ctx, bctx.Runtime.DockerConfig)
 	if err != nil {
 		return errors.New(fmt.Sprintf("can not connect to docker host: %s", err.Error()))
 	}
@@ -148,7 +149,7 @@ func (b *BuilderMvn) runMvnContainer(bctx BuildContext, arg ...string) error {
 	for _, v := range arg {
 		cmd = append(cmd, v)
 	}
-	buildInfo(bctx.BuildPack, fmt.Sprintf("docker run -it --rm %s %+v", mvnContainerImage, cmd))
+	LogInfo(bctx.BuildPack, fmt.Sprintf("docker run -it --rm %s %+v", mvnContainerImage, cmd))
 
 	pullResp, err := cli.ImagePull(ctx, mvnContainerImage, types.ImagePullOptions{})
 	if err != nil {

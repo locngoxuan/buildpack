@@ -1,4 +1,4 @@
-package main
+package buildpack
 
 import (
 	"errors"
@@ -35,9 +35,9 @@ const (
 	fileBuilderConfig   = "builder.yml"
 
 	phaseInit        = "init"
-	phaseLoadConfig  = "load-config"
-	phaseBuildConfig = "build-config"
-	phaseSaveConfig  = "save-config"
+	phaseLoadConfig  = "load-_example"
+	phaseBuildConfig = "build-_example"
+	phaseSaveConfig  = "save-_example"
 
 	phaseInitBuilder   = "init-builder"
 	phaseInitPublisher = "init-publisher"
@@ -48,9 +48,54 @@ const (
 	phaseCleanAll      = "clean-all"
 	phaseBranching     = "branching"
 	phasePumpVersion   = "pump-version"
+
+	fileConfigTemplate = `
+docker:
+  hosts:
+    - "unix:///var/run/docker.sock"
+    - "tcp://127.0.0.1:2375"
+  registries:
+    - url: ""
+      username: ""
+      password: ""
+
+git:
+  access-token: ""
+  ssh-path: ""
+  ssh-pass: ""
+
+repositories:
+  - id: ""
+    url: ""
+    channel:
+      stable: ""
+      unstable: ""
+    username: ""
+    password: ""
+    access-token: ""
+
+  - id: ""
+    url: ""
+    channel:
+      stable: ""
+      unstable: ""
+    username: ""
+    password: ""
+    access-token: ""
+
+modules:
+  - position: 0
+    name: ""
+    path: ""
+    build: ""
+    publish:
+      skip: false
+      repo-id: ""
+      repo-type: ""
+`
 )
 
-func newBuildPack(action string, f *flag.FlagSet) (*BuildPack, error) {
+func NewBuildPack(action string, f *flag.FlagSet) (*BuildPack, error) {
 	root, err := filepath.Abs(".")
 	if err != nil {
 		return nil, err

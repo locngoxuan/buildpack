@@ -1,37 +1,34 @@
-package main
+package buildpack
 
 import (
-	"bufio"
 	"fmt"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
-	"sort"
-	"strconv"
 	"strings"
 )
 
 var actions map[string]ActionHandler
 
 const (
-	actionInit     = "init"
-	actionSnapshot = "snapshot"
-	actionRelease  = "release"
-	actionModule   = "module"
-	actionVerify   = "verify"
+	actionInit           = "init"
+	actionGenerateConfig = "_example"
+	actionSnapshot       = "snapshot"
+	actionRelease        = "release"
+	actionCheckConfig    = "check-_example"
 )
 
 func init() {
 	actions = make(map[string]ActionHandler)
 	actions[actionInit] = ActionInitHandler
-	actions[actionModule] = ActionModuleHandler
+	actions[actionGenerateConfig] = ActionGenerateConfig
 	actions[actionSnapshot] = ActionSnapshotHandler
 	actions[actionRelease] = ActionReleaseHandler
-	actions[actionVerify] = ActionVerifyHandler
+	actions[actionCheckConfig] = ActionCheckConfig
 }
 
-func verifyAction(action string) error {
+func VerifyAction(action string) error {
 	_, ok := actions[action]
 	if !ok {
 		return errors.New("action not found")
@@ -39,137 +36,10 @@ func verifyAction(action string) error {
 	return nil
 }
 
-func readFromTerminal(reader *bufio.Reader, msg string) (string, error) {
-	//display msg to stdout
-	fmt.Print(msg)
-	//wait until user type then press 'enter'
-	text, err := reader.ReadString('\n')
-	if err != nil {
-		return "", err
-	}
-	return strings.TrimSpace(text), nil
-}
-
-func (a *ActionArguments) readModuleAdd() *ActionArguments {
-	s := a.Flag.Bool("add", false, "add new module into buildpack config. (default is false)")
-	a.Values["add"] = s
-	return a
-}
-
-func (a *ActionArguments) readModuleRemove() *ActionArguments {
-	s := a.Flag.Bool("del", false, "remove exist module into buildpack config. (default is false)")
-	a.Values["del"] = s
-	return a
-}
-
-func (a *ActionArguments) addModule() bool {
-	s, ok := a.Values["add"]
-	if !ok {
-		return false
-	}
-	return *(s.(*bool))
-}
-
-func (a *ActionArguments) removeModule() bool {
-	s, ok := a.Values["del"]
-	if !ok {
-		return false
-	}
-	return *(s.(*bool))
-}
-
-func ActionModuleHandler(bp *BuildPack) *BuildError {
-	actionArgs := newActionArguments(bp.Flag)
-	err := actionArgs.readModuleAdd().
-		readModuleRemove().
-		parse()
-
-	if err != nil {
-		return bp.Error("", err)
-	}
-
-	if actionArgs.addModule() && actionArgs.removeModule() {
-		return bp.Error("can not apply both action add and remove at same time", nil)
-	}
-	return nil
-}
-
-func enterModuleInfo(pos int, reader *bufio.Reader, bp BuildPack) (*BuildPackModuleConfig, *BuildError) {
-	text, err := readFromTerminal(reader, "Add new module [y/n]: ")
-	if err != nil {
-		return nil, bp.Error("", err)
-	}
-	if strings.ToLower(text) == "n" {
-		return nil, nil
-	}
-
-	m := &BuildPackModuleConfig{
-		Position: pos,
-	}
-	m.Name, err = readFromTerminal(reader, "Module name: ")
-	if err != nil {
-		return nil, bp.Error("", err)
-	}
-
-	m.Path, err = readFromTerminal(reader, "Module path: ")
-	if err != nil {
-		return nil, bp.Error("", err)
-	}
-	m.Build, err = readFromTerminal(reader, fmt.Sprintf("Module builder [%s]: ", builderOptions()))
-	if err != nil {
-		return nil, bp.Error("", err)
-	}
-
-	if len(m.Build) == 0 {
-		return nil, bp.Error("Please specify builder", nil)
-	}
-
-	_, err = getBuilder(m.Build)
-	if err != nil {
-		return nil, bp.Error("", err)
-	}
-
-	m.Publish, err = readFromTerminal(reader, fmt.Sprintf("Module publisher [%s]: ", publisherOptions()))
-	if err != nil {
-		return nil, bp.Error("", err)
-	}
-
-	if len(m.Publish) > 0 {
-		if !doesPublisherExist(m.Publish) {
-			return nil, bp.Error(fmt.Sprintf("Can not find any publisher with name %s", m.Publish), nil)
-		}
-
-	}
-
-	m.Label, err = readFromTerminal(reader, "Module label (default is SNAPSHOT): ")
-	if err != nil {
-		return nil, bp.Error("", err)
-	}
-
-	if len(m.Label) == 0 {
-		m.Label = "SNAPSHOT"
-	}
-
-	text, err = readFromTerminal(reader, "Module build number [0]: ")
-	if err != nil {
-		return nil, bp.Error("", err)
-	}
-	if len(text) == 0 {
-		m.BuildNumber = 0
-	} else {
-		m.BuildNumber, err = strconv.Atoi(text)
-		if err != nil {
-			return nil, bp.Error("", err)
-		}
-	}
-	return m, nil
-}
-
 func ActionInitHandler(bp *BuildPack) *BuildError {
+	bp.Phase = phaseBuildConfig
 	actionArgs := newActionArguments(bp.Flag)
-	err := actionArgs.readVersion().
-		readModules().
-		parse()
+	err := actionArgs.readVersion().parse()
 
 	if err != nil {
 		return bp.Error("", err)
@@ -180,64 +50,60 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 		return bp.Error("", errors.New("version number is empty"))
 	}
 
-	buildPackConfig := &BuildPackConfig{
-		Version: strings.TrimSpace(versionString),
-	}
-
-	bp.Phase = phaseBuildConfig
-	modules := make([]BuildPackModuleConfig, 0)
-
-	// Add new module
-	reader := bufio.NewReader(os.Stdin)
-	i := 1
-	for {
-		m, er := enterModuleInfo(i, reader, *bp)
-		if er != nil {
-			return er
-		}
-		if m == nil {
-			break
-		}
-		modules = append(modules, *m)
-		i++
-	}
-
-	if len(modules) == 0 {
-		return bp.Error("not found any modules in config", nil)
-	}
-
-	sort.Slice(modules, func(i, j int) bool {
-		return modules[i].Position < modules[j].Position
-	})
-
-	buildPackConfig.Modules = modules
-
-	for _, module := range buildPackConfig.Modules {
-		builder, err := getBuilder(module.Build)
-		if err != nil {
-			return bp.Error("", err)
-		}
-
-		err = builder.WriteConfig(*bp, module)
-		if err != nil {
-			return bp.Error("", err)
-		}
-	}
-
 	bp.Phase = phaseSaveConfig
-	bytes, err := yaml.Marshal(buildPackConfig)
-	if err != nil {
-		return bp.Error("", errors.New("can not marshal build pack config to yaml"))
-	}
+	full := fmt.Sprintf("version: %s\n\n%s", strings.TrimSpace(versionString), fileConfigTemplate)
 
-	err = ioutil.WriteFile(fileBuildPackConfig, bytes, 0644)
+	err = ioutil.WriteFile(fileBuildPackConfig, []byte(full), 0644)
 	if err != nil {
 		return bp.Error("", err)
 	}
 	return nil
 }
 
-func ActionVerifyHandler(bp *BuildPack) *BuildError {
+func ActionGenerateConfig(bp *BuildPack) *BuildError {
+	args := newActionArguments(bp.Flag)
+	err := args.parse()
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	err = bp.InitRuntimeParams(false, args)
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	defer endBuildPack(*bp)
+
+	for _, moduleConfig := range bp.Config.Modules {
+		builder, err := getBuilder(moduleConfig.Build)
+		if err != nil {
+			return bp.Error("", err)
+		}
+		err = builder.WriteConfig(*bp, moduleConfig)
+		if err != nil {
+			return bp.Error("", err)
+		}
+	}
+
+	for _, moduleConfig := range bp.Config.Modules {
+		if moduleConfig.Skip {
+			continue
+		}
+		repoType := bp.Config.getRepositoryType(moduleConfig.RepoId)
+		publisher := getPublisher(repoType)
+		err = publisher.WriteConfig(*bp, moduleConfig)
+		if err != nil {
+			return bp.Error("", err)
+		}
+	}
+	return nil
+}
+
+func ActionCheckConfig(bp *BuildPack) *BuildError {
 	actionArgs := newActionArguments(bp.Flag)
 	err := actionArgs.readModules().parse()
 
@@ -261,20 +127,24 @@ func ActionVerifyHandler(bp *BuildPack) *BuildError {
 		if err != nil {
 			return bp.Error("", err)
 		}
-		buildInfo(*bp, fmt.Sprintf("verify builder %s for module %s", rtModule.Build, rtModule.Name))
+		LogInfo(*bp, fmt.Sprintf("verify builder %s for module %s", rtModule.Build, rtModule.Name))
 		err = builder.Verify(ctx)
 		if err != nil {
 			return bp.Error("", err)
 		}
 	}
 
-	for _, rtModule := range bp.Runtime.Modules {
-		publisher := getPublisher(rtModule.Publish)
-		ctx, err := publisher.CreateContext(*bp, rtModule)
+	for _, moduleConfig := range bp.Runtime.Modules {
+		if moduleConfig.Skip {
+			continue
+		}
+		repoType := bp.Config.getRepositoryType(moduleConfig.RepoId)
+		publisher := getPublisher(repoType)
+		ctx, err := publisher.CreateContext(*bp, moduleConfig)
 		if err != nil {
 			return bp.Error("", err)
 		}
-		buildInfo(*bp, fmt.Sprintf("verify publisher %s for module %s", rtModule.Publish, rtModule.Name))
+		LogInfo(*bp, fmt.Sprintf("verify publisher %s for module %s", repoType, moduleConfig.Name))
 		err = publisher.Verify(ctx)
 		if err != nil {
 			return bp.Error("", err)
@@ -299,13 +169,13 @@ func buildAndPublish(bp *BuildPack) error {
 			return err
 		}
 		_builderContexts[rtModule.Name] = ctx
-		buildInfo(*bp, fmt.Sprintf("init builder %s for module %s", rtModule.Build, rtModule.Name))
+		LogInfo(*bp, fmt.Sprintf("init builder %s for module %s", rtModule.Build, rtModule.Name))
 		_builders[rtModule.Name] = builder
 	}
 
 	bp.Phase = phaseInitPublisher
 	//init publish directory
-	publishDirectory := bp.getPublishDirectory()
+	publishDirectory := bp.GetPublishDirectory()
 	//remove before create new one
 	_ = os.RemoveAll(publishDirectory)
 	err := os.MkdirAll(publishDirectory, 0777)
@@ -314,13 +184,17 @@ func buildAndPublish(bp *BuildPack) error {
 	}
 
 	for _, rtModule := range bp.Runtime.Modules {
-		publisher := getPublisher(rtModule.Publish)
+		if rtModule.Skip {
+			continue
+		}
+		repoType := bp.Config.getRepositoryType(rtModule.RepoId)
+		publisher := getPublisher(repoType)
 		ctx, err := publisher.CreateContext(*bp, rtModule)
 		if err != nil {
 			return err
 		}
 		_publishContexts[rtModule.Name] = ctx
-		buildInfo(*bp, fmt.Sprintf("init publisher %s for module %s", rtModule.Publish, rtModule.Name))
+		LogInfo(*bp, fmt.Sprintf("init publisher %s for module %s", repoType, rtModule.Name))
 		_publishers[rtModule.Name] = publisher
 	}
 
@@ -340,7 +214,7 @@ func buildAndPublish(bp *BuildPack) error {
 	}
 
 	for _, rtModule := range bp.Runtime.Modules {
-		buildInfo(*bp, fmt.Sprintf("build module %s", rtModule.Name))
+		LogInfo(*bp, fmt.Sprintf("build module %s", rtModule.Name))
 		builder := _builders[rtModule.Name]
 		if !bp.SkipUnitTest {
 			bp.Phase = phaseUnitTest
@@ -358,7 +232,7 @@ func buildAndPublish(bp *BuildPack) error {
 
 	if !bp.SkipPublish {
 		for _, rtModule := range bp.Runtime.Modules {
-			buildInfo(*bp, fmt.Sprintf("publish module %s", rtModule.Name))
+			LogInfo(*bp, fmt.Sprintf("publish module %s", rtModule.Name))
 			// publish build
 			bp.Phase = phasePrePublish
 			publisher := _publishers[rtModule.Name]
@@ -380,7 +254,7 @@ func buildAndPublish(bp *BuildPack) error {
 
 	bp.Phase = phaseCleanAll
 	for _, rtModule := range bp.Runtime.Modules {
-		buildInfo(*bp, fmt.Sprintf("clean module %s", rtModule.Name))
+		LogInfo(*bp, fmt.Sprintf("clean module %s", rtModule.Name))
 		builder, _ := _builders[rtModule.Name]
 		publisher, _ := _publishers[rtModule.Name]
 		_ = builder.Clean(_builderContexts[rtModule.Name])
@@ -392,7 +266,8 @@ func buildAndPublish(bp *BuildPack) error {
 
 func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 	// read configuration then pre runtime-params for doing snapshot
-	args, err := initCommanActionArguments(bp.Flag)
+	args := initCommanActionArguments(bp.Flag)
+	err := args.parse()
 	if err != nil {
 		return bp.Error("", err)
 	}
@@ -413,7 +288,8 @@ func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 
 func ActionReleaseHandler(bp *BuildPack) *BuildError {
 	// read configuration then pre runtime-params for doing release
-	args, err := initCommanActionArguments(bp.Flag)
+	args := initCommanActionArguments(bp.Flag)
+	err := args.parse()
 	if err != nil {
 		return bp.Error("", err)
 	}
@@ -431,12 +307,12 @@ func ActionReleaseHandler(bp *BuildPack) *BuildError {
 
 	bp.Phase = phaseBranching
 	versionStr := bp.Runtime.VersionRuntimeParams.branchBaseMinor()
-	buildInfo(*bp, fmt.Sprintf("tagging version %s", versionStr))
+	LogInfo(*bp, fmt.Sprintf("tagging version %s", versionStr))
 	err = bp.tag(bp.Runtime.GitRuntimeParams, versionStr)
 	if err != nil {
 		return bp.Error("", err)
 	}
-	buildInfo(*bp, fmt.Sprintf("branching version %s", versionStr))
+	LogInfo(*bp, fmt.Sprintf("branching version %s", versionStr))
 	err = bp.branch(bp.Runtime.GitRuntimeParams, versionStr)
 	if err != nil {
 		return bp.Error("", err)
@@ -445,10 +321,10 @@ func ActionReleaseHandler(bp *BuildPack) *BuildError {
 	bp.Phase = phasePumpVersion
 	bp.Runtime.VersionRuntimeParams.nextMinorVersion()
 	bp.Config.Version = bp.Runtime.VersionRuntimeParams.Version.withoutLabel()
-	buildInfo(*bp, fmt.Sprintf("pump version to %s", bp.Config.Version))
+	LogInfo(*bp, fmt.Sprintf("pump version to %s", bp.Config.Version))
 	bytes, err := yaml.Marshal(bp.Config)
 	if err != nil {
-		return bp.Error("", errors.New("can not marshal build pack config to yaml"))
+		return bp.Error("", errors.New("can not marshal build pack _example to yaml"))
 	}
 
 	err = ioutil.WriteFile(fileBuildPackConfig, bytes, 0644)
@@ -459,5 +335,5 @@ func ActionReleaseHandler(bp *BuildPack) *BuildError {
 }
 
 func endBuildPack(bp BuildPack) {
-	removeAllContainer(bp)
+	RemoveAllContainer(bp)
 }

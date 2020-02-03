@@ -1,4 +1,4 @@
-package main
+package buildpack
 
 import (
 	"context"
@@ -11,9 +11,9 @@ const (
 	dockerDefaultHost = "unix:///var/run/docker.sock"
 )
 
-func removeAllContainer(pack BuildPack) {
+func RemoveAllContainer(pack BuildPack) {
 	ctx := context.Background()
-	cli, err := newDockerClient(ctx, pack.Runtime.DockerConfig)
+	cli, err := NewDockerClient(ctx, pack.Runtime.DockerConfig)
 	if err != nil {
 		return
 	}
@@ -24,7 +24,7 @@ func removeAllContainer(pack BuildPack) {
 	}
 }
 
-func newDockerClient(ctx context.Context, dockerConfig DockerConfig) (cli *client.Client, err error) {
+func NewDockerClient(ctx context.Context, dockerConfig DockerConfig) (cli *client.Client, err error) {
 	hosts := dockerConfig.Hosts
 	if len(hosts) == 0 {
 		hosts = append(hosts, dockerDefaultHost)

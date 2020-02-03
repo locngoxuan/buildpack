@@ -1,4 +1,4 @@
-package main
+package buildpack
 
 import (
 	"errors"
@@ -10,21 +10,36 @@ import (
 )
 
 type BuildPackConfig struct {
-	Version           string `yaml:"version,omitempty"`
-	GitConfig         `yaml:"git,omitempty"`
-	DockerConfig      `yaml:"docker,omitempty"`
-	ArtifactoryConfig `yaml:"artifactory,omitempty"`
-	Modules           []BuildPackModuleConfig `yaml:"modules,omitempty"`
+	Version      string `yaml:"version,omitempty"`
+	GitConfig    `yaml:"git,omitempty"`
+	DockerConfig `yaml:"docker,omitempty"`
+	Repos        []RepositoryConfig      `yaml:"repositories,omitempty"`
+	Modules      []BuildPackModuleConfig `yaml:"modules,omitempty"`
+}
+
+func (c *BuildPackConfig) GetRepositoryType(id string) string {
+	for _, v := range c.Repos {
+		if v.Id == id {
+			return v.Type
+		}
+	}
+	return ""
 }
 
 type BuildPackModuleConfig struct {
-	Position    int    `yaml:"position,omitempty"`
-	Name        string `yaml:"name,omitempty"`
-	Path        string `yaml:"path,omitempty"`
-	Build       string `yaml:"build,omitempty"`
-	Publish     string `yaml:"publish,omitempty"`
-	Label       string `yaml:"label,omitempty"`
-	BuildNumber int    `yaml:"build-number,omitempty"`
+	Position            int    `yaml:"position,omitempty"`
+	Name                string `yaml:"name,omitempty"`
+	Path                string `yaml:"path,omitempty"`
+	Build               string `yaml:"build,omitempty"`
+	Label               string `yaml:"label,omitempty"`
+	BuildNumber         int    `yaml:"build-number,omitempty"`
+	ModulePublishConfig `yaml:"publish,omitempty"`
+}
+
+type ModulePublishConfig struct {
+	Skip     bool   `yaml:"skip,omitempty"`
+	RepoId   string `yaml:"repo-id,omitempty"`
+	RepoType string `yaml:"repo-type,omitempty"`
 }
 
 type GitConfig struct {
@@ -33,16 +48,19 @@ type GitConfig struct {
 	SSHPass     string `yaml:"ssh-pass,omitempty"`
 }
 
-type ArtifactoryConfig struct {
-	URL        string              `yaml:"url,omitempty"`
-	Username   string              `yaml:"username,omitempty"`
-	Password   string              `yaml:"password,omitempty"`
-	Repository ArtRepositoryConfig `yaml:"repository,omitempty"`
+type RepositoryConfig struct {
+	Id            string `yaml:"string,omitempty"`
+	Type          string `yaml:"type,omitempty"`
+	URL           string `yaml:"url,omitempty"`
+	Username      string `yaml:"username,omitempty"`
+	Password      string `yaml:"password,omitempty"`
+	AccessToken   string `yaml:"access-token,omitempty"`
+	ChannelConfig `yaml:"channel,omitempty"`
 }
 
-type ArtRepositoryConfig struct {
-	Release  string `yaml:"release,omitempty"`
-	Snapshot string `yaml:"snapshot,omitempty"`
+type ChannelConfig struct {
+	Stable   string `yaml:"stable,omitempty"`
+	Unstable string `yaml:"unstable,omitempty"`
 }
 
 type DockerConfig struct {
@@ -70,12 +88,12 @@ func readFromConfigFile() (buildPackConfig BuildPackConfig, err error) {
 
 	yamlFile, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("read application config file get error %v", err))
+		err = errors.New(fmt.Sprintf("read application _example file get error %v", err))
 		return
 	}
 	err = yaml.Unmarshal(yamlFile, &buildPackConfig)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("unmarshal application config file get error %v", err))
+		err = errors.New(fmt.Sprintf("unmarshal application _example file get error %v", err))
 		return
 	}
 	return

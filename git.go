@@ -1,4 +1,4 @@
-package main
+package buildpack
 
 import (
 	"errors"
@@ -9,6 +9,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
+	"gopkg.in/src-d/go-git.v4/storage/memory"
 	"io/ioutil"
 	"os"
 	"strings"
@@ -69,12 +70,12 @@ func initGitClient(root string) (cli GitClient, err error) {
 	}
 
 	if len(remotes) == 0 {
-		err = errors.New("not found remote from git config")
+		err = errors.New("not found remote from git _example")
 		return
 	}
 
 	for _, remote := range remotes {
-		if useHttp(remote) {
+		if _, yes := useHttp(remote); yes {
 			cli.Remote = remote
 			return
 		}
@@ -94,14 +95,14 @@ func initGitClient(root string) (cli GitClient, err error) {
 	}
 
 	if cli.Remote == nil {
-		err = errors.New("not found remote from git config")
+		err = errors.New("not found remote from git _example")
 		return
 	}
 	return
 }
 
 func auth(remote *git.Remote, gitConfig GitRuntimeParams) (transport.AuthMethod, error) {
-	if useHttp(remote) {
+	if _, yes := useHttp(remote); yes {
 		return &http.BasicAuth{
 			Username: "token",
 			Password: gitConfig.AccessToken,
@@ -116,13 +117,30 @@ func auth(remote *git.Remote, gitConfig GitRuntimeParams) (transport.AuthMethod,
 	}
 }
 
-func useHttp(r *git.Remote) bool {
+func useHttp(r *git.Remote) (string, bool) {
 	for _, url := range r.Config().URLs {
 		if strings.HasPrefix(url, "https") {
-			return true
+			return url, true
 		}
 	}
-	return false
+	return "", false
+}
+
+func (c *GitClient) verify(gitConfig GitRuntimeParams) error {
+	url, _ := useHttp(c.Remote)
+	auth, err := auth(c.Remote, gitConfig)
+	if err != nil {
+		return err
+	}
+	_, err = git.Clone(memory.NewStorage(), nil, &git.CloneOptions{
+		URL:        url,
+		Auth:       auth,
+		NoCheckout: true,
+	})
+	if err != nil {
+		return err
+	}
+	return err
 }
 
 func (c *GitClient) tag(gitConfig GitRuntimeParams, version string) error {

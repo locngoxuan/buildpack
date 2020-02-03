@@ -1,7 +1,8 @@
-package main
+package buildpack
 
 import (
 	"errors"
+	"scm.wcs.fortna.com/lngo/buildpack/publisher"
 	"strings"
 )
 
@@ -20,10 +21,11 @@ type PublishContext struct {
 	Path     string
 	metadata map[string]interface{}
 	BuildPack
+	RepositoryConfig
 	BuildPackModuleRuntimeParams
 }
 
-func newPublishContext(name, path string) PublishContext {
+func NewPublishContext(name, path string) PublishContext {
 	return PublishContext{
 		Name:     name,
 		Path:     path,
@@ -78,7 +80,7 @@ const (
 
 func init() {
 	publishers = make(map[string]Publisher)
-	publishers[publisherJfrogMvn] = &PublisherJfrogMVN{}
+	publishers[publisherJfrogMvn] = &publisher.PublisherJfrogMVN{}
 }
 
 func publisherOptions() string {

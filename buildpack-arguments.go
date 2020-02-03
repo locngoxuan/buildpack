@@ -1,10 +1,28 @@
-package main
+package buildpack
 
 import (
 	"flag"
 	"os"
 	"strings"
 )
+
+type arrayFlags []string
+
+func (i *arrayFlags) String() string {
+	return "my string representation"
+}
+
+func (i *arrayFlags) Set(value string) error {
+	*i = append(*i, value)
+	return nil
+}
+
+type RepoArgument struct {
+	Id       string
+	Username string
+	Password string
+	Token    string
+}
 
 type ActionArguments struct {
 	Flag   *flag.FlagSet
@@ -18,22 +36,56 @@ func newActionArguments(f *flag.FlagSet) *ActionArguments {
 	}
 }
 
-func initCommanActionArguments(f *flag.FlagSet) (*ActionArguments, error) {
+func initCommanActionArguments(f *flag.FlagSet) *ActionArguments {
 	args := newActionArguments(f)
-	err := args.readVersion().
+	return args.readVersion().
 		readModules().
 		readContainer().
+		readRepoIds().
+		readRepoUserName().
+		readRepoPassword().
+		readRepoAccessToken().
+		readGitAccessToken().
 		readSkipClean().
 		readSkipPublish().
-		readSkipTest().
-		parse()
-	if err != nil {
-		return nil, err
-	}
-	return args, nil
+		readSkipTest()
 }
 
-func (a *ActionArguments) readSkipTest() *ActionArguments{
+func (a *ActionArguments) readGitAccessToken() *ActionArguments {
+	s := a.Flag.String("git-token", "", "access-token of git")
+	a.Values["git-token"] = s
+	return a
+}
+
+func (a *ActionArguments) readRepoIds() *ActionArguments {
+	var arrVals arrayFlags
+	a.Flag.Var(&arrVals, "repo-id", "list of repository id")
+	a.Values["repo-id"] = arrVals
+	return a
+}
+
+func (a *ActionArguments) readRepoUserName() *ActionArguments {
+	var arrVals arrayFlags
+	a.Flag.Var(&arrVals, "repo-user", "list username follow order of ids")
+	a.Values["repo-user"] = arrVals
+	return a
+}
+
+func (a *ActionArguments) readRepoPassword() *ActionArguments {
+	var arrVals arrayFlags
+	a.Flag.Var(&arrVals, "repo-pass", "list password follow order of ids")
+	a.Values["repo-pass"] = arrVals
+	return a
+}
+
+func (a *ActionArguments) readRepoAccessToken() *ActionArguments {
+	var arrVals arrayFlags
+	a.Flag.Var(&arrVals, "repo-token", "list access token follow order of ids")
+	a.Values["repo-token"] = arrVals
+	return a
+}
+
+func (a *ActionArguments) readSkipTest() *ActionArguments {
 	s := a.Flag.Bool("skip-ut", false, "skip unit test while running build")
 	a.Values["skip-ut"] = s
 	return a
@@ -123,4 +175,33 @@ func (a *ActionArguments) skipUnitTest() bool {
 		return false
 	}
 	return *(s.(*bool))
+}
+
+func (a *ActionArguments) repoArguments() map[string]RepoArgument {
+	rs := make(map[string]RepoArgument)
+
+	repoIds, _ := a.Values["repo-id"].([]string)
+	repoUsers, _ := a.Values["repo-user"].([]string)
+	repoPwds, _ := a.Values["repo-pass"].([]string)
+	repoTokens, _ := a.Values["repo-token"].([]string)
+
+	for i, id := range repoIds {
+		r := RepoArgument{
+			Id: id,
+		}
+
+		if i < len(repoUsers) {
+			r.Username = repoUsers[i]
+		}
+
+		if i < len(repoPwds) {
+			r.Password = repoPwds[i]
+		}
+
+		if i < len(repoTokens) {
+			r.Token = repoTokens[i]
+		}
+		rs[id] = r
+	}
+	return rs
 }

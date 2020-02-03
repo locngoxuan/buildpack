@@ -1,18 +1,19 @@
-package main
+package buildpack
 
 type BuildPackRuntimeParams struct {
-	UseContainerBuild bool
 	VersionRuntimeParams
-	ArtifactoryRuntimeParams
+	RepositoryRuntimeParams
 	GitRuntimeParams
 	DockerRuntimeParams
-	Modules []BuildPackModuleRuntimeParams
+
+	UseContainerBuild bool
+	Modules           []BuildPackModuleRuntimeParams
 }
 
 func initRuntimeParams(config BuildPackConfig) BuildPackRuntimeParams {
 	return BuildPackRuntimeParams{
-		ArtifactoryRuntimeParams: ArtifactoryRuntimeParams{
-			config.ArtifactoryConfig,
+		RepositoryRuntimeParams: RepositoryRuntimeParams{
+			config.Repos,
 		},
 		GitRuntimeParams: GitRuntimeParams{
 			config.GitConfig,
@@ -45,8 +46,17 @@ func (d *DockerRuntimeParams) CreatedContainerIDs() []string {
 	return rs
 }
 
-type ArtifactoryRuntimeParams struct {
-	ArtifactoryConfig
+type RepositoryRuntimeParams struct {
+	Repos []RepositoryConfig
+}
+
+func (r *RepositoryRuntimeParams) GetRepo(id string) (RepositoryConfig, error) {
+	for _, v := range r.Repos {
+		if v.Id == id {
+			return v, nil
+		}
+	}
+	return RepositoryConfig{}, nil
 }
 
 type BuildPackModuleRuntimeParams struct {
@@ -58,7 +68,7 @@ type VersionRuntimeParams struct {
 	Release bool
 }
 
-func (vrt *VersionRuntimeParams) version(label string, buildNumber int) string {
+func (vrt *VersionRuntimeParams) GetVersion(label string, buildNumber int) string {
 	if vrt.Release {
 		return vrt.withoutLabel()
 	}

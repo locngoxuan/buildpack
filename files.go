@@ -8,7 +8,7 @@ import (
 )
 
 func (bp *BuildPack) GetPublishDirectory() string {
-	p, err := filepath.Abs(filepath.Join(bp.Root, publishDir))
+	p, err := filepath.Abs(filepath.Join(bp.Root, PublishDirectory))
 	if err != nil {
 		LogFatal(*bp.Error("", err))
 	}
@@ -16,7 +16,7 @@ func (bp *BuildPack) GetPublishDirectory() string {
 }
 
 func (bp *BuildPack) GetBuildPackConfigPath() string {
-	p, err := filepath.Abs(filepath.Join(bp.Root, fileBuildPackConfig))
+	p, err := filepath.Abs(filepath.Join(bp.Root, FileBuildPackConfig))
 	if err != nil {
 		LogFatal(*bp.Error("", err))
 	}
@@ -24,7 +24,7 @@ func (bp *BuildPack) GetBuildPackConfigPath() string {
 }
 
 func (bp *BuildPack) GetBuilderConfigPath(modulePath string) string {
-	p, err := filepath.Abs(filepath.Join(bp.Root, modulePath, fileBuilderConfig))
+	p, err := filepath.Abs(filepath.Join(bp.Root, modulePath, FileBuilderConfig))
 	if err != nil {
 		LogFatal(*bp.Error("", err))
 	}

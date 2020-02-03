@@ -31,25 +31,26 @@ type BuildPack struct {
 }
 
 const (
-	fileBuildPackConfig = "buildpack.yml"
-	fileBuilderConfig   = "builder.yml"
+	FileBuildPackConfig = "buildpack.yml"
+	FileBuilderConfig   = "builder.yml"
+	PublishDirectory    = "publish"
 
-	phaseInit        = "init"
-	phaseLoadConfig  = "load-_example"
-	phaseBuildConfig = "build-_example"
-	phaseSaveConfig  = "save-_example"
+	PhaseInit        = "init"
+	PhaseLoadConfig  = "load-_example"
+	PhaseBuildConfig = "build-_example"
+	PhaseSaveConfig  = "save-_example"
 
-	phaseInitBuilder   = "init-builder"
-	phaseInitPublisher = "init-publisher"
-	phaseUnitTest      = "unit-test"
-	phaseBuild         = "build"
-	phasePrePublish    = "pre-publish"
-	phasePublish       = "publish"
-	phaseCleanAll      = "clean-all"
-	phaseBranching     = "branching"
-	phasePumpVersion   = "pump-version"
+	PhaseInitBuilder   = "init-builder"
+	PhaseInitPublisher = "init-publisher"
+	PhaseUnitTest      = "unit-test"
+	PhaseBuild         = "build"
+	PhasePrePublish    = "pre-publish"
+	PhasePublish       = "publish"
+	PhaseCleanAll      = "clean-all"
+	PhaseBranching     = "branching"
+	PhasePumpVersion   = "pump-version"
 
-	fileConfigTemplate = `
+	FileConfigTemplate = `
 docker:
   hosts:
     - "unix:///var/run/docker.sock"
@@ -105,7 +106,7 @@ func NewBuildPack(action string, f *flag.FlagSet) (*BuildPack, error) {
 		Action:  action,
 		Flag:    f,
 		Root:    root,
-		Phase:   phaseInit,
+		Phase:   PhaseInit,
 		Config:  BuildPackConfig{},
 		Runtime: BuildPackRuntimeParams{},
 	}, nil
@@ -120,20 +121,6 @@ func (b *BuildPack) Error(msg string, err error) *BuildError {
 	}
 }
 
-func (b *BuildPack) Handle() *BuildError {
-	actionHandler, ok := actions[b.Action]
-	if !ok {
-		return b.Error("action not found", nil)
-	}
-	b.Phase = phaseLoadConfig
-	var err error
-	b.GitClient, err = initGitClient(b.Root)
-	if err != nil {
-		return b.Error("", err)
-	}
-	return actionHandler(b)
-}
-
 func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) error {
 	var err error
 	bp.Config, err = readFromConfigFile()
@@ -142,23 +129,23 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 	}
 
 	versionStr := bp.Config.Version
-	if len(argument.version()) > 0 {
-		versionStr = argument.version()
+	if len(argument.Version()) > 0 {
+		versionStr = argument.Version()
 	}
 
-	v, err := fromString(versionStr)
+	v, err := FromString(versionStr)
 	if err != nil {
 		return err
 	}
 
-	runtimeParams := initRuntimeParams(bp.Config)
+	runtimeParams := InitRuntimeParams(bp.Config)
 	runtimeParams.VersionRuntimeParams = VersionRuntimeParams{
 		*v,
 		release,
 	}
-	runtimeParams.UseContainerBuild = argument.container()
+	runtimeParams.UseContainerBuild = argument.Container()
 	runtimeParams.Modules = make([]BuildPackModuleRuntimeParams, 0)
-	moduleNames := argument.modules()
+	moduleNames := argument.Modules()
 	//parsing module
 	findModuleConfig := func(name string) (BuildPackModuleConfig, error) {
 		for _, v := range bp.Config.Modules {
@@ -196,8 +183,8 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 	})
 	//end parsing and sorting modules
 	bp.Runtime = runtimeParams
-	bp.SkipClean = argument.skipClean()
-	bp.SkipPublish = argument.skipPublish()
-	bp.SkipUnitTest = argument.skipUnitTest()
+	bp.SkipClean = argument.SkipClean()
+	bp.SkipPublish = argument.SkipPublish()
+	bp.SkipUnitTest = argument.SkipUnitTest()
 	return nil
 }

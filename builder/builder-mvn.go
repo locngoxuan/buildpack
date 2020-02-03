@@ -22,7 +22,7 @@ const (
 	pomFile           = "pom.xml"
 	labelSnapshot     = "SNAPSHOT"
 
-	BuildTypeMvn = "mvn"
+	buildTypeMvn = "mvn"
 )
 
 type BuilderMvn struct {
@@ -44,7 +44,7 @@ func (b *BuilderMvn) Verify(ctx BuildContext) error {
 
 func (b *BuilderMvn) WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error {
 	mvnOpt := &BuilderMvnOption{
-		Type: BuildTypeMvn,
+		Type: buildTypeMvn,
 		M2:   "",
 	}
 

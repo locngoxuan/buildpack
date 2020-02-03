@@ -1,8 +1,8 @@
-package buildpack
+package publisher
 
 import (
 	"errors"
-	"scm.wcs.fortna.com/lngo/buildpack/publisher"
+	. "scm.wcs.fortna.com/lngo/buildpack"
 	"strings"
 )
 
@@ -80,7 +80,7 @@ const (
 
 func init() {
 	publishers = make(map[string]Publisher)
-	publishers[publisherJfrogMvn] = &publisher.PublisherJfrogMVN{}
+	publishers[publisherJfrogMvn] = &ArtifactoryMVNPublisher{}
 }
 
 func publisherOptions() string {
@@ -96,7 +96,7 @@ func doesPublisherExist(publisherName string) bool {
 	return ok
 }
 
-func getPublisher(publisherName string) Publisher {
+func GetPublisher(publisherName string) Publisher {
 	publisher, ok := publishers[publisherName]
 	if !ok {
 		return &EmptyPublisher{}

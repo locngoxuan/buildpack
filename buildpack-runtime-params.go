@@ -10,7 +10,7 @@ type BuildPackRuntimeParams struct {
 	Modules           []BuildPackModuleRuntimeParams
 }
 
-func initRuntimeParams(config BuildPackConfig) BuildPackRuntimeParams {
+func InitRuntimeParams(config BuildPackConfig) BuildPackRuntimeParams {
 	return BuildPackRuntimeParams{
 		RepositoryRuntimeParams: RepositoryRuntimeParams{
 			config.Repos,
@@ -70,7 +70,7 @@ type VersionRuntimeParams struct {
 
 func (vrt *VersionRuntimeParams) GetVersion(label string, buildNumber int) string {
 	if vrt.Release {
-		return vrt.withoutLabel()
+		return vrt.WithoutLabel()
 	}
-	return vrt.withLabel(label)
+	return vrt.WithLabel(label)
 }

@@ -79,7 +79,7 @@ func readFromConfigFile() (buildPackConfig BuildPackConfig, err error) {
 	if err != nil {
 		return
 	}
-	configFile := filepath.Join(pwd, fileBuildPackConfig)
+	configFile := filepath.Join(pwd, FileBuildPackConfig)
 	_, err = os.Stat(configFile)
 	if os.IsNotExist(err) {
 		err = errors.New("configuration file not found")

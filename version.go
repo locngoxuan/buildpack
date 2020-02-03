@@ -13,43 +13,43 @@ type Version struct {
 	Patch int
 }
 
-func (v *Version) withoutLabel() string {
+func (v *Version) WithoutLabel() string {
 	return fmt.Sprintf("%d.%d.%d", v.Major, v.Minor, v.Patch)
 }
 
-func (v *Version) withLabel(label string) string {
+func (v *Version) WithLabel(label string) string {
 	return fmt.Sprintf("%d.%d.%d-%s", v.Major, v.Minor, v.Patch, label)
 }
 
-func (v *Version) withLabelAndBuildNumber(label string, buildNumber int) string {
+func (v *Version) WithLabelAndBuildNumber(label string, buildNumber int) string {
 	return fmt.Sprintf("%d.%d.%d-%s.%d", v.Major, v.Minor, v.Patch, label, buildNumber)
 }
 
-func (v *Version) nextPatch() {
+func (v *Version) NextPatch() {
 	v.Patch = v.Patch + 1
 }
 
-func (v *Version) nextMinorVersion() {
+func (v *Version) NextMinorVersion() {
 	v.Patch = 0
 	v.Minor = v.Minor + 1
 }
 
-func (v *Version) nextMajorVersion() {
+func (v *Version) NextMajorVersion() {
 	v.Patch = 0
 	v.Minor = 0
 	v.Major = v.Major + 1
 }
 
-func (v *Version) branchBaseMinor() string {
+func (v *Version) BranchBaseMinor() string {
 	return fmt.Sprintf("%d.%d.x", v.Major, v.Minor)
 }
 
-func (v *Version) branchBaseMajor() string {
+func (v *Version) BranchBaseMajor() string {
 	return fmt.Sprintf("%d.x.x", v.Major)
 }
 
 // convert from major.minor.path-label.buildNumber to version
-func fromString(version string) (*Version, error) {
+func FromString(version string) (*Version, error) {
 	numbers := strings.Split(version, ".")
 	if len(numbers) != 3 {
 		return nil, errors.New("invalid number format")

@@ -29,103 +29,103 @@ type ActionArguments struct {
 	Values map[string]interface{}
 }
 
-func newActionArguments(f *flag.FlagSet) *ActionArguments {
+func NewActionArguments(f *flag.FlagSet) *ActionArguments {
 	return &ActionArguments{
 		Flag:   f,
 		Values: make(map[string]interface{}),
 	}
 }
 
-func initCommanActionArguments(f *flag.FlagSet) *ActionArguments {
-	args := newActionArguments(f)
-	return args.readVersion().
-		readModules().
-		readContainer().
-		readRepoIds().
-		readRepoUserName().
-		readRepoPassword().
-		readRepoAccessToken().
-		readGitAccessToken().
-		readSkipClean().
-		readSkipPublish().
-		readSkipTest()
+func InitCommanActionArguments(f *flag.FlagSet) *ActionArguments {
+	args := NewActionArguments(f)
+	return args.ReadVersion().
+		ReadModules().
+		ReadContainer().
+		ReadRepoIds().
+		ReadRepoUserName().
+		ReadRepoPassword().
+		ReadRepoAccessToken().
+		ReadGitAccessToken().
+		ReadSkipClean().
+		ReadSkipPublish().
+		ReadSkipTest()
 }
 
-func (a *ActionArguments) readGitAccessToken() *ActionArguments {
+func (a *ActionArguments) ReadGitAccessToken() *ActionArguments {
 	s := a.Flag.String("git-token", "", "access-token of git")
 	a.Values["git-token"] = s
 	return a
 }
 
-func (a *ActionArguments) readRepoIds() *ActionArguments {
+func (a *ActionArguments) ReadRepoIds() *ActionArguments {
 	var arrVals arrayFlags
 	a.Flag.Var(&arrVals, "repo-id", "list of repository id")
 	a.Values["repo-id"] = arrVals
 	return a
 }
 
-func (a *ActionArguments) readRepoUserName() *ActionArguments {
+func (a *ActionArguments) ReadRepoUserName() *ActionArguments {
 	var arrVals arrayFlags
 	a.Flag.Var(&arrVals, "repo-user", "list username follow order of ids")
 	a.Values["repo-user"] = arrVals
 	return a
 }
 
-func (a *ActionArguments) readRepoPassword() *ActionArguments {
+func (a *ActionArguments) ReadRepoPassword() *ActionArguments {
 	var arrVals arrayFlags
 	a.Flag.Var(&arrVals, "repo-pass", "list password follow order of ids")
 	a.Values["repo-pass"] = arrVals
 	return a
 }
 
-func (a *ActionArguments) readRepoAccessToken() *ActionArguments {
+func (a *ActionArguments) ReadRepoAccessToken() *ActionArguments {
 	var arrVals arrayFlags
 	a.Flag.Var(&arrVals, "repo-token", "list access token follow order of ids")
 	a.Values["repo-token"] = arrVals
 	return a
 }
 
-func (a *ActionArguments) readSkipTest() *ActionArguments {
+func (a *ActionArguments) ReadSkipTest() *ActionArguments {
 	s := a.Flag.Bool("skip-ut", false, "skip unit test while running build")
 	a.Values["skip-ut"] = s
 	return a
 }
 
-func (a *ActionArguments) readSkipPublish() *ActionArguments {
+func (a *ActionArguments) ReadSkipPublish() *ActionArguments {
 	s := a.Flag.Bool("skip-publish", false, "skip publish to artifactory")
 	a.Values["skip-publish"] = s
 	return a
 }
 
-func (a *ActionArguments) readSkipClean() *ActionArguments {
+func (a *ActionArguments) ReadSkipClean() *ActionArguments {
 	s := a.Flag.Bool("skip-clean", false, "skip cleaning after build and publish")
 	a.Values["skip-clean"] = s
 	return a
 }
 
-func (a *ActionArguments) readVersion() *ActionArguments {
+func (a *ActionArguments) ReadVersion() *ActionArguments {
 	s := a.Flag.String("v", "", "version number")
 	a.Values["v"] = s
 	return a
 }
 
-func (a *ActionArguments) readModules() *ActionArguments {
+func (a *ActionArguments) ReadModules() *ActionArguments {
 	s := a.Flag.String("m", "", "modules")
 	a.Values["m"] = s
 	return a
 }
 
-func (a *ActionArguments) readContainer() *ActionArguments {
+func (a *ActionArguments) ReadContainer() *ActionArguments {
 	s := a.Flag.Bool("container", false, "using docker environment rather than host environment")
 	a.Values["container"] = s
 	return a
 }
 
-func (a *ActionArguments) parse() error {
+func (a *ActionArguments) Parse() error {
 	return a.Flag.Parse(os.Args[2:])
 }
 
-func (a *ActionArguments) version() string {
+func (a *ActionArguments) Version() string {
 	s, ok := a.Values["v"]
 	if !ok {
 		return ""
@@ -133,7 +133,7 @@ func (a *ActionArguments) version() string {
 	return strings.TrimSpace(*(s.(*string)))
 }
 
-func (a *ActionArguments) modules() []string {
+func (a *ActionArguments) Modules() []string {
 	s, ok := a.Values["m"]
 	if !ok {
 		return []string{}
@@ -145,7 +145,7 @@ func (a *ActionArguments) modules() []string {
 	return strings.Split(v, ",")
 }
 
-func (a *ActionArguments) container() bool {
+func (a *ActionArguments) Container() bool {
 	s, ok := a.Values["container"]
 	if !ok {
 		return false
@@ -153,7 +153,7 @@ func (a *ActionArguments) container() bool {
 	return *(s.(*bool))
 }
 
-func (a *ActionArguments) skipClean() bool {
+func (a *ActionArguments) SkipClean() bool {
 	s, ok := a.Values["skip-clean"]
 	if !ok {
 		return false
@@ -161,7 +161,7 @@ func (a *ActionArguments) skipClean() bool {
 	return *(s.(*bool))
 }
 
-func (a *ActionArguments) skipPublish() bool {
+func (a *ActionArguments) SkipPublish() bool {
 	s, ok := a.Values["skip-publish"]
 	if !ok {
 		return false
@@ -169,7 +169,7 @@ func (a *ActionArguments) skipPublish() bool {
 	return *(s.(*bool))
 }
 
-func (a *ActionArguments) skipUnitTest() bool {
+func (a *ActionArguments) SkipUnitTest() bool {
 	s, ok := a.Values["skip-ut"]
 	if !ok {
 		return false
@@ -177,7 +177,7 @@ func (a *ActionArguments) skipUnitTest() bool {
 	return *(s.(*bool))
 }
 
-func (a *ActionArguments) repoArguments() map[string]RepoArgument {
+func (a *ActionArguments) RepoArguments() map[string]RepoArgument {
 	rs := make(map[string]RepoArgument)
 
 	repoIds, _ := a.Values["repo-id"].([]string)

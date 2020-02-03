@@ -50,7 +50,7 @@ func main() {
 			Message: "",
 		})
 	}
-	result := buildPack.Handle()
+	result := Handle(buildPack)
 	if result != nil {
 		LogFatal(*result)
 	}

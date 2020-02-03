@@ -27,7 +27,7 @@ type GitClient struct {
 	Remote        *git.Remote
 }
 
-func initGitClient(root string) (cli GitClient, err error) {
+func InitGitClient(root string) (cli GitClient, err error) {
 	cli.Repo, err = git.PlainOpen(root)
 	if err != nil {
 		return
@@ -126,7 +126,7 @@ func useHttp(r *git.Remote) (string, bool) {
 	return "", false
 }
 
-func (c *GitClient) verify(gitConfig GitRuntimeParams) error {
+func (c *GitClient) Verify(gitConfig GitRuntimeParams) error {
 	url, _ := useHttp(c.Remote)
 	auth, err := auth(c.Remote, gitConfig)
 	if err != nil {
@@ -143,7 +143,7 @@ func (c *GitClient) verify(gitConfig GitRuntimeParams) error {
 	return err
 }
 
-func (c *GitClient) tag(gitConfig GitRuntimeParams, version string) error {
+func (c *GitClient) Tag(gitConfig GitRuntimeParams, version string) error {
 	reference, err := c.Repo.Storer.Reference(c.CurrentBranch.Name())
 	if err != nil {
 		return err
@@ -198,7 +198,7 @@ func (c *GitClient) tag(gitConfig GitRuntimeParams, version string) error {
 	return nil
 }
 
-func (c *GitClient) branch(gitConfig GitRuntimeParams, branchName string) error {
+func (c *GitClient) Branch(gitConfig GitRuntimeParams, branchName string) error {
 	newBranchName := plumbing.NewBranchReferenceName(branchName)
 
 	wt, err := c.Repo.Worktree()

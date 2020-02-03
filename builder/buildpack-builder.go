@@ -1,8 +1,8 @@
-package buildpack
+package builder
 
 import (
 	"github.com/pkg/errors"
-	"scm.wcs.fortna.com/lngo/buildpack/builder"
+	. "scm.wcs.fortna.com/lngo/buildpack"
 	"strings"
 )
 
@@ -50,7 +50,7 @@ var builders map[string]Builder
 
 func init() {
 	builders = make(map[string]Builder)
-	builders[builderTypeMvn] = &builder.BuilderMvn{}
+	builders[buildTypeMvn] = &BuilderMvn{}
 }
 
 func builderOptions() string {
@@ -61,7 +61,7 @@ func builderOptions() string {
 	return strings.Join(names, "/")
 }
 
-func getBuilder(builderName string) (Builder, error) {
+func GetBuilder(builderName string) (Builder, error) {
 	builder, ok := builders[builderName]
 	if !ok {
 		return nil, errors.New("can not find builder by name: " + builderName)

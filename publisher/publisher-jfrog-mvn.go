@@ -1,7 +1,6 @@
 package publisher
 
 import (
-	"archive/zip"
 	"crypto/md5"
 	"crypto/sha256"
 	"encoding/xml"
@@ -17,12 +16,11 @@ import (
 )
 
 const (
-	publishDir    = "publishes"
 	pomFile       = "pom.xml"
 	labelSnapshot = "SNAPSHOT"
 )
 
-type PublisherJfrogMVN struct {
+type ArtifactoryMVNPublisher struct {
 	uploads []JfrogMVNUpload
 }
 
@@ -47,11 +45,11 @@ type POM struct {
 	Classifier string   `xml:"packaging"`
 }
 
-func (p *PublisherJfrogMVN) WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error {
+func (p *ArtifactoryMVNPublisher) WriteConfig(bp BuildPack, opt BuildPackModuleConfig) error {
 	return nil
 }
 
-func (p *PublisherJfrogMVN) CreateContext(bp BuildPack, rtOpt BuildPackModuleRuntimeParams) (PublishContext, error) {
+func (p *ArtifactoryMVNPublisher) CreateContext(bp BuildPack, rtOpt BuildPackModuleRuntimeParams) (PublishContext, error) {
 	ctx := NewPublishContext(rtOpt.Name, rtOpt.Path)
 	ctx.BuildPack = bp
 	ctx.BuildPackModuleRuntimeParams = rtOpt
@@ -99,46 +97,11 @@ func addPOMToContext(ctx PublishContext, pom POM) {
 	ctx.Add("pom", pom)
 }
 
-func readPomFromJar(jarFile string) ([]byte, error) {
-	r, err := zip.OpenReader(jarFile)
-
-	if err != nil {
-		return nil, err
-	}
-
-	defer func() {
-		_ = r.Close()
-	}()
-
-	for _, f := range r.File {
-		_, fileName := filepath.Split(f.Name)
-		if fileName == pomFile {
-			rc, err := f.Open()
-
-			if err != nil {
-				return nil, err
-			}
-
-			bytes, err := ioutil.ReadAll(rc)
-			if err != nil {
-				return nil, err
-			}
-
-			if len(bytes) == 0 {
-				return nil, errors.New("")
-			}
-			return bytes, nil
-		}
-	}
-
-	return nil, errors.New("")
-}
-
-func (p *PublisherJfrogMVN) Verify(ctx PublishContext) error {
+func (p *ArtifactoryMVNPublisher) Verify(ctx PublishContext) error {
 	return nil
 }
 
-func (p *PublisherJfrogMVN) Pre(ctx PublishContext) error {
+func (p *ArtifactoryMVNPublisher) Pre(ctx PublishContext) error {
 	rtModule := ctx.BuildPackModuleRuntimeParams
 	pom := getPOMFromContext(ctx)
 	version := ctx.Runtime.VersionRuntimeParams.GetVersion(labelSnapshot, 0)
@@ -157,14 +120,46 @@ func (p *PublisherJfrogMVN) Pre(ctx PublishContext) error {
 	modulePath := strings.Join(args, "/")
 	// end generic information
 
-	//copy flattened pom
-	//pomData := readPomFromJar()
+	//copy pom
+	pomSrc := ctx.BuildPathOnRoot(rtModule.Path, "target", pomFile)
+	pomName := fmt.Sprintf("%s-%s.pom", pom.ArtifactId, version)
+	pomPublished := ctx.BuildPathOnRoot(PublishDirectory, pomName)
+	err := CopyFile(pomSrc, pomPublished)
+	if err != nil {
+		return err
+	}
+
+	pomSumSHA256, err := checksumSHA256(pomPublished)
+	if err != nil {
+		return err
+	}
+	pomSumMD5, err := checksumMD5(pomPublished)
+	if err != nil {
+		return err
+	}
+	pomParam := JfrogMVNUpload{
+		Destination: fmt.Sprintf("%s/%s/%s/%s", artifact, repository, modulePath, pomName),
+		Source:      pomPublished,
+		Version:     version,
+		Username:    ctx.RepositoryConfig.Username,
+		Password:    ctx.RepositoryConfig.Password,
+		CheckSum: CheckSum{
+			SHA256: pomSumSHA256,
+			MD5:    pomSumMD5,
+		},
+	}
+	uploadParams = append(uploadParams, pomParam)
+	LogInfo(ctx.BuildPack, fmt.Sprintf("PUT %s to %s with sum sha256:%s and md5:%s",
+		pomParam.Source,
+		pomParam.Destination,
+		pomParam.SHA256,
+		pomParam.MD5))
 
 	if pom.Classifier == "jar" || len(strings.TrimSpace(pom.Classifier)) == 0 {
 		//copy jar
 		jarName := fmt.Sprintf("%s-%s.jar", pom.ArtifactId, version)
 		jarSrc := ctx.BuildPathOnRoot(rtModule.Path, "target", jarName)
-		jarPublished := ctx.BuildPathOnRoot(publishDir, jarName)
+		jarPublished := ctx.BuildPathOnRoot(PublishDirectory, jarName)
 		err := CopyFile(jarSrc, jarPublished)
 		if err != nil {
 			return err
@@ -194,46 +189,13 @@ func (p *PublisherJfrogMVN) Pre(ctx PublishContext) error {
 			jarParam.Destination,
 			jarParam.SHA256,
 			jarParam.MD5))
-	} else {
-		pomSrc := ctx.BuildPathOnRoot(rtModule.Path, pomFlattened)
-		pomName := fmt.Sprintf("%s-%s.pom", pom.ArtifactId, version)
-		pomPublished := ctx.BuildPathOnRoot(publishDir, pomName)
-		err := CopyFile(pomSrc, pomPublished)
-		if err != nil {
-			return err
-		}
 
-		pomSumSHA256, err := checksumSHA256(pomPublished)
-		if err != nil {
-			return err
-		}
-		pomSumMD5, err := checksumMD5(pomPublished)
-		if err != nil {
-			return err
-		}
-		pomParam := JfrogMVNUpload{
-			Destination: fmt.Sprintf("%s/%s/%s/%s", artifact, repository, modulePath, pomName),
-			Source:      pomPublished,
-			Version:     version,
-			Username:    ctx.RepositoryConfig.Username,
-			Password:    ctx.RepositoryConfig.Password,
-			CheckSum: CheckSum{
-				SHA256: pomSumSHA256,
-				MD5:    pomSumMD5,
-			},
-		}
-		uploadParams = append(uploadParams, pomParam)
-		LogInfo(ctx.BuildPack, fmt.Sprintf("PUT %s to %s with sum sha256:%s and md5:%s",
-			pomParam.Source,
-			pomParam.Destination,
-			pomParam.SHA256,
-			pomParam.MD5))
 	}
 	p.uploads = uploadParams
 	return nil
 }
 
-func (p *PublisherJfrogMVN) Publish(ctx PublishContext) error {
+func (p *ArtifactoryMVNPublisher) Publish(ctx PublishContext) error {
 	for _, upload := range p.uploads {
 		err := uploadFile(upload)
 		if err != nil {
@@ -243,7 +205,7 @@ func (p *PublisherJfrogMVN) Publish(ctx PublishContext) error {
 	return nil
 }
 
-func (p *PublisherJfrogMVN) Clean(ctx PublishContext) error {
+func (p *ArtifactoryMVNPublisher) Clean(ctx PublishContext) error {
 	return nil
 }
 

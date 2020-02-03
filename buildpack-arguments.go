@@ -22,6 +22,7 @@ type SkipOption struct {
 	SkipUnitTest  bool
 	SkipPublish   bool
 	SkipClean     bool
+	SkipBranching bool
 }
 
 type RepoArgument struct {
@@ -111,6 +112,12 @@ func (a *ActionArguments) readSkipClean() *ActionArguments {
 	return a
 }
 
+func (a *ActionArguments) readSkipBranching() *ActionArguments {
+	s := a.Flag.Bool("skip-branch", false, "skip branching after build and publish")
+	a.Values["skip-branch"] = s
+	return a
+}
+
 func (a *ActionArguments) readVersion() *ActionArguments {
 	s := a.Flag.String("v", "", "version number")
 	a.Values["v"] = s
@@ -179,6 +186,14 @@ func (a *ActionArguments) SkipPublish() bool {
 
 func (a *ActionArguments) SkipUnitTest() bool {
 	s, ok := a.Values["skip-ut"]
+	if !ok {
+		return false
+	}
+	return *(s.(*bool))
+}
+
+func (a *ActionArguments) SkipBranching() bool {
+	s, ok := a.Values["skip-branch"]
 	if !ok {
 		return false
 	}

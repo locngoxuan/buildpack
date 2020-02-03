@@ -17,6 +17,7 @@ func InitRuntimeParams(config Config) Runtime {
 			SkipUnitTest:  false,
 			SkipPublish:   false,
 			SkipClean:     false,
+			SkipBranching: false,
 		},
 		RepositoryRuntime: RepositoryRuntime{
 			config.Repos,

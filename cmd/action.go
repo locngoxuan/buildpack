@@ -153,6 +153,99 @@ func ActionCheckConfig(bp *BuildPack) *BuildError {
 	return nil
 }
 
+func ActionSnapshotHandler(bp *BuildPack) *BuildError {
+	// read configuration then pre runtime-params for doing snapshot
+	args, err := NewActionArguments(bp.Flag)
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	err = bp.InitRuntimeParams(false, args)
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	defer endBuildPack(*bp)
+	// run snapshot action for each module
+	err = buildAndPublish(bp)
+	if err != nil {
+		return bp.Error("", err)
+	}
+	return nil
+}
+
+func ActionReleaseHandler(bp *BuildPack) *BuildError {
+	// read configuration then pre runtime-params for doing release
+	args, err := NewActionArguments(bp.Flag)
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	err = bp.InitRuntimeParams(true, args)
+	if err != nil {
+		return bp.Error("", err)
+	}
+	defer endBuildPack(*bp)
+
+	err = bp.GitClient.Verify(bp.GitRuntime)
+	if err != nil {
+		return bp.Error("", err)
+	}
+	// run release action for each module
+	err = buildAndPublish(bp)
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	if !bp.SkipBranching {
+		bp.Phase = PhaseBranching
+		versionStr := bp.Runtime.VersionRuntime.BranchBaseMinor()
+		LogInfo(*bp, fmt.Sprintf("tagging version %s", versionStr))
+		err = bp.Tag(bp.Runtime.GitRuntime, versionStr)
+		if err != nil {
+			return bp.Error("", err)
+		}
+		LogInfo(*bp, fmt.Sprintf("branching version %s", versionStr))
+		err = bp.Branch(bp.Runtime.GitRuntime, versionStr)
+		if err != nil {
+			return bp.Error("", err)
+		}
+	}
+
+	bp.Phase = PhasePumpVersion
+	bp.Runtime.VersionRuntime.NextMinorVersion()
+	bp.Config.Version = bp.Runtime.VersionRuntime.Version.WithoutLabel()
+	LogInfo(*bp, fmt.Sprintf("pump version to %s", bp.Config.Version))
+	bytes, err := yaml.Marshal(bp.Config)
+	if err != nil {
+		return bp.Error("", errors.New("can not marshal build pack config to yaml"))
+	}
+
+	err = ioutil.WriteFile(FileBuildPackConfig, bytes, 0644)
+	if err != nil {
+		return bp.Error("", err)
+	}
+	return nil
+}
+
+func endBuildPack(bp BuildPack) {
+	RemoveAllContainer(bp)
+}
+
+func Handle(b *BuildPack) *BuildError {
+	actionHandler, ok := actions[b.Action]
+	if !ok {
+		return b.Error("action not found", nil)
+	}
+	b.Phase = PhaseLoadConfig
+	var err error
+	b.GitClient, err = InitGitClient(b.Root)
+	if err != nil {
+		return b.Error("", err)
+	}
+	return actionHandler(b)
+}
+
 func buildAndPublish(bp *BuildPack) error {
 	_builders := make(map[string]builder.Builder)
 	_builderContexts := make(map[string]builder.BuildContext)
@@ -262,90 +355,4 @@ func buildAndPublish(bp *BuildPack) error {
 	}
 	_ = os.RemoveAll(publishDirectory)
 	return nil
-}
-
-func ActionSnapshotHandler(bp *BuildPack) *BuildError {
-	// read configuration then pre runtime-params for doing snapshot
-	args, err := NewActionArguments(bp.Flag)
-	if err != nil {
-		return bp.Error("", err)
-	}
-
-	err = bp.InitRuntimeParams(false, args)
-	if err != nil {
-		return bp.Error("", err)
-	}
-
-	defer endBuildPack(*bp)
-	// run snapshot action for each module
-	err = buildAndPublish(bp)
-	if err != nil {
-		return bp.Error("", err)
-	}
-	return nil
-}
-
-func ActionReleaseHandler(bp *BuildPack) *BuildError {
-	// read configuration then pre runtime-params for doing release
-	args, err := NewActionArguments(bp.Flag)
-	if err != nil {
-		return bp.Error("", err)
-	}
-
-	err = bp.InitRuntimeParams(true, args)
-	if err != nil {
-		return bp.Error("", err)
-	}
-	defer endBuildPack(*bp)
-	// run snapshot action for each module
-	err = buildAndPublish(bp)
-	if err != nil {
-		return bp.Error("", err)
-	}
-
-	bp.Phase = PhaseBranching
-	versionStr := bp.Runtime.VersionRuntime.BranchBaseMinor()
-	LogInfo(*bp, fmt.Sprintf("tagging version %s", versionStr))
-	err = bp.Tag(bp.Runtime.GitRuntime, versionStr)
-	if err != nil {
-		return bp.Error("", err)
-	}
-	LogInfo(*bp, fmt.Sprintf("branching version %s", versionStr))
-	err = bp.Branch(bp.Runtime.GitRuntime, versionStr)
-	if err != nil {
-		return bp.Error("", err)
-	}
-
-	bp.Phase = PhasePumpVersion
-	bp.Runtime.VersionRuntime.NextMinorVersion()
-	bp.Config.Version = bp.Runtime.VersionRuntime.Version.WithoutLabel()
-	LogInfo(*bp, fmt.Sprintf("pump version to %s", bp.Config.Version))
-	bytes, err := yaml.Marshal(bp.Config)
-	if err != nil {
-		return bp.Error("", errors.New("can not marshal build pack config to yaml"))
-	}
-
-	err = ioutil.WriteFile(FileBuildPackConfig, bytes, 0644)
-	if err != nil {
-		return bp.Error("", err)
-	}
-	return nil
-}
-
-func endBuildPack(bp BuildPack) {
-	RemoveAllContainer(bp)
-}
-
-func Handle(b *BuildPack) *BuildError {
-	actionHandler, ok := actions[b.Action]
-	if !ok {
-		return b.Error("action not found", nil)
-	}
-	b.Phase = PhaseLoadConfig
-	var err error
-	b.GitClient, err = InitGitClient(b.Root)
-	if err != nil {
-		return b.Error("", err)
-	}
-	return actionHandler(b)
 }

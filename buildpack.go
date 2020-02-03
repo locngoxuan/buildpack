@@ -181,5 +181,6 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 	bp.SkipClean = argument.SkipClean()
 	bp.SkipPublish = argument.SkipPublish()
 	bp.SkipUnitTest = argument.SkipUnitTest()
+	bp.SkipBranching = argument.SkipBranching()
 	return nil
 }

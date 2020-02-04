@@ -63,17 +63,10 @@ type ChannelConfig struct {
 }
 
 type DockerConfig struct {
-	Registries []DockerRegistryConfig `yaml:"registries,omitempty"`
-	Hosts      []string               `yaml:"hosts,omitempty"`
+	Hosts []string `yaml:"hosts,omitempty"`
 }
 
-type DockerRegistryConfig struct {
-	URL      string `yaml:"url,omitempty"`
-	Username string `yaml:"username,omitempty"`
-	Password string `yaml:"password,omitempty"`
-}
-
-func readFromConfigFile() (buildPackConfig Config, err error) {
+func ReadFromConfigFile() (buildPackConfig Config, err error) {
 	pwd, err := filepath.Abs(filepath.Dir("."))
 	if err != nil {
 		return

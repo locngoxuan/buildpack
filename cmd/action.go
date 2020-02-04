@@ -39,10 +39,12 @@ func Handle(b *BuildPack) *BuildError {
 		return b.Error("action not found", nil)
 	}
 	b.Phase = PhaseLoadConfig
-	var err error
-	b.GitClient, err = InitGitClient(b.Root)
-	if err != nil {
-		return b.Error("", err)
+	if b.Action == actionRelease {
+		var err error
+		b.GitClient, err = InitGitClient(b.Root)
+		if err != nil {
+			return b.Error("", err)
+		}
 	}
 	return actionHandler(b)
 }
@@ -78,21 +80,11 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 }
 
 func ActionGenerateConfig(bp *BuildPack) *BuildError {
-	args, err := NewActionArguments(bp.Flag)
+	var err error
+	bp.Config, err = ReadFromConfigFile()
 	if err != nil {
 		return bp.Error("", err)
 	}
-
-	err = bp.InitRuntimeParams(false, args)
-	if err != nil {
-		return bp.Error("", err)
-	}
-
-	if err != nil {
-		return bp.Error("", err)
-	}
-
-	defer endBuildPack(*bp)
 
 	for _, moduleConfig := range bp.Config.Modules {
 		b, err := builder.GetBuilder(moduleConfig.Build)

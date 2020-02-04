@@ -2,6 +2,7 @@ package buildpack
 
 import (
 	"flag"
+	"fmt"
 	"os"
 	"strings"
 )
@@ -9,7 +10,7 @@ import (
 type arrayFlags []string
 
 func (i *arrayFlags) String() string {
-	return "my string representation"
+	return fmt.Sprintf("%+v", *i)
 }
 
 func (i *arrayFlags) Set(value string) error {
@@ -33,16 +34,32 @@ type RepoArgument struct {
 }
 
 type ActionArguments struct {
-	Flag   *flag.FlagSet
-	Values map[string]interface{}
+	Flag *flag.FlagSet
+
+	configFile         string
+	gitToken           string
+	debug              bool
+	patch              bool
+	backwardCompatible bool
+	repoIds            arrayFlags
+	repoUsers          arrayFlags
+	repoPwds           arrayFlags
+	repoTokens         arrayFlags
+	skipContainer      bool
+	skipUnitTest       bool
+	skipPublish        bool
+	skipClean          bool
+	skipBranching      bool
+	version            string
+	modules            string
 }
 
 func NewActionArguments(f *flag.FlagSet) (*ActionArguments, error) {
 	args := &ActionArguments{
-		Flag:   f,
-		Values: make(map[string]interface{}),
+		Flag: f,
 	}
 	err := args.readVersion().
+		readDebug().
 		readModules().
 		readPatch().
 		readBackwardsCompatible().
@@ -62,91 +79,83 @@ func NewActionArguments(f *flag.FlagSet) (*ActionArguments, error) {
 	return args, nil
 }
 
+func (a *ActionArguments) readConfigFile() *ActionArguments {
+	a.Flag.StringVar(&a.configFile, "config", "", "path to specific configuration file")
+	return a
+}
+
 func (a *ActionArguments) readGitAccessToken() *ActionArguments {
-	s := a.Flag.String("git-token", "", "access-token of git")
-	a.Values["git-token"] = s
+	a.Flag.StringVar(&a.gitToken, "git-token", "", "access-token of git")
+	return a
+}
+
+func (a *ActionArguments) readDebug() *ActionArguments {
+	a.Flag.BoolVar(&a.debug, "debug", false, "display more log")
 	return a
 }
 
 func (a *ActionArguments) readPatch() *ActionArguments {
-	s := a.Flag.Bool("patch", false, "true if this release is only apply patch")
-	a.Values["patch"] = s
+	a.Flag.BoolVar(&a.patch, "patch", false, "true if this release is only apply patch")
 	return a
 }
 
 func (a *ActionArguments) readBackwardsCompatible() *ActionArguments {
-	s := a.Flag.Bool("backwards-compatible", true, "set its to false if there are any backwards incompatible is released")
-	a.Values["backwards-compatible"] = s
+	a.Flag.BoolVar(&a.backwardCompatible, "backwards-compatible", true, "set its to false if there are any backwards incompatible is released")
 	return a
 }
 
 func (a *ActionArguments) readRepoIds() *ActionArguments {
-	var arrVals arrayFlags
-	a.Flag.Var(&arrVals, "repo-id", "list of repository id")
-	a.Values["repo-id"] = arrVals
+	a.Flag.Var(&a.repoIds, "repo-id", "list of repository id")
 	return a
 }
 
 func (a *ActionArguments) readRepoUserName() *ActionArguments {
-	var arrVals arrayFlags
-	a.Flag.Var(&arrVals, "repo-user", "list username follow order of ids")
-	a.Values["repo-user"] = arrVals
+	a.Flag.Var(&a.repoUsers, "repo-user", "list username follow order of ids")
 	return a
 }
 
 func (a *ActionArguments) readRepoPassword() *ActionArguments {
-	var arrVals arrayFlags
-	a.Flag.Var(&arrVals, "repo-pass", "list password follow order of ids")
-	a.Values["repo-pass"] = arrVals
+	a.Flag.Var(&a.repoPwds, "repo-pass", "list password follow order of ids")
 	return a
 }
 
 func (a *ActionArguments) readRepoAccessToken() *ActionArguments {
-	var arrVals arrayFlags
-	a.Flag.Var(&arrVals, "repo-token", "list access token follow order of ids")
-	a.Values["repo-token"] = arrVals
+	a.Flag.Var(&a.repoTokens, "repo-token", "list access token follow order of ids")
 	return a
 }
 
 func (a *ActionArguments) readSkipTest() *ActionArguments {
-	s := a.Flag.Bool("skip-ut", false, "skip unit test while running build")
-	a.Values["skip-ut"] = s
+	a.Flag.BoolVar(&a.skipUnitTest, "skip-ut", false, "skip unit test while running build")
 	return a
 }
 
 func (a *ActionArguments) readSkipPublish() *ActionArguments {
-	s := a.Flag.Bool("skip-publish", false, "skip publish to artifactory")
-	a.Values["skip-publish"] = s
+	a.Flag.BoolVar(&a.skipPublish, "skip-publish", false, "skip publish to artifactory")
 	return a
 }
 
 func (a *ActionArguments) readSkipClean() *ActionArguments {
-	s := a.Flag.Bool("skip-clean", false, "skip cleaning after build and publish")
-	a.Values["skip-clean"] = s
+	a.Flag.BoolVar(&a.skipClean, "skip-clean", false, "skip cleaning after build and publish")
 	return a
 }
 
 func (a *ActionArguments) readSkipBranching() *ActionArguments {
-	s := a.Flag.Bool("skip-branch", false, "skip branching after build and publish")
-	a.Values["skip-branch"] = s
+	a.Flag.BoolVar(&a.skipBranching, "skip-branch", false, "skip branching after build and publish")
 	return a
 }
 
 func (a *ActionArguments) readVersion() *ActionArguments {
-	s := a.Flag.String("v", "", "version number")
-	a.Values["v"] = s
+	a.Flag.StringVar(&a.version, "v", "", "version number")
 	return a
 }
 
 func (a *ActionArguments) readModules() *ActionArguments {
-	s := a.Flag.String("m", "", "modules")
-	a.Values["m"] = s
+	a.Flag.StringVar(&a.modules, "m", "", "modules")
 	return a
 }
 
 func (a *ActionArguments) readSkipContainer() *ActionArguments {
-	s := a.Flag.Bool("skip-container", false, "using docker environment rather than host environment")
-	a.Values["skip-container"] = s
+	a.Flag.BoolVar(&a.skipContainer, "skip-container", false, "using docker environment rather than host environment")
 	return a
 }
 
@@ -154,105 +163,75 @@ func (a *ActionArguments) parse() error {
 	return a.Flag.Parse(os.Args[2:])
 }
 
+func (a *ActionArguments) ConfigFile() string {
+	return strings.TrimSpace(a.configFile)
+}
+
 func (a *ActionArguments) Version() string {
-	s, ok := a.Values["v"]
-	if !ok {
-		return ""
-	}
-	return strings.TrimSpace(*(s.(*string)))
+	return strings.TrimSpace(a.version)
+}
+
+func (a *ActionArguments) GitAccessToken() string {
+	return strings.TrimSpace(a.gitToken)
 }
 
 func (a *ActionArguments) Modules() []string {
-	s, ok := a.Values["m"]
-	if !ok {
-		return []string{}
-	}
-	v := strings.TrimSpace(*(s.(*string)))
+	v := strings.TrimSpace(a.modules)
 	if len(v) == 0 {
 		return []string{}
 	}
 	return strings.Split(v, ",")
 }
 
+func (a *ActionArguments) IsDebug() bool {
+	return a.debug
+}
+
 func (a *ActionArguments) SkipContainer() bool {
-	s, ok := a.Values["skip-container"]
-	if !ok {
-		return false
-	}
-	return *(s.(*bool))
+	return a.skipContainer
 }
 
 func (a *ActionArguments) SkipClean() bool {
-	s, ok := a.Values["skip-clean"]
-	if !ok {
-		return false
-	}
-	return *(s.(*bool))
+	return a.skipClean
 }
 
 func (a *ActionArguments) SkipPublish() bool {
-	s, ok := a.Values["skip-publish"]
-	if !ok {
-		return false
-	}
-	return *(s.(*bool))
+	return a.skipPublish
 }
 
 func (a *ActionArguments) SkipUnitTest() bool {
-	s, ok := a.Values["skip-ut"]
-	if !ok {
-		return false
-	}
-	return *(s.(*bool))
+	return a.skipUnitTest
 }
 
 func (a *ActionArguments) SkipBranching() bool {
-	s, ok := a.Values["skip-branch"]
-	if !ok {
-		return false
-	}
-	return *(s.(*bool))
+	return a.skipBranching
 }
 
 func (a *ActionArguments) IsPatch() bool {
-	s, ok := a.Values["patch"]
-	if !ok {
-		return false
-	}
-	return *(s.(*bool))
+	return a.patch
 }
 
 func (a *ActionArguments) IsBackwardsCompatible() bool {
-	s, ok := a.Values["backwards-compatible"]
-	if !ok {
-		return true
-	}
-	return *(s.(*bool))
+	return a.backwardCompatible
 }
 
 func (a *ActionArguments) RepoArguments() map[string]RepoArgument {
 	rs := make(map[string]RepoArgument)
-
-	repoIds, _ := a.Values["repo-id"].([]string)
-	repoUsers, _ := a.Values["repo-user"].([]string)
-	repoPwds, _ := a.Values["repo-pass"].([]string)
-	repoTokens, _ := a.Values["repo-token"].([]string)
-
-	for i, id := range repoIds {
+	for i, id := range a.repoIds {
 		r := RepoArgument{
 			Id: id,
 		}
 
-		if i < len(repoUsers) {
-			r.Username = repoUsers[i]
+		if i < len(a.repoUsers) {
+			r.Username = a.repoUsers[i]
 		}
 
-		if i < len(repoPwds) {
-			r.Password = repoPwds[i]
+		if i < len(a.repoPwds) {
+			r.Password = a.repoPwds[i]
 		}
 
-		if i < len(repoTokens) {
-			r.Token = repoTokens[i]
+		if i < len(a.repoTokens) {
+			r.Token = a.repoTokens[i]
 		}
 		rs[id] = r
 	}

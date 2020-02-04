@@ -5,6 +5,7 @@ import (
 	"flag"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 type BuildError struct {
@@ -50,18 +51,11 @@ docker:
   hosts:
     - "unix:///var/run/docker.sock"
     - "tcp://127.0.0.1:2375"
-  registries:
-    - url: ""
-      username: ""
-      password: ""
-
 git:
   access-token: ""
-  ssh-path: ""
-  ssh-pass: ""
-
 repositories:
   - id: ""
+    type: ""
     url: ""
     channel:
       stable: ""
@@ -69,16 +63,6 @@ repositories:
     username: ""
     password: ""
     access-token: ""
-
-  - id: ""
-    url: ""
-    channel:
-      stable: ""
-      unstable: ""
-    username: ""
-    password: ""
-    access-token: ""
-
 modules:
   - position: 0
     name: ""
@@ -86,8 +70,7 @@ modules:
     build: ""
     publish:
       skip: false
-      repo-id: ""
-      repo-type: ""
+      id: ""
 `
 )
 
@@ -118,7 +101,7 @@ func (b *BuildPack) Error(msg string, err error) *BuildError {
 
 func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) error {
 	var err error
-	bp.Config, err = readFromConfigFile()
+	bp.Config, err = ReadFromConfigFile()
 	if err != nil {
 		return err
 	}
@@ -133,14 +116,16 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 		return err
 	}
 
-	runtimeParams := InitRuntimeParams(bp.Config)
-	runtimeParams.VersionRuntime = VersionRuntime{
+	bp.Runtime = NewRuntimeParams(bp.Config)
+	// read version
+	bp.Runtime.VersionRuntime = VersionRuntime{
 		*v,
 		release,
 	}
-	runtimeParams.Modules = make([]ModuleRuntime, 0)
+
+	// read modules
+	bp.Runtime.Modules = make([]ModuleRuntime, 0)
 	moduleNames := argument.Modules()
-	//parsing module
 	findModuleConfig := func(name string) (ModuleConfig, error) {
 		for _, v := range bp.Config.Modules {
 			if v.Name == name {
@@ -152,7 +137,7 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 
 	if len(moduleNames) == 0 {
 		for _, mc := range bp.Config.Modules {
-			runtimeParams.Modules = append(runtimeParams.Modules, ModuleRuntime{
+			bp.Runtime.Modules = append(bp.Runtime.Modules, ModuleRuntime{
 				mc,
 			})
 		}
@@ -166,17 +151,45 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 			if err != nil {
 				return err
 			}
-			runtimeParams.Modules = append(runtimeParams.Modules, ModuleRuntime{
+			bp.Runtime.Modules = append(bp.Runtime.Modules, ModuleRuntime{
 				mc,
 			})
 		}
 	}
 
-	sort.Slice(runtimeParams.Modules, func(i, j int) bool {
-		return runtimeParams.Modules[i].Position < runtimeParams.Modules[j].Position
+	sort.Slice(bp.Runtime.Modules, func(i, j int) bool {
+		return bp.Runtime.Modules[i].Position < bp.Runtime.Modules[j].Position
 	})
 	//end parsing and sorting modules
-	bp.Runtime = runtimeParams
+	// read git
+	if len(strings.TrimSpace(argument.GitAccessToken())) > 0 {
+		bp.Runtime.GitRuntime.AccessToken = strings.TrimSpace(argument.GitAccessToken())
+	}
+
+	repoArguments := argument.RepoArguments()
+	for i := 0; i < len(bp.Runtime.Repos); i++ {
+		repoArg, ok := repoArguments[bp.Runtime.Repos[i].Id]
+		if !ok {
+			continue
+		}
+		if len(strings.TrimSpace(repoArg.Token)) > 0 {
+			bp.Runtime.Repos[i].AccessToken = strings.TrimSpace(repoArg.Token)
+		}
+
+		if len(strings.TrimSpace(repoArg.Username)) > 0 {
+			bp.Runtime.Repos[i].Username = strings.TrimSpace(repoArg.Username)
+		}
+
+		if len(strings.TrimSpace(repoArg.Password)) > 0 {
+			bp.Runtime.Repos[i].Password = strings.TrimSpace(repoArg.Password)
+		}
+	}
+
+	useRepoIds := make(map[string]struct{})
+	for _, m := range bp.Runtime.Modules {
+		useRepoIds[m.RepoId] = struct{}{}
+	}
+
 	bp.SkipContainer = argument.SkipContainer()
 	bp.SkipClean = argument.SkipClean()
 	bp.SkipPublish = argument.SkipPublish()
@@ -184,5 +197,23 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 	bp.SkipBranching = argument.SkipBranching()
 	bp.IsPatch = argument.IsPatch()
 	bp.BackwardsCompatible = argument.IsBackwardsCompatible()
+	bp.Debug = argument.IsDebug()
+
+	if release && !bp.SkipBranching && len(strings.TrimSpace(bp.GitRuntime.AccessToken)) == 0 {
+		return errors.New("missing git token configuration")
+	}
+
+	if len(bp.Runtime.RepositoryRuntime.Repos) == 0 {
+		return errors.New("not found repositories configuration")
+	}
+
+	for _, repo := range bp.Runtime.Repos {
+		if _, ok := useRepoIds[repo.Id]; !ok {
+			continue
+		}
+		if IsEmptyString(repo.AccessToken) && (IsEmptyString(repo.Username) || IsEmptyString(repo.Password)) {
+			return errors.New("repo '" + repo.Id + "' miss credentials configuration")
+		}
+	}
 	return nil
 }

@@ -84,7 +84,7 @@ func (p *ArtifactoryMvn) CreateContext(bp *BuildPack, rtOpt ModuleRuntime) (Publ
 		return ctx, err
 	}
 
-	if len(strings.TrimSpace(pomProject.GroupId)) == 0{
+	if len(strings.TrimSpace(pomProject.GroupId)) == 0 {
 		pomProject.GroupId = pomProject.Parent.GroupId
 	}
 	addPOMToContext(ctx, pomProject)
@@ -247,6 +247,9 @@ func checksumSHA256(file string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer func() {
+		_ = f.Close()
+	}()
 	if _, err := io.Copy(hasher, f); err != nil {
 		return "", err
 	}
@@ -259,6 +262,9 @@ func checksumMD5(file string) (string, error) {
 	if err != nil {
 		return "", err
 	}
+	defer func() {
+		_ = f.Close()
+	}()
 	if _, err := io.Copy(hasher, f); err != nil {
 		return "", err
 	}

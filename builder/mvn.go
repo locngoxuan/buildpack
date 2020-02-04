@@ -31,9 +31,10 @@ type MVN struct {
 }
 
 type MVNOption struct {
-	Type         string   `yaml:"type,omitempty"`
-	M2           string   `yaml:"m2,omitempty"`
-	BuildOptions []string `yaml:"options,omitempty"`
+	Type           string   `yaml:"type,omitempty"`
+	M2             string   `yaml:"m2,omitempty"`
+	BuildOptions   []string `yaml:"options,omitempty"`
+	ContainerImage string   `yaml:"container,omitempty"`
 }
 
 type Run func(ctx BuildContext, arg ...string) error
@@ -75,6 +76,10 @@ func (b *MVN) CreateContext(bp *BuildPack, rtOpt ModuleRuntime) (BuildContext, e
 	b.RunFnc = b.runMvnContainer
 	if bp.Runtime.SkipContainer {
 		b.RunFnc = b.runMvnLocal
+	}
+
+	if len(strings.TrimSpace(b.MVNOption.ContainerImage)) == 0 {
+		b.MVNOption.ContainerImage = mvnContainerImage
 	}
 
 	ctx.ModuleRuntime = rtOpt
@@ -132,8 +137,13 @@ func readMvnBuildConfig(configFile string) (option MVNOption, err error) {
 func (b *MVN) runMvnLocal(ctx BuildContext, arg ...string) error {
 	arg = append(arg, "-f", ctx.GetBuilderSpecificFile(ctx.Path, pomFile))
 	cmd := exec.Command("mvn", arg...)
-	//cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	if ctx.Debug {
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+	} else {
+		cmd.Stderr = os.Stderr
+	}
+	LogDebug(*ctx.BuildPack, fmt.Sprintf("mvn %+v", arg))
 	return cmd.Run()
 }
 
@@ -150,9 +160,9 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 	for _, v := range arg {
 		cmd = append(cmd, v)
 	}
-	LogInfo(*bctx.BuildPack, fmt.Sprintf("docker run -it --rm %s %+v", mvnContainerImage, cmd))
+	LogDebug(*bctx.BuildPack, fmt.Sprintf("docker run -it --rm %s %+v", b.ContainerImage, cmd))
 
-	pullResp, err := cli.ImagePull(ctx, mvnContainerImage, types.ImagePullOptions{})
+	pullResp, err := cli.ImagePull(ctx, b.ContainerImage, types.ImagePullOptions{})
 	if err != nil {
 		return err
 	}
@@ -190,6 +200,11 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 		return err
 	}
 
+	defer func(_id string, _ctx context.Context) {
+		_ = cli.ContainerRemove(_ctx, _id, types.ContainerRemoveOptions{
+			Force: true,
+		})
+	}(createRsp.ID, ctx)
 	bctx.Runtime.Run(createRsp.ID)
 
 	attachRsp, err := cli.ContainerAttach(ctx, createRsp.ID, types.ContainerAttachOptions{
@@ -208,7 +223,9 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 		return err
 	}
 
-	_, _ = io.Copy(os.Stderr, attachRsp.Reader)
+	if bctx.Debug {
+		_, _ = io.Copy(os.Stdout, attachRsp.Reader)
+	}
 	_, _ = cli.ContainerWait(ctx, createRsp.ID)
 	return nil
 }

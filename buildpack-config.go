@@ -37,9 +37,8 @@ type ModuleConfig struct {
 }
 
 type ModulePublishConfig struct {
-	Skip     bool   `yaml:"skip,omitempty"`
-	RepoId   string `yaml:"repo-id,omitempty"`
-	RepoType string `yaml:"repo-type,omitempty"`
+	Skip   bool   `yaml:"skip,omitempty"`
+	RepoId string `yaml:"id,omitempty"`
 }
 
 type GitConfig struct {
@@ -49,7 +48,7 @@ type GitConfig struct {
 }
 
 type RepositoryConfig struct {
-	Id            string `yaml:"string,omitempty"`
+	Id            string `yaml:"id,omitempty"`
 	Type          string `yaml:"type,omitempty"`
 	URL           string `yaml:"url,omitempty"`
 	Username      string `yaml:"username,omitempty"`

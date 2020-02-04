@@ -6,7 +6,7 @@ import (
 )
 
 type Builder interface {
-	CreateContext(bp BuildPack, opt ModuleRuntime) (BuildContext, error)
+	CreateContext(bp *BuildPack, opt ModuleRuntime) (BuildContext, error)
 	WriteConfig(bp BuildPack, opt ModuleConfig) error
 
 	Verify(ctx BuildContext) error
@@ -20,7 +20,7 @@ type BuildContext struct {
 	Name       string
 	Path       string
 	metadata   map[string]interface{}
-	BuildPack
+	*BuildPack
 	ModuleRuntime
 }
 

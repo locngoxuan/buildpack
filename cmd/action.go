@@ -33,6 +33,20 @@ func init() {
 	actions[actionCheckConfig] = ActionCheckConfig
 }
 
+func Handle(b *BuildPack) *BuildError {
+	actionHandler, ok := actions[b.Action]
+	if !ok {
+		return b.Error("action not found", nil)
+	}
+	b.Phase = PhaseLoadConfig
+	var err error
+	b.GitClient, err = InitGitClient(b.Root)
+	if err != nil {
+		return b.Error("", err)
+	}
+	return actionHandler(b)
+}
+
 func VerifyAction(action string) error {
 	_, ok := actions[action]
 	if !ok {
@@ -123,7 +137,7 @@ func ActionCheckConfig(bp *BuildPack) *BuildError {
 		if err != nil {
 			return bp.Error("", err)
 		}
-		ctx, err := b.CreateContext(*bp, rtModule)
+		ctx, err := b.CreateContext(bp, rtModule)
 		if err != nil {
 			return bp.Error("", err)
 		}
@@ -140,7 +154,7 @@ func ActionCheckConfig(bp *BuildPack) *BuildError {
 		}
 		repoType := bp.Config.GetRepositoryType(moduleConfig.RepoId)
 		p := publisher.GetPublisher(repoType)
-		ctx, err := p.CreateContext(*bp, moduleConfig)
+		ctx, err := p.CreateContext(bp, moduleConfig)
 		if err != nil {
 			return bp.Error("", err)
 		}
@@ -165,6 +179,7 @@ func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 		return bp.Error("", err)
 	}
 
+	bp.SkipBranching = true
 	defer endBuildPack(*bp)
 	// run snapshot action for each module
 	err = buildAndPublish(bp)
@@ -191,6 +206,12 @@ func ActionReleaseHandler(bp *BuildPack) *BuildError {
 	if err != nil {
 		return bp.Error("", err)
 	}
+
+	if bp.IsPatch {
+		bp.BackwardsCompatible = true
+		bp.SkipBranching = true
+	}
+
 	// run release action for each module
 	err = buildAndPublish(bp)
 	if err != nil {
@@ -200,12 +221,12 @@ func ActionReleaseHandler(bp *BuildPack) *BuildError {
 	if !bp.SkipBranching {
 		bp.Phase = PhaseBranching
 		versionStr := bp.Runtime.VersionRuntime.BranchBaseMinor()
-		LogInfo(*bp, fmt.Sprintf("tagging version %s", versionStr))
+		LogInfo(*bp, fmt.Sprintf("create tag for version %s", versionStr))
 		err = bp.Tag(bp.Runtime.GitRuntime, versionStr)
 		if err != nil {
 			return bp.Error("", err)
 		}
-		LogInfo(*bp, fmt.Sprintf("branching version %s", versionStr))
+		LogInfo(*bp, fmt.Sprintf("create branch for version %s", versionStr))
 		err = bp.Branch(bp.Runtime.GitRuntime, versionStr)
 		if err != nil {
 			return bp.Error("", err)
@@ -213,9 +234,19 @@ func ActionReleaseHandler(bp *BuildPack) *BuildError {
 	}
 
 	bp.Phase = PhasePumpVersion
-	bp.Runtime.VersionRuntime.NextMinorVersion()
+	oldVersion := bp.Runtime.VersionRuntime.Version.WithoutLabel()
+	if bp.IsPatch {
+		bp.Runtime.VersionRuntime.NextPatch()
+	} else {
+		if bp.BackwardsCompatible {
+			bp.Runtime.VersionRuntime.NextMinorVersion()
+		} else {
+			bp.Runtime.VersionRuntime.NextMajorVersion()
+		}
+	}
+
 	bp.Config.Version = bp.Runtime.VersionRuntime.Version.WithoutLabel()
-	LogInfo(*bp, fmt.Sprintf("pump version to %s", bp.Config.Version))
+	LogInfo(*bp, fmt.Sprintf("next version is %s", bp.Config.Version))
 	bytes, err := yaml.Marshal(bp.Config)
 	if err != nil {
 		return bp.Error("", errors.New("can not marshal build pack config to yaml"))
@@ -225,25 +256,27 @@ func ActionReleaseHandler(bp *BuildPack) *BuildError {
 	if err != nil {
 		return bp.Error("", err)
 	}
+
+	msg := fmt.Sprintf("[BUILD-PACK] Pump version from %s to %s", oldVersion, bp.Config.Version)
+	err = bp.Add(FileBuildPackConfig)
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	err = bp.Commit(bp.Runtime.GitRuntime, msg)
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	err = bp.Push(bp.Runtime.GitRuntime)
+	if err != nil {
+		return bp.Error("", err)
+	}
 	return nil
 }
 
 func endBuildPack(bp BuildPack) {
 	RemoveAllContainer(bp)
-}
-
-func Handle(b *BuildPack) *BuildError {
-	actionHandler, ok := actions[b.Action]
-	if !ok {
-		return b.Error("action not found", nil)
-	}
-	b.Phase = PhaseLoadConfig
-	var err error
-	b.GitClient, err = InitGitClient(b.Root)
-	if err != nil {
-		return b.Error("", err)
-	}
-	return actionHandler(b)
 }
 
 func buildAndPublish(bp *BuildPack) error {
@@ -257,12 +290,12 @@ func buildAndPublish(bp *BuildPack) error {
 		if err != nil {
 			return err
 		}
-		ctx, err := b.CreateContext(*bp, rtModule)
+		ctx, err := b.CreateContext(bp, rtModule)
 		if err != nil {
 			return err
 		}
 		_builderContexts[rtModule.Name] = ctx
-		LogInfo(*bp, fmt.Sprintf("init builder %s for module %s", rtModule.Build, rtModule.Name))
+		LogInfo(*bp, fmt.Sprintf("module %s - builder '%s'", rtModule.Name, rtModule.Build))
 		_builders[rtModule.Name] = b
 	}
 
@@ -281,19 +314,20 @@ func buildAndPublish(bp *BuildPack) error {
 			continue
 		}
 		repoType := bp.Config.GetRepositoryType(rtModule.RepoId)
+		LogInfo(*bp, fmt.Sprintf("module %s - publisher '%s'", rtModule.Name, repoType))
 		p := publisher.GetPublisher(repoType)
-		ctx, err := p.CreateContext(*bp, rtModule)
+		ctx, err := p.CreateContext(bp, rtModule)
 		if err != nil {
 			return err
 		}
 		_publishContexts[rtModule.Name] = ctx
-		LogInfo(*bp, fmt.Sprintf("init publisher %s for module %s", repoType, rtModule.Name))
 		_publishers[rtModule.Name] = p
 	}
 
 	// clean all before build & publish
 	bp.Phase = PhaseCleanAll
 	for _, rtModule := range bp.Runtime.Modules {
+		LogInfo(*bp, fmt.Sprintf("module %s", rtModule.Name))
 		b, _ := _builders[rtModule.Name]
 		p, _ := _publishers[rtModule.Name]
 		err := b.Clean(_builderContexts[rtModule.Name])
@@ -307,16 +341,17 @@ func buildAndPublish(bp *BuildPack) error {
 	}
 
 	for _, rtModule := range bp.Runtime.Modules {
-		LogInfo(*bp, fmt.Sprintf("build module %s", rtModule.Name))
 		b := _builders[rtModule.Name]
 		if !bp.SkipUnitTest {
 			bp.Phase = PhaseUnitTest
+			LogInfo(*bp, fmt.Sprintf("module %s", rtModule.Name))
 			err = b.UnitTest(_builderContexts[rtModule.Name])
 			if err != nil {
 				return err
 			}
 		}
 		bp.Phase = PhaseBuild
+		LogInfo(*bp, fmt.Sprintf("module %s", rtModule.Name))
 		err = b.Build(_builderContexts[rtModule.Name])
 		if err != nil {
 			return err
@@ -325,18 +360,21 @@ func buildAndPublish(bp *BuildPack) error {
 
 	if !bp.SkipPublish {
 		for _, rtModule := range bp.Runtime.Modules {
-			LogInfo(*bp, fmt.Sprintf("publish module %s", rtModule.Name))
-			// publish build
-			bp.Phase = PhasePrePublish
-			p := _publishers[rtModule.Name]
-			err := p.Pre(_publishContexts[rtModule.Name])
-			if err != nil {
-				return err
-			}
-			bp.Phase = PhasePublish
-			err = p.Publish(_publishContexts[rtModule.Name])
-			if err != nil {
-				return err
+			if !rtModule.Skip {
+				// publish build
+				bp.Phase = PhasePrePublish
+				LogInfo(*bp, fmt.Sprintf("module %s", rtModule.Name))
+				p := _publishers[rtModule.Name]
+				err := p.Pre(_publishContexts[rtModule.Name])
+				if err != nil {
+					return err
+				}
+				bp.Phase = PhasePublish
+				LogInfo(*bp, fmt.Sprintf("module %s", rtModule.Name))
+				err = p.Publish(_publishContexts[rtModule.Name])
+				if err != nil {
+					return err
+				}
 			}
 		}
 	}
@@ -347,11 +385,13 @@ func buildAndPublish(bp *BuildPack) error {
 
 	bp.Phase = PhaseCleanAll
 	for _, rtModule := range bp.Runtime.Modules {
-		LogInfo(*bp, fmt.Sprintf("clean module %s", rtModule.Name))
+		LogInfo(*bp, fmt.Sprintf("module %s", rtModule.Name))
 		b, _ := _builders[rtModule.Name]
 		p, _ := _publishers[rtModule.Name]
 		_ = b.Clean(_builderContexts[rtModule.Name])
-		_ = p.Clean(_publishContexts[rtModule.Name])
+		if !rtModule.Skip {
+			_ = p.Clean(_publishContexts[rtModule.Name])
+		}
 	}
 	_ = os.RemoveAll(publishDirectory)
 	return nil

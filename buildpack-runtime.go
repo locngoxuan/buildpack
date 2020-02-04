@@ -7,11 +7,15 @@ type Runtime struct {
 	DockerRuntime
 	SkipOption
 
-	Modules []ModuleRuntime
+	IsPatch             bool
+	BackwardsCompatible bool
+	Modules             []ModuleRuntime
 }
 
 func InitRuntimeParams(config Config) Runtime {
 	return Runtime{
+		IsPatch:             false,
+		BackwardsCompatible: true,
 		SkipOption: SkipOption{
 			SkipContainer: false,
 			SkipUnitTest:  false,

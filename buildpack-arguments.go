@@ -44,6 +44,8 @@ func NewActionArguments(f *flag.FlagSet) (*ActionArguments, error) {
 	}
 	err := args.readVersion().
 		readModules().
+		readPatch().
+		readBackwardsCompatible().
 		readRepoIds().
 		readRepoUserName().
 		readRepoPassword().
@@ -63,6 +65,18 @@ func NewActionArguments(f *flag.FlagSet) (*ActionArguments, error) {
 func (a *ActionArguments) readGitAccessToken() *ActionArguments {
 	s := a.Flag.String("git-token", "", "access-token of git")
 	a.Values["git-token"] = s
+	return a
+}
+
+func (a *ActionArguments) readPatch() *ActionArguments {
+	s := a.Flag.Bool("patch", false, "true if this release is only apply patch")
+	a.Values["patch"] = s
+	return a
+}
+
+func (a *ActionArguments) readBackwardsCompatible() *ActionArguments {
+	s := a.Flag.Bool("backwards-compatible", true, "set its to false if there are any backwards incompatible is released")
+	a.Values["backwards-compatible"] = s
 	return a
 }
 
@@ -196,6 +210,22 @@ func (a *ActionArguments) SkipBranching() bool {
 	s, ok := a.Values["skip-branch"]
 	if !ok {
 		return false
+	}
+	return *(s.(*bool))
+}
+
+func (a *ActionArguments) IsPatch() bool {
+	s, ok := a.Values["patch"]
+	if !ok {
+		return false
+	}
+	return *(s.(*bool))
+}
+
+func (a *ActionArguments) IsBackwardsCompatible() bool {
+	s, ok := a.Values["backwards-compatible"]
+	if !ok {
+		return true
 	}
 	return *(s.(*bool))
 }

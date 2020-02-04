@@ -7,7 +7,7 @@ import (
 
 type Publisher interface {
 	WriteConfig(bp BuildPack, opt ModuleConfig) error
-	CreateContext(bp BuildPack, rtOpt ModuleRuntime) (PublishContext, error)
+	CreateContext(bp *BuildPack, rtOpt ModuleRuntime) (PublishContext, error)
 
 	Verify(ctx PublishContext) error
 	Pre(ctx PublishContext) error
@@ -19,7 +19,7 @@ type PublishContext struct {
 	Name     string
 	Path     string
 	metadata map[string]interface{}
-	BuildPack
+	*BuildPack
 	RepositoryConfig
 	ModuleRuntime
 }
@@ -51,7 +51,7 @@ func (p *EmptyPublisher) WriteConfig(bp BuildPack, opt ModuleConfig) error {
 	return nil
 }
 
-func (p *EmptyPublisher) CreateContext(bp BuildPack, rtOpt ModuleRuntime) (PublishContext, error) {
+func (p *EmptyPublisher) CreateContext(bp *BuildPack, rtOpt ModuleRuntime) (PublishContext, error) {
 	return PublishContext{}, nil
 }
 
@@ -74,12 +74,12 @@ func (p *EmptyPublisher) Clean(ctx PublishContext) error {
 var publishers map[string]Publisher
 
 const (
-	publisherJfrogMvn = "jfrog-mvn"
+	artifactoryMvnPublisher = "artifactory"
 )
 
 func init() {
 	publishers = make(map[string]Publisher)
-	publishers[publisherJfrogMvn] = &ArtifactoryMvn{}
+	publishers[artifactoryMvnPublisher] = &ArtifactoryMvn{}
 }
 
 func VerifyPublisher(publisherName string) bool {

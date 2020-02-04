@@ -82,20 +82,7 @@ func InitGitClient(root string) (cli GitClient, err error) {
 	}
 
 	if cli.Remote == nil {
-		for _, remote := range remotes {
-			if remote.Config().Name == "origin" {
-				cli.Remote = remote
-				return
-			}
-		}
-	}
-
-	if cli.Remote == nil {
-		cli.Remote = remotes[0]
-	}
-
-	if cli.Remote == nil {
-		err = errors.New("not found remote from git config")
+		err = errors.New("not found URLs started with https from any remote")
 		return
 	}
 	return
@@ -127,7 +114,10 @@ func useHttp(r *git.Remote) (string, bool) {
 }
 
 func (c *GitClient) Verify(gitConfig GitRuntime) error {
-	url, _ := useHttp(c.Remote)
+	url, ok := useHttp(c.Remote)
+	if !ok {
+		return errors.New("not found URLs started with https in any remote")
+	}
 	auth, err := auth(c.Remote, gitConfig)
 	if err != nil {
 		return err
@@ -243,5 +233,63 @@ func (c *GitClient) Branch(gitConfig GitRuntime, branchName string) error {
 		return err
 	}
 
+	return nil
+}
+
+func (c *GitClient) Add(path string) error {
+	wt, err := c.Repo.Worktree()
+	if err != nil {
+		return err
+	}
+
+	_, err = wt.Add(path)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (c *GitClient) Commit(gitConfig GitRuntime, msg string) error {
+	wt, err := c.Repo.Worktree()
+	if err != nil {
+		return err
+	}
+	_, err = wt.Commit(msg, &git.CommitOptions{
+		All: true,
+		Author: &object.Signature{
+			Name:  tagName,
+			Email: tagEmail,
+			When:  time.Now(),
+		},
+		Committer: &object.Signature{
+			Name:  tagName,
+			Email: tagEmail,
+			When:  time.Now(),
+		},
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (c *GitClient) Push(gitConfig GitRuntime) error {
+	auth, err := auth(c.Remote, gitConfig)
+	if err != nil {
+		return err
+	}
+
+	err = c.Repo.Push(&git.PushOptions{
+		RemoteName: c.Remote.Config().Name,
+		RefSpecs: []config.RefSpec{
+			config.RefSpec(c.CurrentBranch.Name() + ":" + c.CurrentBranch.Name()),
+		},
+		Progress: os.Stdout,
+		Auth:     auth,
+	})
+	if err != nil {
+		return err
+	}
 	return nil
 }

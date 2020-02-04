@@ -49,7 +49,7 @@ func (p *ArtifactoryMvn) WriteConfig(bp BuildPack, opt ModuleConfig) error {
 	return nil
 }
 
-func (p *ArtifactoryMvn) CreateContext(bp BuildPack, rtOpt ModuleRuntime) (PublishContext, error) {
+func (p *ArtifactoryMvn) CreateContext(bp *BuildPack, rtOpt ModuleRuntime) (PublishContext, error) {
 	ctx := NewPublishContext(rtOpt.Name, rtOpt.Path)
 	ctx.BuildPack = bp
 	ctx.ModuleRuntime = rtOpt
@@ -149,11 +149,7 @@ func (p *ArtifactoryMvn) Pre(ctx PublishContext) error {
 		},
 	}
 	uploadParams = append(uploadParams, pomParam)
-	LogInfo(ctx.BuildPack, fmt.Sprintf("PUT %s to %s with sum sha256:%s and md5:%s",
-		pomParam.Source,
-		pomParam.Destination,
-		pomParam.SHA256,
-		pomParam.MD5))
+	LogInfo(*ctx.BuildPack, fmt.Sprintf("Prepare for pushting %s to %s", pomParam.Source, pomParam.Destination))
 
 	if pom.Classifier == "jar" || len(strings.TrimSpace(pom.Classifier)) == 0 {
 		//copy jar
@@ -184,11 +180,7 @@ func (p *ArtifactoryMvn) Pre(ctx PublishContext) error {
 			},
 		}
 		uploadParams = append(uploadParams, jarParam)
-		LogInfo(ctx.BuildPack, fmt.Sprintf("PUT %s to %s with sum sha256:%s and md5:%s",
-			jarParam.Source,
-			jarParam.Destination,
-			jarParam.SHA256,
-			jarParam.MD5))
+		LogInfo(*ctx.BuildPack, fmt.Sprintf("Prepare for pushting %s to %s", jarParam.Source, jarParam.Destination))
 
 	}
 	p.uploads = uploadParams

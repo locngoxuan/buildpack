@@ -60,7 +60,7 @@ func (b *MVN) WriteConfig(bp BuildPack, opt ModuleConfig) error {
 	return nil
 }
 
-func (b *MVN) CreateContext(bp BuildPack, rtOpt ModuleRuntime) (BuildContext, error) {
+func (b *MVN) CreateContext(bp *BuildPack, rtOpt ModuleRuntime) (BuildContext, error) {
 	ctx := NewBuildContext(bp.GetModuleWorkingDir(rtOpt.Path), rtOpt.Name, rtOpt.Path)
 	opt, err := readMvnBuildConfig(bp.GetBuilderConfigPath(rtOpt.Path))
 	if err != nil {
@@ -77,8 +77,9 @@ func (b *MVN) CreateContext(bp BuildPack, rtOpt ModuleRuntime) (BuildContext, er
 		b.RunFnc = b.runMvnLocal
 	}
 
+	ctx.ModuleRuntime = rtOpt
 	ctx.Label = labelSnapshot
-	v := bp.Runtime.VersionRuntime.GetVersion(rtOpt.Label, rtOpt.BuildNumber)
+	v := bp.Runtime.VersionRuntime.GetVersion(labelSnapshot, rtOpt.BuildNumber)
 	b.BuildOptions = append(b.BuildOptions, fmt.Sprintf("-Drevision=%s", v))
 	return ctx, nil
 }
@@ -131,7 +132,7 @@ func readMvnBuildConfig(configFile string) (option MVNOption, err error) {
 func (b *MVN) runMvnLocal(ctx BuildContext, arg ...string) error {
 	arg = append(arg, "-f", ctx.GetBuilderSpecificFile(ctx.Path, pomFile))
 	cmd := exec.Command("mvn", arg...)
-	cmd.Stdout = os.Stdout
+	//cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 	return cmd.Run()
 }
@@ -149,7 +150,7 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 	for _, v := range arg {
 		cmd = append(cmd, v)
 	}
-	LogInfo(bctx.BuildPack, fmt.Sprintf("docker run -it --rm %s %+v", mvnContainerImage, cmd))
+	LogInfo(*bctx.BuildPack, fmt.Sprintf("docker run -it --rm %s %+v", mvnContainerImage, cmd))
 
 	pullResp, err := cli.ImagePull(ctx, mvnContainerImage, types.ImagePullOptions{})
 	if err != nil {
@@ -193,7 +194,7 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 
 	attachRsp, err := cli.ContainerAttach(ctx, createRsp.ID, types.ContainerAttachOptions{
 		Stream: true,
-		Stdout: true,
+		Stdout: false,
 		Stderr: true,
 		Logs:   true,
 	})
@@ -207,7 +208,7 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 		return err
 	}
 
-	_, _ = io.Copy(os.Stdout, attachRsp.Reader)
+	_, _ = io.Copy(os.Stderr, attachRsp.Reader)
 	_, _ = cli.ContainerWait(ctx, createRsp.ID)
 	return nil
 }

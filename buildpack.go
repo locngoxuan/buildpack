@@ -182,5 +182,7 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 	bp.SkipPublish = argument.SkipPublish()
 	bp.SkipUnitTest = argument.SkipUnitTest()
 	bp.SkipBranching = argument.SkipBranching()
+	bp.IsPatch = argument.IsPatch()
+	bp.BackwardsCompatible = argument.IsBackwardsCompatible()
 	return nil
 }

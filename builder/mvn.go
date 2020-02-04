@@ -69,7 +69,7 @@ func (b *MVN) CreateContext(bp *BuildPack, rtOpt ModuleRuntime) (BuildContext, e
 	}
 	b.MVNOption = opt
 	if len(strings.TrimSpace(b.M2)) == 0 {
-		b.M2 = filepath.Join(os.Getenv("HOME"), ".m2")
+		b.M2 = filepath.Join(bp.Root, ".m2")
 	}
 
 	ctx.BuildPack = bp
@@ -182,10 +182,12 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 	}
 
 	if len(b.M2) > 0 {
+		repoDir := filepath.Join(b.M2, "repository")
+		_ = os.MkdirAll(repoDir, 0766)
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
 			Source: b.M2,
-			Target: "/root/.m2",
+			Target: "/root/.m2/repository",
 		})
 	}
 

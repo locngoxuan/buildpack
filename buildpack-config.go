@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 type Config struct {
@@ -66,12 +67,15 @@ type DockerConfig struct {
 	Hosts []string `yaml:"hosts,omitempty"`
 }
 
-func ReadFromConfigFile() (buildPackConfig Config, err error) {
+func ReadFromConfigFile(file string) (buildPackConfig Config, err error) {
 	pwd, err := filepath.Abs(filepath.Dir("."))
 	if err != nil {
 		return
 	}
-	configFile := filepath.Join(pwd, FileBuildPackConfig)
+	configFile := file
+	if len(strings.TrimSpace(configFile)) == 0 {
+		configFile = filepath.Join(pwd, FileBuildPackConfig)
+	}
 	_, err = os.Stat(configFile)
 	if os.IsNotExist(err) {
 		err = errors.New("configuration file not found")

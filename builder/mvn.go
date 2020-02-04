@@ -207,9 +207,14 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 	}(createRsp.ID, ctx)
 	bctx.Runtime.Run(createRsp.ID)
 
+	stdout := false
+	if bctx.Debug {
+		stdout = true
+	}
+
 	attachRsp, err := cli.ContainerAttach(ctx, createRsp.ID, types.ContainerAttachOptions{
 		Stream: true,
-		Stdout: false,
+		Stdout: stdout,
 		Stderr: true,
 		Logs:   true,
 	})

@@ -101,7 +101,7 @@ func (b *BuildPack) Error(msg string, err error) *BuildError {
 
 func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) error {
 	var err error
-	bp.Config, err = ReadFromConfigFile()
+	bp.Config, err = ReadFromConfigFile(argument.ConfigFile())
 	if err != nil {
 		return err
 	}

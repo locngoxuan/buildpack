@@ -81,7 +81,7 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 
 func ActionGenerateConfig(bp *BuildPack) *BuildError {
 	var err error
-	bp.Config, err = ReadFromConfigFile()
+	bp.Config, err = ReadFromConfigFile("")
 	if err != nil {
 		return bp.Error("", err)
 	}

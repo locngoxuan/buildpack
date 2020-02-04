@@ -143,6 +143,7 @@ func (b *MVN) runMvnLocal(ctx BuildContext, arg ...string) error {
 	} else {
 		cmd.Stderr = os.Stderr
 	}
+	LogDebug(*ctx.BuildPack, fmt.Sprintf("working dir %s", ctx.WorkingDir))
 	LogDebug(*ctx.BuildPack, fmt.Sprintf("mvn %+v", arg))
 	return cmd.Run()
 }
@@ -160,6 +161,7 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 	for _, v := range arg {
 		cmd = append(cmd, v)
 	}
+	LogDebug(*bctx.BuildPack, fmt.Sprintf("working dir %s", bctx.WorkingDir))
 	LogDebug(*bctx.BuildPack, fmt.Sprintf("docker run -it --rm %s %+v", b.ContainerImage, cmd))
 
 	pullResp, err := cli.ImagePull(ctx, b.ContainerImage, types.ImagePullOptions{})

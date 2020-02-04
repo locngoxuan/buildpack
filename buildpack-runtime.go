@@ -10,6 +10,7 @@ type Runtime struct {
 	Debug               bool
 	IsPatch             bool
 	BackwardsCompatible bool
+	ShareData           string
 	Modules             []ModuleRuntime
 }
 

@@ -197,22 +197,25 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 	bp.SkipBranching = argument.SkipBranching()
 	bp.IsPatch = argument.IsPatch()
 	bp.BackwardsCompatible = argument.IsBackwardsCompatible()
+	bp.ShareData = argument.shareData
 	bp.Debug = argument.IsDebug()
 
 	if release && !bp.SkipBranching && len(strings.TrimSpace(bp.GitRuntime.AccessToken)) == 0 {
 		return errors.New("missing git token configuration")
 	}
 
-	if len(bp.Runtime.RepositoryRuntime.Repos) == 0 {
-		return errors.New("not found repositories configuration")
-	}
-
-	for _, repo := range bp.Runtime.Repos {
-		if _, ok := useRepoIds[repo.Id]; !ok {
-			continue
+	if !bp.SkipPublish {
+		if len(bp.Runtime.RepositoryRuntime.Repos) == 0 {
+			return errors.New("not found repositories configuration")
 		}
-		if IsEmptyString(repo.AccessToken) && (IsEmptyString(repo.Username) || IsEmptyString(repo.Password)) {
-			return errors.New("repo '" + repo.Id + "' miss credentials configuration")
+
+		for _, repo := range bp.Runtime.Repos {
+			if _, ok := useRepoIds[repo.Id]; !ok {
+				continue
+			}
+			if IsEmptyString(repo.AccessToken) && (IsEmptyString(repo.Username) || IsEmptyString(repo.Password)) {
+				return errors.New("repo '" + repo.Id + "' miss credentials configuration")
+			}
 		}
 	}
 	return nil

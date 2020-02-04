@@ -68,8 +68,8 @@ func (b *MVN) CreateContext(bp *BuildPack, rtOpt ModuleRuntime) (BuildContext, e
 		return ctx, err
 	}
 	b.MVNOption = opt
-	if len(strings.TrimSpace(b.M2)) == 0 {
-		b.M2 = filepath.Join(bp.Root, ".m2")
+	if len(strings.TrimSpace(b.M2)) == 0 && len(strings.TrimSpace(bp.ShareData)) > 0 {
+		b.M2 = filepath.Join(bp.ShareData, ".m2")
 	}
 
 	ctx.BuildPack = bp
@@ -135,7 +135,7 @@ func readMvnBuildConfig(configFile string) (option MVNOption, err error) {
 }
 
 func (b *MVN) runMvnLocal(ctx BuildContext, arg ...string) error {
-	arg = append(arg, "-f", ctx.GetBuilderSpecificFile(ctx.Path, pomFile))
+	arg = append(arg, "-f", filepath.Join(ctx.WorkingDir, pomFile))
 	cmd := exec.Command("mvn", arg...)
 	if ctx.Debug {
 		cmd.Stdout = os.Stdout
@@ -158,6 +158,7 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 
 	cmd := make([]string, 0)
 	cmd = append(cmd, "mvn")
+	arg = append(arg, "-f", filepath.Join(bctx.Path, pomFile))
 	for _, v := range arg {
 		cmd = append(cmd, v)
 	}
@@ -176,7 +177,7 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 	mounts := []mount.Mount{
 		{
 			Type:   mount.TypeBind,
-			Source: bctx.WorkingDir,
+			Source: bctx.Root,
 			Target: "/working",
 		},
 	}
@@ -186,7 +187,7 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 		_ = os.MkdirAll(repoDir, 0766)
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
-			Source: b.M2,
+			Source: repoDir,
 			Target: "/root/.m2/repository",
 		})
 	}

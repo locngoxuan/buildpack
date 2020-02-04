@@ -36,6 +36,7 @@ type RepoArgument struct {
 type ActionArguments struct {
 	Flag *flag.FlagSet
 
+	shareData          string
 	configFile         string
 	gitToken           string
 	debug              bool
@@ -59,6 +60,8 @@ func NewActionArguments(f *flag.FlagSet) (*ActionArguments, error) {
 		Flag: f,
 	}
 	err := args.readVersion().
+		readShareData().
+		readConfigFile().
 		readDebug().
 		readModules().
 		readPatch().
@@ -77,6 +80,11 @@ func NewActionArguments(f *flag.FlagSet) (*ActionArguments, error) {
 		return nil, err
 	}
 	return args, nil
+}
+
+func (a *ActionArguments) readShareData() *ActionArguments {
+	a.Flag.StringVar(&a.shareData, "share-data", "", "path to share data folder")
+	return a
 }
 
 func (a *ActionArguments) readConfigFile() *ActionArguments {
@@ -165,6 +173,10 @@ func (a *ActionArguments) parse() error {
 
 func (a *ActionArguments) ConfigFile() string {
 	return strings.TrimSpace(a.configFile)
+}
+
+func (a *ActionArguments) ShareData() string {
+	return strings.TrimSpace(a.shareData)
 }
 
 func (a *ActionArguments) Version() string {

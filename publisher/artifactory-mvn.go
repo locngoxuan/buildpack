@@ -39,10 +39,16 @@ type CheckSum struct {
 }
 
 type POM struct {
-	XMLName    xml.Name `xml:"project"`
-	GroupId    string   `xml:"groupId"`
-	ArtifactId string   `xml:"artifactId"`
-	Classifier string   `xml:"packaging"`
+	XMLName    xml.Name  `xml:"project"`
+	Parent     ParentPOM `xml:"parent"`
+	GroupId    string    `xml:"groupId"`
+	ArtifactId string    `xml:"artifactId"`
+	Classifier string    `xml:"packaging"`
+}
+
+type ParentPOM struct {
+	GroupId    string `xml:"groupId"`
+	ArtifactId string `xml:"artifactId"`
 }
 
 func (p *ArtifactoryMvn) WriteConfig(bp BuildPack, opt ModuleConfig) error {
@@ -76,6 +82,10 @@ func (p *ArtifactoryMvn) CreateContext(bp *BuildPack, rtOpt ModuleRuntime) (Publ
 	if err != nil {
 		err = errors.New(fmt.Sprintf("unmarshal application config file get error %v", err))
 		return ctx, err
+	}
+
+	if len(strings.TrimSpace(pomProject.GroupId)) == 0{
+		pomProject.GroupId = pomProject.Parent.GroupId
 	}
 	addPOMToContext(ctx, pomProject)
 	ctx.RepositoryConfig, err = bp.Runtime.GetRepo(rtOpt.RepoId)

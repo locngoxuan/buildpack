@@ -329,10 +329,13 @@ func buildAndPublish(bp *BuildPack) error {
 	for _, rtModule := range bp.Runtime.Modules {
 		LogInfo(*bp, fmt.Sprintf("module %s", rtModule.Name))
 		b, _ := _builders[rtModule.Name]
-		p, _ := _publishers[rtModule.Name]
 		err := b.Clean(_builderContexts[rtModule.Name])
 		if err != nil {
 			return err
+		}
+		p, _ := _publishers[rtModule.Name]
+		if rtModule.Skip {
+			continue
 		}
 		err = p.Clean(_publishContexts[rtModule.Name])
 		if err != nil {
@@ -360,21 +363,22 @@ func buildAndPublish(bp *BuildPack) error {
 
 	if !bp.SkipPublish {
 		for _, rtModule := range bp.Runtime.Modules {
-			if !rtModule.Skip {
-				// publish build
-				bp.Phase = PhasePrePublish
-				LogInfo(*bp, fmt.Sprintf("module %s", rtModule.Name))
-				p := _publishers[rtModule.Name]
-				err := p.Pre(_publishContexts[rtModule.Name])
-				if err != nil {
-					return err
-				}
-				bp.Phase = PhasePublish
-				LogInfo(*bp, fmt.Sprintf("module %s", rtModule.Name))
-				err = p.Publish(_publishContexts[rtModule.Name])
-				if err != nil {
-					return err
-				}
+			if rtModule.Skip {
+				continue
+			}
+			// publish build
+			bp.Phase = PhasePrePublish
+			LogInfo(*bp, fmt.Sprintf("module %s", rtModule.Name))
+			p := _publishers[rtModule.Name]
+			err := p.Pre(_publishContexts[rtModule.Name])
+			if err != nil {
+				return err
+			}
+			bp.Phase = PhasePublish
+			LogInfo(*bp, fmt.Sprintf("module %s", rtModule.Name))
+			err = p.Publish(_publishContexts[rtModule.Name])
+			if err != nil {
+				return err
 			}
 		}
 	}

@@ -92,6 +92,10 @@ func (b *MVN) CreateContext(bp *BuildPack, rtOpt ModuleRuntime) (BuildContext, e
 func (b *MVN) Clean(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "clean")
+	//only for mvn build: add label means build SNAPSHOT
+	if !ctx.Runtime.Release {
+		arg = append(arg, "-U")
+	}
 	arg = append(arg, b.BuildOptions...)
 	return b.RunFnc(ctx, arg...)
 }
@@ -99,6 +103,10 @@ func (b *MVN) Clean(ctx BuildContext) error {
 func (b *MVN) UnitTest(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "test")
+	//only for mvn build: add label means build SNAPSHOT
+	if !ctx.Runtime.Release {
+		arg = append(arg, "-U")
+	}
 	arg = append(arg, b.BuildOptions...)
 	return b.RunFnc(ctx, arg...)
 }

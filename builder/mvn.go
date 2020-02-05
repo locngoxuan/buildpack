@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	mvnContainerImage = "docker.io/xuanloc0511/mvn:3.6.3"
+	mvnContainerImage = "xuanloc0511/mvn:3.6.3-2"
 	pomFile           = "pom.xml"
 	labelSnapshot     = "SNAPSHOT"
 
@@ -73,7 +73,7 @@ func (b *MVN) CreateContext(bp *BuildPack, rtOpt ModuleRuntime) (BuildContext, e
 	}
 
 	ctx.BuildPack = bp
-	b.RunFnc = b.runMvnContainer
+	b.RunFnc = b.execContainerCommand
 	if bp.Runtime.SkipContainer {
 		b.RunFnc = b.runMvnLocal
 	}
@@ -137,14 +137,14 @@ func readMvnBuildConfig(configFile string) (option MVNOption, err error) {
 func (b *MVN) runMvnLocal(ctx BuildContext, arg ...string) error {
 	arg = append(arg, "-f", filepath.Join(ctx.WorkingDir, pomFile))
 	cmd := exec.Command("mvn", arg...)
-	if ctx.Debug {
+	LogVerbose(*ctx.BuildPack, fmt.Sprintf("working dir %s", ctx.WorkingDir))
+	LogVerbose(*ctx.BuildPack, fmt.Sprintf("mvn %+v", arg))
+	if ctx.Verbose {
 		cmd.Stdout = os.Stdout
 		cmd.Stderr = os.Stderr
 	} else {
 		cmd.Stderr = os.Stderr
 	}
-	LogDebug(*ctx.BuildPack, fmt.Sprintf("working dir %s", ctx.WorkingDir))
-	LogDebug(*ctx.BuildPack, fmt.Sprintf("mvn %+v", arg))
 	return cmd.Run()
 }
 
@@ -162,8 +162,8 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 	for _, v := range arg {
 		cmd = append(cmd, v)
 	}
-	LogDebug(*bctx.BuildPack, fmt.Sprintf("working dir %s", bctx.WorkingDir))
-	LogDebug(*bctx.BuildPack, fmt.Sprintf("docker run -it --rm %s %+v", b.ContainerImage, cmd))
+	LogVerbose(*bctx.BuildPack, fmt.Sprintf("working dir %s", bctx.WorkingDir))
+	LogVerbose(*bctx.BuildPack, fmt.Sprintf("docker run -it --rm %s %+v", b.ContainerImage, cmd))
 
 	pullResp, err := cli.ImagePull(ctx, b.ContainerImage, types.ImagePullOptions{})
 	if err != nil {
@@ -213,7 +213,7 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 	bctx.Runtime.Run(createRsp.ID)
 
 	stdout := false
-	if bctx.Debug {
+	if bctx.Verbose {
 		stdout = true
 	}
 
@@ -233,7 +233,7 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 		return err
 	}
 
-	if bctx.Debug {
+	if bctx.Verbose {
 		_, _ = io.Copy(os.Stdout, attachRsp.Reader)
 	}
 	statusCh, errCh := cli.ContainerWait(ctx, createRsp.ID, container.WaitConditionNotRunning)
@@ -242,7 +242,44 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 		if err != nil {
 			return err
 		}
-	case <-statusCh:
+	case v := <-statusCh:
+		if v.StatusCode != 0 {
+			return errors.New("run mvn build error")
+		}
 	}
 	return nil
+}
+
+func (b *MVN) execContainerCommand(ctx BuildContext, mvnArg ...string) error {
+	dockerHost, err := CheckHost(context.Background(), ctx.Runtime.DockerConfig)
+	if err != nil {
+		return errors.New(fmt.Sprintf("can not connect to docker host: %s", err.Error()))
+	}
+
+	dockerCommandArg := make([]string, 0)
+	dockerCommandArg = append(dockerCommandArg, "-H", dockerHost)
+	dockerCommandArg = append(dockerCommandArg, "run", "--rm")
+	if len(b.M2) > 0 {
+		repoDir := filepath.Join(b.M2, "repository")
+		_ = os.MkdirAll(repoDir, 0766)
+		dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/root/.m2/repository", repoDir))
+	}
+	dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/working", ctx.Root))
+	dockerCommandArg = append(dockerCommandArg, mvnContainerImage)
+	dockerCommandArg = append(dockerCommandArg, "mvn")
+	mvnArg = append(mvnArg, "-f", filepath.Join(ctx.Path, pomFile))
+	for _, v := range mvnArg {
+		dockerCommandArg = append(dockerCommandArg, v)
+	}
+
+	LogVerbose(*ctx.BuildPack, fmt.Sprintf("working dir %s", ctx.WorkingDir))
+	LogVerbose(*ctx.BuildPack, fmt.Sprintf("docker %s", strings.Join(dockerCommandArg, " ")))
+	dockerCmd := exec.Command("docker", dockerCommandArg...)
+	if ctx.Verbose {
+		dockerCmd.Stdout = os.Stdout
+		dockerCmd.Stderr = os.Stderr
+	} else {
+		dockerCmd.Stderr = os.Stderr
+	}
+	return dockerCmd.Run()
 }

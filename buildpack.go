@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -74,6 +75,34 @@ modules:
       id: ""
 `
 )
+
+var (
+	usagePrefix = `Usage: buildpack ACTION [OPTIONS]
+
+ACTION:
+  init        Init a template of configuration file with name buildpack.yml		
+  config      Generate builder configuration in all modules
+  version     Display version of buildpack
+  clean       Clean working directory
+  snapshot    Build and publish snapshot version
+  release     Build and publish stable version
+
+Examples:
+  buildpack init -v=0.1.0
+  buildpack config
+  buildpack version
+  buildpack snapshot --verbose
+  buildpack release --verbose
+
+Options:
+`
+)
+
+func Usage(f *flag.FlagSet) {
+	fmt.Println(usagePrefix)
+	f.PrintDefaults()
+	os.Exit(1)
+}
 
 func NewBuildPack(action string, f *flag.FlagSet) (*BuildPack, error) {
 	root, err := filepath.Abs(".")
@@ -222,7 +251,7 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 	bp.IsPatch = argument.IsPatch()
 	bp.BackwardsCompatible = argument.IsBackwardsCompatible()
 	bp.ShareData = argument.shareData
-	bp.Debug = argument.IsDebug()
+	bp.Verbose = argument.Verbose()
 	return nil
 }
 

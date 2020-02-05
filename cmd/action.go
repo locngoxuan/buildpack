@@ -22,6 +22,7 @@ const (
 	actionSnapshot       = "snapshot"
 	actionRelease        = "release"
 	actionClean          = "clean"
+	actionVersion        = "version"
 )
 
 func init() {
@@ -31,6 +32,7 @@ func init() {
 	actions[actionClean] = ActionCleanHandler
 	actions[actionSnapshot] = ActionSnapshotHandler
 	actions[actionRelease] = ActionReleaseHandler
+	actions[actionVersion] = ActionVersionHandler
 }
 
 func Handle(b *BuildPack) *BuildError {
@@ -54,6 +56,12 @@ func VerifyAction(action string) error {
 	if !ok {
 		return errors.New("action not found")
 	}
+	return nil
+}
+
+func ActionVersionHandler(bp *BuildPack) *BuildError {
+	fmt.Println(fmt.Sprintf("[BUILDPACK] [version] %s", version))
+	os.Exit(0)
 	return nil
 }
 
@@ -139,6 +147,7 @@ func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 	// read configuration then pre runtime-params for doing snapshot
 	args, err := NewActionArguments(bp.Flag)
 	if err != nil {
+		Usage(bp.Flag)
 		return bp.Error("", err)
 	}
 

@@ -10,8 +10,8 @@ func LogInfo(bp BuildPack, msg string) {
 	fmt.Println(fmt.Sprintf("[BUILDPACK] [%s:%s] %s", bp.Action, bp.Phase, msg))
 }
 
-func LogDebug(bp BuildPack, msg string) {
-	if !bp.Debug {
+func LogVerbose(bp BuildPack, msg string) {
+	if !bp.Verbose {
 		return
 	}
 	fmt.Println(fmt.Sprintf("[BUILDPACK] [%s:%s] %s", bp.Action, bp.Phase, msg))

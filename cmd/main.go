@@ -7,25 +7,17 @@ import (
 	. "scm.wcs.fortna.com/lngo/buildpack"
 )
 
-/**
+const version = "0.1.0"
 
-Usage:
-buildpack [action] [options]
-
-action: init, snapshot, release, module
-options:
-	--m list of modules
-	--v version
-	--add apply for only module action
-	--del apply for only module action
-	--clean apply for snapshot and release
-	--phase apply for snapshot and release
-	--container run build command in container env
-*/
 func main() {
+	f := flag.NewFlagSet("buildpack", flag.ContinueOnError)
+	f.Usage = func() {
+		/**
+		Do nothing
+		 */
+	}
 	if len(os.Args) <= 1 {
-		f := flag.NewFlagSet("buildpack [init/verify/unstable/stable] [OPTIONS]", flag.ContinueOnError)
-		f.Usage()
+		Usage(f)
 		return
 	}
 
@@ -40,7 +32,6 @@ func main() {
 		})
 	}
 
-	f := flag.NewFlagSet(fmt.Sprintf("buildpack %s [OPTIONS]", action), flag.ContinueOnError)
 	buildPack, err := NewBuildPack(action, f)
 	if err != nil {
 		LogFatal(BuildError{

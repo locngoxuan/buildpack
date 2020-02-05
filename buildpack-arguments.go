@@ -39,7 +39,7 @@ type ActionArguments struct {
 	shareData          string
 	configFile         string
 	gitToken           string
-	debug              bool
+	verbose            bool
 	patch              bool
 	backwardCompatible bool
 	repoIds            arrayFlags
@@ -62,7 +62,7 @@ func NewActionArguments(f *flag.FlagSet) (*ActionArguments, error) {
 	err := args.readVersion().
 		readShareData().
 		readConfigFile().
-		readDebug().
+		readVerbose().
 		readModules().
 		readPatch().
 		readBackwardsCompatible().
@@ -97,8 +97,8 @@ func (a *ActionArguments) readGitAccessToken() *ActionArguments {
 	return a
 }
 
-func (a *ActionArguments) readDebug() *ActionArguments {
-	a.Flag.BoolVar(&a.debug, "debug", false, "display more log")
+func (a *ActionArguments) readVerbose() *ActionArguments {
+	a.Flag.BoolVar(&a.verbose, "verbose", false, "display more log")
 	return a
 }
 
@@ -195,8 +195,8 @@ func (a *ActionArguments) Modules() []string {
 	return strings.Split(v, ",")
 }
 
-func (a *ActionArguments) IsDebug() bool {
-	return a.debug
+func (a *ActionArguments) Verbose() bool {
+	return a.verbose
 }
 
 func (a *ActionArguments) SkipContainer() bool {

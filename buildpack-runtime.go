@@ -7,7 +7,7 @@ type Runtime struct {
 	DockerRuntime
 	SkipOption
 
-	Debug               bool
+	Verbose             bool
 	IsPatch             bool
 	BackwardsCompatible bool
 	ShareData           string
@@ -16,7 +16,7 @@ type Runtime struct {
 
 func NewRuntimeParams(config Config) Runtime {
 	return Runtime{
-		Debug:               false,
+		Verbose:             false,
 		IsPatch:             false,
 		BackwardsCompatible: true,
 		SkipOption: SkipOption{

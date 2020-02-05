@@ -2,11 +2,11 @@ package builder
 
 import (
 	"context"
+	"docker.io/go-docker/api/types"
+	"docker.io/go-docker/api/types/container"
+	"docker.io/go-docker/api/types/mount"
 	"errors"
 	"fmt"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/mount"
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
@@ -236,6 +236,13 @@ func (b *MVN) runMvnContainer(bctx BuildContext, arg ...string) error {
 	if bctx.Debug {
 		_, _ = io.Copy(os.Stdout, attachRsp.Reader)
 	}
-	_, _ = cli.ContainerWait(ctx, createRsp.ID)
+	statusCh, errCh := cli.ContainerWait(ctx, createRsp.ID, container.WaitConditionNotRunning)
+	select {
+	case err := <-errCh:
+		if err != nil {
+			return err
+		}
+	case <-statusCh:
+	}
 	return nil
 }

@@ -21,16 +21,16 @@ const (
 	actionGenerateConfig = "config"
 	actionSnapshot       = "snapshot"
 	actionRelease        = "release"
-	actionCheckConfig    = "check-config"
+	actionClean          = "clean"
 )
 
 func init() {
 	actions = make(map[string]ActionHandler)
 	actions[actionInit] = ActionInitHandler
 	actions[actionGenerateConfig] = ActionGenerateConfig
+	actions[actionClean] = ActionCleanHandler
 	actions[actionSnapshot] = ActionSnapshotHandler
 	actions[actionRelease] = ActionReleaseHandler
-	actions[actionCheckConfig] = ActionCheckConfig
 }
 
 func Handle(b *BuildPack) *BuildError {
@@ -79,6 +79,30 @@ func ActionInitHandler(bp *BuildPack) *BuildError {
 	return nil
 }
 
+func ActionCleanHandler(bp *BuildPack) *BuildError {
+	bp.Phase = PhaseCleanAll
+	// read configuration then pre runtime-params for doing snapshot
+	args, err := NewActionArguments(bp.Flag)
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	bp.SkipBranching = true
+	bp.SkipPublish = true
+	bp.SkipUnitTest = true
+	err = bp.InitRuntimeParams(false, args)
+	if err != nil {
+		return bp.Error("", err)
+	}
+	defer endBuildPack(*bp)
+	// run snapshot action for each module
+	err = justClean(bp)
+	if err != nil {
+		return bp.Error("", err)
+	}
+	return nil
+}
+
 func ActionGenerateConfig(bp *BuildPack) *BuildError {
 	var err error
 	bp.Config, err = ReadFromConfigFile("")
@@ -111,54 +135,6 @@ func ActionGenerateConfig(bp *BuildPack) *BuildError {
 	return nil
 }
 
-func ActionCheckConfig(bp *BuildPack) *BuildError {
-	actionArgs, err := NewActionArguments(bp.Flag)
-	if err != nil {
-		return bp.Error("", err)
-	}
-
-	err = bp.InitRuntimeParams(false, actionArgs)
-	if err != nil {
-		return bp.Error("", err)
-	}
-
-	defer endBuildPack(*bp)
-
-	for _, rtModule := range bp.Runtime.Modules {
-		b, err := builder.GetBuilder(rtModule.Build)
-		if err != nil {
-			return bp.Error("", err)
-		}
-		ctx, err := b.CreateContext(bp, rtModule)
-		if err != nil {
-			return bp.Error("", err)
-		}
-		LogInfo(*bp, fmt.Sprintf("verify builder %s for module %s", rtModule.Build, rtModule.Name))
-		err = b.Verify(ctx)
-		if err != nil {
-			return bp.Error("", err)
-		}
-	}
-
-	for _, moduleConfig := range bp.Runtime.Modules {
-		if moduleConfig.Skip {
-			continue
-		}
-		repoType := bp.Config.GetRepositoryType(moduleConfig.RepoId)
-		p := publisher.GetPublisher(repoType)
-		ctx, err := p.CreateContext(bp, moduleConfig)
-		if err != nil {
-			return bp.Error("", err)
-		}
-		LogInfo(*bp, fmt.Sprintf("verify publisher %s for module %s", repoType, moduleConfig.Name))
-		err = p.Verify(ctx)
-		if err != nil {
-			return bp.Error("", err)
-		}
-	}
-	return nil
-}
-
 func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 	// read configuration then pre runtime-params for doing snapshot
 	args, err := NewActionArguments(bp.Flag)
@@ -167,6 +143,10 @@ func ActionSnapshotHandler(bp *BuildPack) *BuildError {
 	}
 
 	err = bp.InitRuntimeParams(false, args)
+	if err != nil {
+		return bp.Error("", err)
+	}
+	err = bp.Verify(false)
 	if err != nil {
 		return bp.Error("", err)
 	}
@@ -192,6 +172,11 @@ func ActionReleaseHandler(bp *BuildPack) *BuildError {
 	if err != nil {
 		return bp.Error("", err)
 	}
+	err = bp.Verify(false)
+	if err != nil {
+		return bp.Error("", err)
+	}
+
 	defer endBuildPack(*bp)
 
 	err = bp.GitClient.Verify(bp.GitRuntime)
@@ -269,9 +254,10 @@ func ActionReleaseHandler(bp *BuildPack) *BuildError {
 
 func endBuildPack(bp BuildPack) {
 	RemoveAllContainer(bp)
+	_ = os.RemoveAll(bp.GetPublishDirectory())
 }
 
-func buildAndPublish(bp *BuildPack) error {
+func justClean(bp *BuildPack) error {
 	_builders := make(map[string]builder.Builder)
 	_builderContexts := make(map[string]builder.BuildContext)
 	_publishers := make(map[string]publisher.Publisher)
@@ -283,6 +269,10 @@ func buildAndPublish(bp *BuildPack) error {
 			return err
 		}
 		ctx, err := b.CreateContext(bp, rtModule)
+		if err != nil {
+			return err
+		}
+		err = b.Verify(ctx)
 		if err != nil {
 			return err
 		}
@@ -309,6 +299,77 @@ func buildAndPublish(bp *BuildPack) error {
 		LogInfo(*bp, fmt.Sprintf("module %s - publisher '%s'", rtModule.Name, repoType))
 		p := publisher.GetPublisher(repoType)
 		ctx, err := p.CreateContext(bp, rtModule)
+		if err != nil {
+			return err
+		}
+		err = p.Verify(ctx)
+		if err != nil {
+			return err
+		}
+		_publishContexts[rtModule.Name] = ctx
+		_publishers[rtModule.Name] = p
+	}
+
+	bp.Phase = PhaseCleanAll
+	for _, rtModule := range bp.Runtime.Modules {
+		LogInfo(*bp, fmt.Sprintf("module %s", rtModule.Name))
+		b, _ := _builders[rtModule.Name]
+		p, _ := _publishers[rtModule.Name]
+		_ = b.Clean(_builderContexts[rtModule.Name])
+		if !rtModule.Skip {
+			_ = p.Clean(_publishContexts[rtModule.Name])
+		}
+	}
+	_ = os.RemoveAll(publishDirectory)
+	return nil
+}
+
+func buildAndPublish(bp *BuildPack) error {
+	_builders := make(map[string]builder.Builder)
+	_builderContexts := make(map[string]builder.BuildContext)
+	_publishers := make(map[string]publisher.Publisher)
+	_publishContexts := make(map[string]publisher.PublishContext)
+	bp.Phase = PhaseInitBuilder
+	for _, rtModule := range bp.Runtime.Modules {
+		b, err := builder.GetBuilder(rtModule.Build)
+		if err != nil {
+			return err
+		}
+		ctx, err := b.CreateContext(bp, rtModule)
+		if err != nil {
+			return err
+		}
+		err = b.Verify(ctx)
+		if err != nil {
+			return err
+		}
+		_builderContexts[rtModule.Name] = ctx
+		LogInfo(*bp, fmt.Sprintf("module %s - builder '%s'", rtModule.Name, rtModule.Build))
+		_builders[rtModule.Name] = b
+	}
+
+	bp.Phase = PhaseInitPublisher
+	//init publish directory
+	publishDirectory := bp.GetPublishDirectory()
+	//remove before create new one
+	_ = os.RemoveAll(publishDirectory)
+	err := os.MkdirAll(publishDirectory, 0777)
+	if err != nil {
+		return err
+	}
+
+	for _, rtModule := range bp.Runtime.Modules {
+		if rtModule.Skip {
+			continue
+		}
+		repoType := bp.Config.GetRepositoryType(rtModule.RepoId)
+		LogInfo(*bp, fmt.Sprintf("module %s - publisher '%s'", rtModule.Name, repoType))
+		p := publisher.GetPublisher(repoType)
+		ctx, err := p.CreateContext(bp, rtModule)
+		if err != nil {
+			return err
+		}
+		err = p.Verify(ctx)
 		if err != nil {
 			return err
 		}

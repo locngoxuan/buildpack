@@ -3,6 +3,7 @@ package buildpack
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -161,33 +162,56 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 		return bp.Runtime.Modules[i].Position < bp.Runtime.Modules[j].Position
 	})
 	//end parsing and sorting modules
+
+	// environment arguments
 	// read git
+	envGitToken := ReadEnv(GitToken)
+	if len(envGitToken) > 0 {
+		bp.Runtime.GitRuntime.AccessToken = envGitToken
+	}
+
+	for i := 0; i < len(bp.Runtime.Repos); i++ {
+		idUpperCase := strings.ToUpper(bp.Runtime.Repos[i].Id)
+		repoToken := ReadEnv(fmt.Sprintf(RepoTokenPattern, idUpperCase))
+		if len(repoToken) > 0 {
+			bp.Runtime.Repos[i].AccessToken = repoToken
+		}
+
+		repoUser := ReadEnv(fmt.Sprintf(RepoUserPattern, idUpperCase))
+		if len(repoUser) > 0 {
+			bp.Runtime.Repos[i].Username = repoUser
+		}
+
+		repoPassword := ReadEnv(fmt.Sprintf(RepoPasswordPattern, idUpperCase))
+		if len(repoPassword) > 0 {
+			bp.Runtime.Repos[i].Password = repoPassword
+		}
+	}
+
+	// runtime arguments
 	if len(strings.TrimSpace(argument.GitAccessToken())) > 0 {
 		bp.Runtime.GitRuntime.AccessToken = strings.TrimSpace(argument.GitAccessToken())
 	}
 
 	repoArguments := argument.RepoArguments()
-	for i := 0; i < len(bp.Runtime.Repos); i++ {
-		repoArg, ok := repoArguments[bp.Runtime.Repos[i].Id]
-		if !ok {
-			continue
-		}
-		if len(strings.TrimSpace(repoArg.Token)) > 0 {
-			bp.Runtime.Repos[i].AccessToken = strings.TrimSpace(repoArg.Token)
-		}
+	if len(repoArguments) > 0 {
+		for i := 0; i < len(bp.Runtime.Repos); i++ {
+			repoArg, ok := repoArguments[bp.Runtime.Repos[i].Id]
+			if !ok {
+				continue
+			}
+			if len(strings.TrimSpace(repoArg.Token)) > 0 {
+				bp.Runtime.Repos[i].AccessToken = strings.TrimSpace(repoArg.Token)
+			}
 
-		if len(strings.TrimSpace(repoArg.Username)) > 0 {
-			bp.Runtime.Repos[i].Username = strings.TrimSpace(repoArg.Username)
-		}
+			if len(strings.TrimSpace(repoArg.Username)) > 0 {
+				bp.Runtime.Repos[i].Username = strings.TrimSpace(repoArg.Username)
+			}
 
-		if len(strings.TrimSpace(repoArg.Password)) > 0 {
-			bp.Runtime.Repos[i].Password = strings.TrimSpace(repoArg.Password)
+			if len(strings.TrimSpace(repoArg.Password)) > 0 {
+				bp.Runtime.Repos[i].Password = strings.TrimSpace(repoArg.Password)
+			}
 		}
-	}
-
-	useRepoIds := make(map[string]struct{})
-	for _, m := range bp.Runtime.Modules {
-		useRepoIds[m.RepoId] = struct{}{}
 	}
 
 	bp.SkipContainer = argument.SkipContainer()
@@ -199,12 +223,20 @@ func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) 
 	bp.BackwardsCompatible = argument.IsBackwardsCompatible()
 	bp.ShareData = argument.shareData
 	bp.Debug = argument.IsDebug()
+	return nil
+}
 
+func (bp *BuildPack) Verify(release bool) error {
 	if release && !bp.SkipBranching && len(strings.TrimSpace(bp.GitRuntime.AccessToken)) == 0 {
 		return errors.New("missing git token configuration")
 	}
 
 	if !bp.SkipPublish {
+		useRepoIds := make(map[string]struct{})
+		for _, m := range bp.Runtime.Modules {
+			useRepoIds[m.RepoId] = struct{}{}
+		}
+
 		if len(bp.Runtime.RepositoryRuntime.Repos) == 0 {
 			return errors.New("not found repositories configuration")
 		}

@@ -8,9 +8,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/object"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
-	"gopkg.in/src-d/go-git.v4/plumbing/transport/ssh"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
-	"io/ioutil"
 	"os"
 	"strings"
 	"time"
@@ -22,12 +20,18 @@ const (
 )
 
 type GitClient struct {
+	Token         string
 	Repo          *git.Repository
 	CurrentBranch *plumbing.Reference
 	Remote        *git.Remote
 }
 
-func InitGitClient(root string) (cli GitClient, err error) {
+func InitGitClient(root string, accessToken string) (cli GitClient, err error) {
+	if len(accessToken) == 0 {
+		err = errors.New("access token is empty")
+		return
+	}
+	cli.Token = accessToken
 	cli.Repo, err = git.PlainOpen(root)
 	if err != nil {
 		return
@@ -85,22 +89,24 @@ func InitGitClient(root string) (cli GitClient, err error) {
 		err = errors.New("not found URLs started with https from any remote")
 		return
 	}
+	err = cli.Validate()
 	return
 }
 
-func auth(remote *git.Remote, gitConfig GitRuntime) (transport.AuthMethod, error) {
+func auth(remote *git.Remote, accessToken string) (transport.AuthMethod, error) {
 	if _, yes := useHttp(remote); yes {
 		return &http.BasicAuth{
 			Username: "token",
-			Password: gitConfig.AccessToken,
+			Password: accessToken,
 		}, nil
 	} else {
-		sshKey, _ := ioutil.ReadFile(gitConfig.SSHPath)
-		publicKey, err := ssh.NewPublicKeys("git", []byte(sshKey), gitConfig.SSHPass)
-		if err != nil {
-			return nil, err
-		}
-		return publicKey, nil
+		//sshKey, _ := ioutil.ReadFile(gitConfig.SSHPath)
+		//publicKey, err := ssh.NewPublicKeys("git", []byte(sshKey), gitConfig.SSHPass)
+		//if err != nil {
+		//	return nil, err
+		//}
+		//return publicKey, nil
+		return nil, errors.New("not found http remote")
 	}
 }
 
@@ -113,12 +119,12 @@ func useHttp(r *git.Remote) (string, bool) {
 	return "", false
 }
 
-func (c *GitClient) Verify(gitConfig GitRuntime) error {
+func (c *GitClient) Validate() error {
 	url, ok := useHttp(c.Remote)
 	if !ok {
 		return errors.New("not found URLs started with https in any remote")
 	}
-	auth, err := auth(c.Remote, gitConfig)
+	auth, err := auth(c.Remote, c.Token)
 	if err != nil {
 		return err
 	}
@@ -133,7 +139,7 @@ func (c *GitClient) Verify(gitConfig GitRuntime) error {
 	return err
 }
 
-func (c *GitClient) Tag(gitConfig GitRuntime, version string) error {
+func (c *GitClient) Tag(version string) error {
 	reference, err := c.Repo.Storer.Reference(c.CurrentBranch.Name())
 	if err != nil {
 		return err
@@ -169,7 +175,7 @@ func (c *GitClient) Tag(gitConfig GitRuntime, version string) error {
 		return err
 	}
 
-	auth, err := auth(c.Remote, gitConfig)
+	auth, err := auth(c.Remote, c.Token)
 	if err != nil {
 		return err
 	}
@@ -188,7 +194,7 @@ func (c *GitClient) Tag(gitConfig GitRuntime, version string) error {
 	return nil
 }
 
-func (c *GitClient) Branch(gitConfig GitRuntime, branchName string) error {
+func (c *GitClient) Branch(branchName string) error {
 	newBranchName := plumbing.NewBranchReferenceName(branchName)
 
 	wt, err := c.Repo.Worktree()
@@ -205,7 +211,7 @@ func (c *GitClient) Branch(gitConfig GitRuntime, branchName string) error {
 	if err != nil {
 		return err
 	}
-	auth, err := auth(c.Remote, gitConfig)
+	auth, err := auth(c.Remote, c.Token)
 	if err != nil {
 		return err
 	}
@@ -250,7 +256,7 @@ func (c *GitClient) Add(path string) error {
 	return nil
 }
 
-func (c *GitClient) Commit(gitConfig GitRuntime, msg string) error {
+func (c *GitClient) Commit(msg string) error {
 	wt, err := c.Repo.Worktree()
 	if err != nil {
 		return err
@@ -274,8 +280,8 @@ func (c *GitClient) Commit(gitConfig GitRuntime, msg string) error {
 	return nil
 }
 
-func (c *GitClient) Push(gitConfig GitRuntime) error {
-	auth, err := auth(c.Remote, gitConfig)
+func (c *GitClient) Push() error {
+	auth, err := auth(c.Remote, c.Token)
 	if err != nil {
 		return err
 	}

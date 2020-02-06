@@ -7,54 +7,46 @@ import (
 	"path/filepath"
 )
 
-func (bp *BuildPack) GetPublishDirectory() string {
-	p, err := filepath.Abs(filepath.Join(bp.Root, PublishDirectory))
+func (bp *BuildPack) GetCommonDirectory() string {
+	p, err := filepath.Abs(filepath.Join(bp.RootDir, CommonDirectory))
 	if err != nil {
-		LogFatal(*bp.Error("", err))
+		LogFatal(bp.Error("", err))
 	}
 	return p
 }
 
 func (bp *BuildPack) GetBuildPackConfigPath() string {
-	p, err := filepath.Abs(filepath.Join(bp.Root, FileBuildPackConfig))
+	p, err := filepath.Abs(filepath.Join(bp.RootDir, FileBuildPackConfig))
 	if err != nil {
-		LogFatal(*bp.Error("", err))
-	}
-	return p
-}
-
-func (bp *BuildPack) GetBuilderConfigPath(modulePath string) string {
-	p, err := filepath.Abs(filepath.Join(bp.Root, modulePath, FileBuilderConfig))
-	if err != nil {
-		LogFatal(*bp.Error("", err))
+		LogFatal(bp.Error("", err))
 	}
 	return p
 }
 
 func (bp *BuildPack) GetBuilderSpecificFile(modulePath, filename string) string {
-	p, err := filepath.Abs(filepath.Join(bp.Root, modulePath, filename))
+	p, err := filepath.Abs(filepath.Join(bp.RootDir, modulePath, filename))
 	if err != nil {
-		LogFatal(*bp.Error("", err))
+		LogFatal(bp.Error("", err))
 	}
 	return p
 }
 
 func (bp *BuildPack) GetModuleWorkingDir(modulePath string) string {
-	p, err := filepath.Abs(filepath.Join(bp.Root, modulePath))
+	p, err := filepath.Abs(filepath.Join(bp.RootDir, modulePath))
 	if err != nil {
-		LogFatal(*bp.Error("", err))
+		LogFatal(bp.Error("", err))
 	}
 	return p
 }
 
 func (bp *BuildPack) BuildPathOnRoot(args ...string) string {
 	parts := []string{
-		bp.Root,
+		bp.RootDir,
 	}
 	parts = append(parts, args...)
 	p, err := filepath.Abs(filepath.Join(parts...))
 	if err != nil {
-		LogFatal(*bp.Error("", err))
+		LogFatal(bp.Error("", err))
 	}
 	return p
 }

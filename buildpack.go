@@ -6,11 +6,10 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
-	"strings"
 )
 
-type BuildError struct {
+type BuildResult struct {
+	Success bool
 	Err     error
 	Action  string
 	Phase   string
@@ -18,35 +17,31 @@ type BuildError struct {
 }
 
 type BuildPack struct {
+	// Only for log info
 	Action string
 	Phase  string
-	Root   string
-	Flag   *flag.FlagSet
 
+	// working dir
+	RootDir string
+
+	// configuration
 	Config
-	Runtime
+	RuntimeConfig
 	GitClient
 }
 
 const (
 	FileBuildPackConfig = "buildpack.yml"
-	FileBuilderConfig   = "builder.yml"
-	PublishDirectory    = "publish"
+	CommonDirectory     = ".buildpack"
 
 	PhaseInit        = "init"
-	PhaseLoadConfig  = "load-config"
 	PhaseBuildConfig = "build-config"
 	PhaseSaveConfig  = "save-config"
-
-	PhaseInitBuilder   = "init-builder"
-	PhaseInitPublisher = "init-publisher"
-	PhaseUnitTest      = "unit-test"
-	PhaseBuild         = "build"
-	PhasePrePublish    = "pre-publish"
-	PhasePublish       = "publish"
-	PhaseCleanAll      = "clean-all"
-	PhaseBranching     = "branching"
-	PhasePumpVersion   = "pump-version"
+	PhaseBuild       = "build"
+	PhasePublish     = "publish"
+	PhaseCleanAll    = "clean-all"
+	PhaseBranching   = "branching"
+	PhasePumpVersion = "pump-version"
 
 	FileConfigTemplate = `
 docker:
@@ -57,7 +52,7 @@ git:
   access-token: ""
 repositories:
   - id: ""
-    type: ""
+    name: ""
     url: ""
     channel:
       stable: ""
@@ -104,24 +99,24 @@ func Usage(f *flag.FlagSet) {
 	os.Exit(1)
 }
 
-func NewBuildPack(action string, f *flag.FlagSet) (*BuildPack, error) {
+func NewBuildPack(action string, config Config, rtConfig RuntimeConfig) (*BuildPack, error) {
 	root, err := filepath.Abs(".")
 	if err != nil {
 		return nil, err
 	}
 
 	return &BuildPack{
-		Action:  action,
-		Flag:    f,
-		Root:    root,
-		Phase:   PhaseInit,
-		Config:  Config{},
-		Runtime: Runtime{},
+		Action:        action,
+		RootDir:       root,
+		Phase:         PhaseInit,
+		Config:        config,
+		RuntimeConfig: rtConfig,
 	}, nil
 }
 
-func (b *BuildPack) Error(msg string, err error) *BuildError {
-	return &BuildError{
+func (b *BuildPack) Error(msg string, err error) BuildResult {
+	return BuildResult{
+		Success: false,
 		Action:  b.Action,
 		Phase:   b.Phase,
 		Err:     err,
@@ -129,155 +124,91 @@ func (b *BuildPack) Error(msg string, err error) *BuildError {
 	}
 }
 
-func (bp *BuildPack) InitRuntimeParams(release bool, argument *ActionArguments) error {
-	var err error
-	bp.Config, err = ReadFromConfigFile(argument.ConfigFile())
-	if err != nil {
-		return err
-	}
-
-	versionStr := bp.Config.Version
-	if len(argument.Version()) > 0 {
-		versionStr = argument.Version()
-	}
-
-	v, err := FromString(versionStr)
-	if err != nil {
-		return err
-	}
-
-	bp.Runtime = NewRuntimeParams(bp.Config)
-	// read version
-	bp.Runtime.VersionRuntime = VersionRuntime{
-		*v,
-		release,
-	}
-
-	// read modules
-	bp.Runtime.Modules = make([]ModuleRuntime, 0)
-	moduleNames := argument.Modules()
-	findModuleConfig := func(name string) (ModuleConfig, error) {
-		for _, v := range bp.Config.Modules {
-			if v.Name == name {
-				return v, nil
-			}
-		}
-		return ModuleConfig{}, errors.New("not found module by name " + name)
-	}
-
-	if len(moduleNames) == 0 {
-		for _, mc := range bp.Config.Modules {
-			bp.Runtime.Modules = append(bp.Runtime.Modules, ModuleRuntime{
-				mc,
-			})
-		}
-	} else {
-		for _, moduleName := range moduleNames {
-			mc, err := findModuleConfig(moduleName)
-			if err != nil {
-				return err
-			}
-
-			if err != nil {
-				return err
-			}
-			bp.Runtime.Modules = append(bp.Runtime.Modules, ModuleRuntime{
-				mc,
-			})
-		}
-	}
-
-	sort.Slice(bp.Runtime.Modules, func(i, j int) bool {
-		return bp.Runtime.Modules[i].Position < bp.Runtime.Modules[j].Position
-	})
-	//end parsing and sorting modules
-
-	// environment arguments
-	// read git
-	envGitToken := ReadEnv(GitToken)
-	if len(envGitToken) > 0 {
-		bp.Runtime.GitRuntime.AccessToken = envGitToken
-	}
-
-	for i := 0; i < len(bp.Runtime.Repos); i++ {
-		idUpperCase := strings.ToUpper(bp.Runtime.Repos[i].Id)
-		repoToken := ReadEnv(fmt.Sprintf(RepoTokenPattern, idUpperCase))
-		if len(repoToken) > 0 {
-			bp.Runtime.Repos[i].AccessToken = repoToken
-		}
-
-		repoUser := ReadEnv(fmt.Sprintf(RepoUserPattern, idUpperCase))
-		if len(repoUser) > 0 {
-			bp.Runtime.Repos[i].Username = repoUser
-		}
-
-		repoPassword := ReadEnv(fmt.Sprintf(RepoPasswordPattern, idUpperCase))
-		if len(repoPassword) > 0 {
-			bp.Runtime.Repos[i].Password = repoPassword
-		}
-	}
-
-	// runtime arguments
-	if len(strings.TrimSpace(argument.GitAccessToken())) > 0 {
-		bp.Runtime.GitRuntime.AccessToken = strings.TrimSpace(argument.GitAccessToken())
-	}
-
-	repoArguments := argument.RepoArguments()
-	if len(repoArguments) > 0 {
-		for i := 0; i < len(bp.Runtime.Repos); i++ {
-			repoArg, ok := repoArguments[bp.Runtime.Repos[i].Id]
-			if !ok {
-				continue
-			}
-			if len(strings.TrimSpace(repoArg.Token)) > 0 {
-				bp.Runtime.Repos[i].AccessToken = strings.TrimSpace(repoArg.Token)
-			}
-
-			if len(strings.TrimSpace(repoArg.Username)) > 0 {
-				bp.Runtime.Repos[i].Username = strings.TrimSpace(repoArg.Username)
-			}
-
-			if len(strings.TrimSpace(repoArg.Password)) > 0 {
-				bp.Runtime.Repos[i].Password = strings.TrimSpace(repoArg.Password)
-			}
-		}
-	}
-
-	bp.SkipContainer = argument.SkipContainer()
-	bp.SkipClean = argument.SkipClean()
-	bp.SkipPublish = argument.SkipPublish()
-	bp.SkipUnitTest = argument.SkipUnitTest()
-	bp.SkipBranching = argument.SkipBranching()
-	bp.IsPatch = argument.IsPatch()
-	bp.BackwardsCompatible = argument.IsBackwardsCompatible()
-	bp.ShareData = argument.shareData
-	bp.Verbose = argument.Verbose()
-	return nil
-}
-
-func (bp *BuildPack) Verify(release bool) error {
-	if release && !bp.SkipBranching && len(strings.TrimSpace(bp.GitRuntime.AccessToken)) == 0 {
+func (bp *BuildPack) Validate(release bool) error {
+	if release && !bp.SkipBranching() && len(GetGitToken(*bp)) == 0 {
 		return errors.New("missing git token configuration")
 	}
 
-	if !bp.SkipPublish {
-		useRepoIds := make(map[string]struct{})
-		for _, m := range bp.Runtime.Modules {
-			useRepoIds[m.RepoId] = struct{}{}
-		}
-
-		if len(bp.Runtime.RepositoryRuntime.Repos) == 0 {
+	if !bp.SkipPublish() {
+		if len(bp.Config.Repos) == 0 {
 			return errors.New("not found repositories configuration")
 		}
 
-		for _, repo := range bp.Runtime.Repos {
-			if _, ok := useRepoIds[repo.Id]; !ok {
+		appliedModules, err := ModulesToApply(*bp)
+		if err != nil {
+			return err
+		}
+
+		for _, module := range appliedModules {
+			if module.ModulePublishConfig.Skip {
 				continue
 			}
-			if IsEmptyString(repo.AccessToken) && (IsEmptyString(repo.Username) || IsEmptyString(repo.Password)) {
+			repo, err := bp.Config.GetRepoById(module.ModulePublishConfig.RepoId)
+			if err != nil {
+				return err
+			}
+
+			if IsEmptyString(GetRepoToken(repo)) &&
+				IsEmptyString(GetRepoUser(repo)) &&
+				IsEmptyString(GetRepoPass(repo)) {
 				return errors.New("repo '" + repo.Id + "' miss credentials configuration")
 			}
 		}
 	}
 	return nil
+}
+
+func (b *BuildPack) NextVersion() Version {
+	return Version{
+
+	}
+}
+
+func GetGitToken(bp BuildPack) string {
+	str := bp.Config.GitConfig.AccessToken
+	if len(ReadEnv(GitToken)) > 0 {
+		str = ReadEnv(GitToken)
+	}
+	return str
+}
+
+func GetRepoToken(repo RepositoryConfig) string {
+	str := repo.AccessToken
+	if len(ReadEnv(fmt.Sprintf(RepoTokenPattern, repo.Id))) > 0 {
+		str = ReadEnv(fmt.Sprintf(RepoTokenPattern, repo.Id))
+	}
+	return str
+}
+
+func GetRepoUser(repo RepositoryConfig) string {
+	str := repo.Username
+	if len(ReadEnv(fmt.Sprintf(RepoUserPattern, repo.Id))) > 0 {
+		str = ReadEnv(fmt.Sprintf(RepoUserPattern, repo.Id))
+	}
+	return str
+}
+
+func GetRepoPass(repo RepositoryConfig) string {
+	str := repo.Password
+	if len(ReadEnv(fmt.Sprintf(RepoPasswordPattern, repo.Id))) > 0 {
+		str = ReadEnv(fmt.Sprintf(RepoPasswordPattern, repo.Id))
+	}
+	return str
+}
+
+func ModulesToApply(bp BuildPack) ([]ModuleConfig, error) {
+	ms := bp.RuntimeConfig.Modules()
+	if len(ms) == 0 {
+		return bp.Config.Modules, nil
+	} else {
+		rs := make([]ModuleConfig, 0)
+		for _, moduleName := range ms {
+			m, err := bp.GetModuleByName(moduleName)
+			if err != nil {
+				return nil, err
+			}
+			rs = append(rs, m)
+		}
+		return rs, nil
+	}
 }

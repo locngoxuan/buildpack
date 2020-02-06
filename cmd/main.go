@@ -2,7 +2,6 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"os"
 	. "scm.wcs.fortna.com/lngo/buildpack"
 )
@@ -16,15 +15,43 @@ func main() {
 		Do nothing
 		 */
 	}
+
 	if len(os.Args) <= 1 {
 		Usage(f)
 		return
 	}
-
 	action := os.Args[1]
-	err := VerifyAction(action)
+	runtimeConfig, err := ReadArgument(f)
 	if err != nil {
-		LogFatal(BuildError{
+		Usage(f)
+		return
+	}
+
+	if runtimeConfig.IsHelp() {
+		Usage(f)
+		return
+	}
+
+	configFile := FileBuildPackConfig
+	if len(runtimeConfig.ConfigFile()) > 0 {
+		configFile = runtimeConfig.ConfigFile()
+	}
+	config, err := ReadFromConfigFile(configFile)
+	if err != nil {
+		LogFatal(BuildResult{
+			Success: false,
+			Action:  action,
+			Phase:   "init",
+			Err:     err,
+			Message: "",
+		})
+		return
+	}
+
+	err = verifyAction(action)
+	if err != nil {
+		LogFatal(BuildResult{
+			Success: false,
 			Action:  action,
 			Phase:   "init",
 			Err:     err,
@@ -32,9 +59,10 @@ func main() {
 		})
 	}
 
-	buildPack, err := NewBuildPack(action, f)
+	buildPack, err := NewBuildPack(action, config, runtimeConfig)
 	if err != nil {
-		LogFatal(BuildError{
+		LogFatal(BuildResult{
+			Success: false,
 			Action:  action,
 			Phase:   "init",
 			Err:     err,
@@ -42,9 +70,9 @@ func main() {
 		})
 	}
 	result := Handle(buildPack)
-	if result != nil {
-		LogFatal(*result)
+	if !result.Success {
+		LogFatal(result)
 	}
-	fmt.Println("[BUILDPACK] SUCCESS!!!")
+	LogInfoWithoutPhase(*buildPack, "SUCCESS!!!")
 	os.Exit(0)
 }

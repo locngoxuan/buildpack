@@ -6,18 +6,26 @@ import (
 	"strings"
 )
 
+func LogOnlyMsg(msg string) {
+	fmt.Println(fmt.Sprintf("[BUILDPACK] %s", msg))
+}
+
 func LogInfo(bp BuildPack, msg string) {
 	fmt.Println(fmt.Sprintf("[BUILDPACK] [%s:%s] %s", bp.Action, bp.Phase, msg))
 }
 
+func LogInfoWithoutPhase(bp BuildPack, msg string) {
+	fmt.Println(fmt.Sprintf("[BUILDPACK] [%s] %s", bp.Action, msg))
+}
+
 func LogVerbose(bp BuildPack, msg string) {
-	if !bp.Verbose {
+	if !bp.RuntimeConfig.Verbose() {
 		return
 	}
 	fmt.Println(fmt.Sprintf("[BUILDPACK] [%s:%s] %s", bp.Action, bp.Phase, msg))
 }
 
-func LogFatal(err BuildError) {
+func LogFatal(err BuildResult) {
 	if err.Err != nil {
 		fmt.Println(fmt.Sprintf("[BUILDPACK] [%s:%s] ERROR:", err.Action, err.Phase), err.Err)
 	} else if len(strings.TrimSpace(err.Message)) > 0 {

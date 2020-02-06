@@ -18,20 +18,29 @@ type Config struct {
 	Modules      []ModuleConfig     `yaml:"modules,omitempty"`
 }
 
-func (c *Config) GetRepositoryType(id string) string {
-	for _, v := range c.Repos {
-		if v.Id == id {
-			return v.Type
+func (c *Config) GetModuleByName(name string) (ModuleConfig, error) {
+	for _, mc := range c.Modules {
+		if mc.Name == name {
+			return mc, nil
 		}
 	}
-	return ""
+	return ModuleConfig{}, errors.New("not found module " + name)
+}
+
+func (c *Config) GetRepoById(id string) (RepositoryConfig, error) {
+	for _, repo := range c.Repos {
+		if repo.Id == id {
+			return repo, nil
+		}
+	}
+	return RepositoryConfig{}, errors.New("not found repository associated to id " + id)
 }
 
 type ModuleConfig struct {
 	Position            int    `yaml:"position,omitempty"`
 	Name                string `yaml:"name,omitempty"`
 	Path                string `yaml:"path,omitempty"`
-	Build               string `yaml:"build,omitempty"`
+	BuildTool           string `yaml:"build,omitempty"`
 	Label               string `yaml:"label,omitempty"`
 	BuildNumber         int    `yaml:"build-number,omitempty"`
 	ModulePublishConfig `yaml:"publish,omitempty"`
@@ -50,7 +59,7 @@ type GitConfig struct {
 
 type RepositoryConfig struct {
 	Id            string `yaml:"id,omitempty"`
-	Type          string `yaml:"type,omitempty"`
+	Name          string `yaml:"name,omitempty"`
 	URL           string `yaml:"url,omitempty"`
 	Username      string `yaml:"username,omitempty"`
 	Password      string `yaml:"password,omitempty"`

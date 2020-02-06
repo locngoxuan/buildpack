@@ -42,7 +42,7 @@ func (bc *BuildContext) GetFile(args ...string) string {
 
 type BuildTool interface {
 	Name() string
-	GenerateConfig() error
+	GenerateConfig(ctx BuildContext) error
 	LoadConfig(ctx BuildContext) error
 	Clean(ctx BuildContext) error
 	PreBuild(ctx BuildContext) error
@@ -98,7 +98,7 @@ func (b *Builder) ToolName() string {
 }
 
 func (b *Builder) GenerateConfig() error {
-	return nil
+	return b.BuildTool.GenerateConfig(b.BuildContext)
 }
 
 func (b *Builder) Clean() error {

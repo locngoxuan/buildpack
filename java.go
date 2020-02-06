@@ -19,11 +19,13 @@ type POM struct {
 	GroupId    string    `xml:"groupId"`
 	ArtifactId string    `xml:"artifactId"`
 	Classifier string    `xml:"packaging"`
+	Version    string    `xml:"version"`
 }
 
 type ParentPOM struct {
 	GroupId    string `xml:"groupId"`
 	ArtifactId string `xml:"artifactId"`
+	Version    string    `xml:"version"`
 }
 
 func ReadPomFromJar(jarFile string) ([]byte, error) {
@@ -83,6 +85,10 @@ func ReadPOM(pomFile string) (POM, error) {
 
 	if len(strings.TrimSpace(pomProject.GroupId)) == 0 {
 		pomProject.GroupId = pomProject.Parent.GroupId
+	}
+
+	if len(strings.TrimSpace(pomProject.Version)) == 0{
+		pomProject.Version = pomProject.Parent.Version
 	}
 	return pomProject, nil
 }

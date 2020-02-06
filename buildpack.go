@@ -31,6 +31,8 @@ type BuildPack struct {
 }
 
 const (
+	VERSION = "v1.0.0"
+
 	FileBuildPackConfig = "buildpack.yml"
 	CommonDirectory     = ".buildpack"
 
@@ -124,6 +126,16 @@ func (b *BuildPack) Error(msg string, err error) BuildResult {
 	}
 }
 
+func (b *BuildPack) Success() BuildResult {
+	return BuildResult{
+		Success: true,
+		Action:  b.Action,
+		Phase:   b.Phase,
+		Err:     nil,
+		Message: "",
+	}
+}
+
 func (bp *BuildPack) Validate(release bool) error {
 	if release && !bp.SkipBranching() && len(GetGitToken(*bp)) == 0 {
 		return errors.New("missing git token configuration")
@@ -174,24 +186,24 @@ func GetGitToken(bp BuildPack) string {
 
 func GetRepoToken(repo RepositoryConfig) string {
 	str := repo.AccessToken
-	if len(ReadEnv(fmt.Sprintf(RepoTokenPattern, repo.Id))) > 0 {
-		str = ReadEnv(fmt.Sprintf(RepoTokenPattern, repo.Id))
+	if len(ReadEnvByUpperKey(FormatKey(RepoTokenPattern, repo.Id))) > 0 {
+		str = ReadEnvByUpperKey(FormatKey(RepoTokenPattern, repo.Id))
 	}
 	return str
 }
 
 func GetRepoUser(repo RepositoryConfig) string {
 	str := repo.Username
-	if len(ReadEnv(fmt.Sprintf(RepoUserPattern, repo.Id))) > 0 {
-		str = ReadEnv(fmt.Sprintf(RepoUserPattern, repo.Id))
+	if len(ReadEnvByUpperKey(FormatKey(RepoUserPattern, repo.Id))) > 0 {
+		str = ReadEnvByUpperKey(FormatKey(RepoUserPattern, repo.Id))
 	}
 	return str
 }
 
 func GetRepoPass(repo RepositoryConfig) string {
 	str := repo.Password
-	if len(ReadEnv(fmt.Sprintf(RepoPasswordPattern, repo.Id))) > 0 {
-		str = ReadEnv(fmt.Sprintf(RepoPasswordPattern, repo.Id))
+	if len(ReadEnvByUpperKey(FormatKey(RepoPasswordPattern, repo.Id))) > 0 {
+		str = ReadEnvByUpperKey(FormatKey(RepoPasswordPattern, repo.Id))
 	}
 	return str
 }

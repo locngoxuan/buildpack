@@ -31,7 +31,7 @@ type ArtifactOption struct {
 func (c *ArtifactoryMVNTool) Name() string {
 	return artifactoryMvnTool
 }
-func (c *ArtifactoryMVNTool) GenerateConfig() error {
+func (c *ArtifactoryMVNTool) GenerateConfig(ctx PublishContext) error {
 	return nil
 }
 func (c *ArtifactoryMVNTool) LoadConfig(ctx PublishContext) (error) {
@@ -63,7 +63,6 @@ func (c *ArtifactoryMVNTool) Clean(ctx PublishContext) error {
 func (c *ArtifactoryMVNTool) PrePublish(ctx PublishContext) error {
 	// list file prepared for uploading
 	dir := filepath.Join(ctx.GetCommonDirectory(), ctx.Name)
-	fmt.Println(dir)
 	f, err := os.Open(dir)
 	if err != nil {
 		return err
@@ -101,13 +100,15 @@ func (c *ArtifactoryMVNTool) PrePublish(ctx PublishContext) error {
 			return err
 		}
 
+		_, fileName := filepath.Split(file)
 		pomFile := file
 		if filepath.Ext(file) == ".pom" {
 
 		} else if filepath.Ext(file) == ".jar" {
-			pomFile = strings.ReplaceAll(file, ".jar", "pom")
+			ext := filepath.Ext(file)
+			pomFile = file[0:len(file)-len(ext)] + ".pom"
 		} else {
-			return errors.New("unknow ext of file " + file)
+			return errors.New("known ext of file " + file)
 		}
 
 		pom, err := buildpack.ReadPOM(pomFile)
@@ -116,12 +117,12 @@ func (c *ArtifactoryMVNTool) PrePublish(ctx PublishContext) error {
 		}
 		args := strings.Split(pom.GroupId, ".")
 		args = append(args, pom.ArtifactId)
-		args = append(args, "")
+		args = append(args, pom.Version)
 		modulePath := strings.Join(args, "/")
 
 		c.Packages = append(c.Packages, ArtifactPackage{
 			Source:      file,
-			Destination: fmt.Sprintf("%s/%s/%s/%s", c.URL, c.Repository, modulePath, ""),
+			Destination: fmt.Sprintf("%s/%s/%s/%s", c.URL, c.Repository, modulePath, fileName),
 			MD5:         md5,
 			Username:    c.Username,
 			Password:    c.Password,

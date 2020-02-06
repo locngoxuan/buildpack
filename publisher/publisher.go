@@ -12,7 +12,7 @@ type Publisher struct {
 
 type PublishTool interface {
 	Name() string
-	GenerateConfig() error
+	GenerateConfig(ctx PublishContext) error
 	LoadConfig(ctx PublishContext) error
 	Clean(ctx PublishContext) error
 	PrePublish(ctx PublishContext) error
@@ -70,7 +70,7 @@ func (b *Publisher) ToolName() string {
 }
 
 func (b *Publisher) GenerateConfig() error {
-	return b.PublishTool.GenerateConfig()
+	return b.PublishTool.GenerateConfig(b.PublishContext)
 }
 
 func (b *Publisher) Clean() error {
@@ -97,7 +97,7 @@ type DoNothingPublishTool struct {
 func (c *DoNothingPublishTool) Name() string {
 	return "dump-publish-tool"
 }
-func (c *DoNothingPublishTool) GenerateConfig() error {
+func (c *DoNothingPublishTool) GenerateConfig(ctx PublishContext) error {
 	return nil
 }
 func (c *DoNothingPublishTool) LoadConfig(ctx PublishContext) error {

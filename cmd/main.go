@@ -73,6 +73,5 @@ func main() {
 	if !result.Success {
 		LogFatal(result)
 	}
-	LogInfoWithoutPhase(*buildPack, "SUCCESS!!!")
 	os.Exit(0)
 }

@@ -93,7 +93,20 @@ type MVNBuildConfig struct {
 	ContainerImage string   `yaml:"container,omitempty"`
 }
 
-func (c *MVNBuildTool) GenerateConfig() error {
+func (c *MVNBuildTool) GenerateConfig(ctx BuildContext) error {
+	mvnOpt := &MVNBuildConfig{
+		RepoCache:   "",
+	}
+
+	bytes, err := yaml.Marshal(mvnOpt)
+	if err != nil {
+		return errors.New("can not marshal builder config to yaml")
+	}
+
+	err = ioutil.WriteFile(ctx.GetFile(builderFileName), bytes, 0644)
+	if err != nil {
+		return err
+	}
 	return nil
 }
 

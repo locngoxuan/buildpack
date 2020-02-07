@@ -13,8 +13,8 @@ const (
 	GitToken            = "GIT_TOKEN"
 )
 
-func FormatKey(format string, args... string) string{
-	return fmt.Sprintf(format, args)
+func FormatKey(format string, args... interface{}) string{
+	return fmt.Sprintf(format, args...)
 }
 
 func ReadEnvByUpperKey(key string) string{

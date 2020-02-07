@@ -2,11 +2,39 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"os"
-	. "scm.wcs.fortna.com/lngo/buildpack"
+	"scm.wcs.fortna.com/lngo/buildpack"
 )
 
-const version = "0.1.0"
+var (
+	usagePrefix = `Usage: buildpack ACTION [OPTIONS]
+
+ACTION:
+  init         Init a template of configuration file with name buildpack.yml		
+  config       Generate config file for all modules bases on buildpack.yaml
+  version      Show the buildpack version information
+  clean        Clean working directory
+  builder      List all builder supported
+  publisher    List all publisher supported
+  build        Create a build then publish to repository if --release=true is set
+
+Examples:
+  buildpack init -v=0.1.0              
+  buildpack config        
+  buildpack version
+  buildpack build --label=beta         
+  buildpack build --release           
+  buildpack build --release --path     
+
+Options:`
+)
+
+func Usage(f *flag.FlagSet) {
+	fmt.Println(usagePrefix)
+	f.PrintDefaults()
+	os.Exit(1)
+}
 
 func main() {
 	f := flag.NewFlagSet("buildpack", flag.ContinueOnError)
@@ -16,12 +44,13 @@ func main() {
 		 */
 	}
 
-	if len(os.Args) <= 1 {
+	if len(os.Args) < 2 {
+		_, _ = buildpack.ReadForUsage(f)
 		Usage(f)
 		return
 	}
-	action := os.Args[1]
-	runtimeConfig, err := ReadArgument(f)
+
+	runtimeConfig, err := buildpack.ReadArgument(f)
 	if err != nil {
 		Usage(f)
 		return
@@ -32,13 +61,20 @@ func main() {
 		return
 	}
 
-	configFile := FileBuildPackConfig
+	action := os.Args[1]
+	err = verifyAction(action)
+	if err != nil {
+		Usage(f)
+		return
+	}
+
+	configFile := buildpack.FileBuildPackConfig
 	if len(runtimeConfig.ConfigFile()) > 0 {
 		configFile = runtimeConfig.ConfigFile()
 	}
-	config, err := ReadFromConfigFile(configFile)
+	config, err := buildpack.ReadFromConfigFile(configFile)
 	if err != nil {
-		LogFatal(BuildResult{
+		buildpack.LogFatal(buildpack.BuildResult{
 			Success: false,
 			Action:  action,
 			Phase:   "init",
@@ -48,20 +84,9 @@ func main() {
 		return
 	}
 
-	err = verifyAction(action)
+	buildPack, err := buildpack.NewBuildPack(action, config, runtimeConfig)
 	if err != nil {
-		LogFatal(BuildResult{
-			Success: false,
-			Action:  action,
-			Phase:   "init",
-			Err:     err,
-			Message: "",
-		})
-	}
-
-	buildPack, err := NewBuildPack(action, config, runtimeConfig)
-	if err != nil {
-		LogFatal(BuildResult{
+		buildpack.LogFatal(buildpack.BuildResult{
 			Success: false,
 			Action:  action,
 			Phase:   "init",
@@ -71,7 +96,7 @@ func main() {
 	}
 	result := Handle(buildPack)
 	if !result.Success {
-		LogFatal(result)
+		buildpack.LogFatal(result)
 	}
 	os.Exit(0)
 }

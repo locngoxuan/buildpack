@@ -22,10 +22,11 @@ var actions map[string]ActionHandler
 const (
 	actionInit           = "init"
 	actionGenerateConfig = "config"
-	actionSnapshot       = "snapshot"
-	actionRelease        = "release"
 	actionClean          = "clean"
 	actionVersion        = "version"
+	actionBuild          = "build"
+	actionBuilders       = "builder"
+	actionPublishers     = "publisher"
 )
 
 func init() {
@@ -33,9 +34,10 @@ func init() {
 	actions[actionInit] = ActionInitHandler
 	actions[actionGenerateConfig] = ActionGenerateConfig
 	actions[actionClean] = ActionCleanHandler
-	actions[actionSnapshot] = ActionSnapshotHandler
-	actions[actionRelease] = ActionReleaseHandler
 	actions[actionVersion] = ActionVersionHandler
+	actions[actionBuild] = ActionBuildHandler
+	actions[actionBuilders] = ActionListBuildersHandler
+	actions[actionPublishers] = ActionListPublishersHandler
 }
 
 func verifyAction(action string) error {
@@ -103,10 +105,10 @@ func ActionInitHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 		// should ask question for overriding
 		reader := bufio.NewReader(os.Stdin)
 		text, err := readFromTerminal(reader, "Config file already exist. Override its? [y/n]")
-		if err != nil{
+		if err != nil {
 			return bp.Error("", err)
 		}
-		if strings.ToLower(text) == "n"{
+		if strings.ToLower(text) == "n" {
 			return bp.Success()
 		}
 	} else if os.IsNotExist(err) {
@@ -151,6 +153,16 @@ func ActionCleanHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 	return bp.Success()
 }
 
+func ActionListBuildersHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
+	fmt.Println(fmt.Sprintf("Build-tool: %s", strings.Join(builder.Listed(), ", ")))
+	return bp.Success()
+}
+
+func ActionListPublishersHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
+	fmt.Println(fmt.Sprintf("Publish-tool: %s", strings.Join(publisher.Listed(), ", ")))
+	return bp.Success()
+}
+
 func ActionGenerateConfig(bp *buildpack.BuildPack) buildpack.BuildResult {
 	modules, err := buildpack.ModulesToApply(*bp)
 	if err != nil {
@@ -170,6 +182,13 @@ func ActionGenerateConfig(bp *buildpack.BuildPack) buildpack.BuildResult {
 		}
 	}
 	return bp.Success()
+}
+
+func ActionBuildHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
+	if bp.RuntimeConfig.IsRelease() {
+		return ActionReleaseHandler(bp)
+	}
+	return ActionSnapshotHandler(bp)
 }
 
 func ActionSnapshotHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
@@ -276,15 +295,10 @@ func buildAndPublish(bp *buildpack.BuildPack) error {
 		return err
 	}
 
-	release := false
-	if bp.Action == actionRelease {
-		release = true
-	}
-
 	bp.Phase = buildpack.PhaseBuild
 	for _, module := range modules {
 		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - builder '%s'", module.Name, module.BuildTool))
-		build, err := builder.CreateBuilder(*bp, module, release)
+		build, err := builder.CreateBuilder(*bp, module, bp.RuntimeConfig.IsRelease())
 		if err != nil {
 			return err
 		}
@@ -324,7 +338,7 @@ func buildAndPublish(bp *buildpack.BuildPack) error {
 		if module.Skip {
 			continue
 		}
-		publish, err := publisher.CreatePublisher(*bp, module, release)
+		publish, err := publisher.CreatePublisher(*bp, module, bp.RuntimeConfig.IsRelease())
 		if err != nil {
 			return err
 		}

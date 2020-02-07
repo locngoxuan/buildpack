@@ -36,6 +36,7 @@ type RuntimeConfig struct {
 	modules       string
 	label         string
 	help          bool
+	release       bool
 }
 
 func ReadArgument(f *flag.FlagSet) (args RuntimeConfig, err error) {
@@ -52,67 +53,92 @@ func ReadArgument(f *flag.FlagSet) (args RuntimeConfig, err error) {
 		readSkipBranching().
 		readSkipContainer().
 		readLabel().
+		readRelease().
 		parse()
 	return
 }
 
+func ReadForUsage(f *flag.FlagSet) (args RuntimeConfig, err error) {
+	args.flag = f
+	args.readVersion().
+		readHelp().
+		readShareData().
+		readConfigFile().
+		readVerbose().
+		readModules().
+		readPatch().
+		readSkipTest().
+		readSkipPublish().
+		readSkipBranching().
+		readSkipContainer().
+		readLabel().
+		readRelease()
+	err = args.flag.Parse(os.Args[1:])
+	return
+}
+
+func (a *RuntimeConfig) readRelease() *RuntimeConfig {
+	a.flag.BoolVar(&a.release, "release", false, "Enable release mode, name of build does not include label and it will be published to stable channel of repository")
+	return a
+}
+
 func (a *RuntimeConfig) readHelp() *RuntimeConfig {
-	a.flag.BoolVar(&a.help, "h", false, "print help")
+	a.flag.BoolVar(&a.help, "h", false, "Print help")
 	return a
 }
 
 func (a *RuntimeConfig) readShareData() *RuntimeConfig {
-	a.flag.StringVar(&a.shareData, "share-data", "", "path to share data folder")
+	a.flag.StringVar(&a.shareData, "share-data", "", "Share data directory of buildpack")
 	return a
 }
 
 func (a *RuntimeConfig) readConfigFile() *RuntimeConfig {
-	a.flag.StringVar(&a.configFile, "config", "", "path to specific configuration file")
+	a.flag.StringVar(&a.configFile, "config", "", "Path to specific configuration file")
 	return a
 }
 
 func (a *RuntimeConfig) readLabel() *RuntimeConfig {
-	a.flag.StringVar(&a.label, "label", "", "label of build")
+	a.flag.StringVar(&a.label, "label", "", "Label of build. It may be ignored by builder")
 	return a
 }
 
 func (a *RuntimeConfig) readVerbose() *RuntimeConfig {
-	a.flag.BoolVar(&a.verbose, "v", false, "print verbose while running")
+	a.flag.BoolVar(&a.verbose, "v", false, "Enable verbose mode, more log is going to printed")
 	return a
 }
 
 func (a *RuntimeConfig) readPatch() *RuntimeConfig {
-	a.flag.BoolVar(&a.patch, "patch", false, "build and publish patch")
+	a.flag.BoolVar(&a.patch, "patch", false, "Mark this release as a patch (Only apply on release mode)")
 	return a
 }
 
 func (a *RuntimeConfig) readSkipTest() *RuntimeConfig {
-	a.flag.BoolVar(&a.skipUnitTest, "skip-ut", false, "skip unit test while running build")
+	a.flag.BoolVar(&a.skipUnitTest, "skip-ut", false, "Skip run unit test")
 	return a
 }
 
 func (a *RuntimeConfig) readSkipPublish() *RuntimeConfig {
-	a.flag.BoolVar(&a.skipPublish, "skip-publish", false, "skip publish to artifactory")
+	a.flag.BoolVar(&a.skipPublish, "skip-publish", false, "Skip deploy build to repository")
 	return a
 }
 
 func (a *RuntimeConfig) readSkipBranching() *RuntimeConfig {
-	a.flag.BoolVar(&a.skipBranching, "skip-branch", false, "skip branching after build and publish")
+	a.flag.BoolVar(&a.skipBranching, "skip-branch", false, "Skip create a new branch in GIT")
 	return a
 }
 
 func (a *RuntimeConfig) readVersion() *RuntimeConfig {
-	a.flag.StringVar(&a.version, "version", "", "version number")
+	a.flag.StringVar(&a.version, "version", "", "Print version number")
 	return a
 }
 
 func (a *RuntimeConfig) readModules() *RuntimeConfig {
-	a.flag.StringVar(&a.modules, "m", "", "modules")
+	a.flag.StringVar(&a.modules, "m", "", "A specific set of modules to apply your action")
 	return a
 }
 
 func (a *RuntimeConfig) readSkipContainer() *RuntimeConfig {
-	a.flag.BoolVar(&a.skipContainer, "skip-container", false, "using docker environment rather than host environment")
+	a.flag.BoolVar(&a.skipContainer, "skip-container", false, "Skip using container-build and change to use local command")
 	return a
 }
 
@@ -166,6 +192,10 @@ func (a *RuntimeConfig) SkipBranching() bool {
 
 func (a *RuntimeConfig) IsPatch() bool {
 	return a.patch
+}
+
+func (a *RuntimeConfig) IsRelease() bool {
+	return a.release
 }
 
 func (a *RuntimeConfig) IsHelp() bool {

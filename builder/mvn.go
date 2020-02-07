@@ -150,9 +150,6 @@ func (c *MVNBuildTool) Name() string {
 func (c *MVNBuildTool) Clean(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "clean")
-	if !ctx.Release {
-		arg = append(arg, "-U")
-	}
 	arg = append(arg, c.MVNBuildConfig.BuildOptions...)
 	return c.Func(ctx, c.MVNBuildConfig, arg...)
 }

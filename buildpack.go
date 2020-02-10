@@ -28,7 +28,7 @@ type BuildPack struct {
 }
 
 const (
-	VERSION = "v1.0.2"
+	VERSION = "v1.1.0"
 
 	FileBuildPackConfig = "buildpack.yml"
 	CommonDirectory     = ".buildpack"

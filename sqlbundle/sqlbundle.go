@@ -21,10 +21,10 @@ const (
 	checkPointFileName = "CHECKPOINT"
 	dockerTemplate     = `FROM %s:%s
 
-MAINTAINER sqlbundle
+MAINTAINER sqlbundle <sqlbundle@fortna.com>
 
-COPY generated-sql/*.sql /sql/product/
-COPY generated-sql/CHECKPOINT /sql/product/
+COPY generated-sql/*.sql /sql/%s/
+COPY generated-sql/CHECKPOINT /sql/%s/
 `
 	checkPointTemplate = `start=%s
 end=%s
@@ -93,7 +93,6 @@ func (b *SQLBundle) Run() error {
 	for _, revision := range config.Revisions {
 		fmt.Println("[SQLBUNDLE] process version", revision)
 		path := filepath.Join(b.WorkingDir, revision)
-		cp.Start = cp.End
 		err := copyEachVersion(path, target, sequence, cp)
 		if err != nil {
 			return nil
@@ -107,7 +106,7 @@ func (b *SQLBundle) Run() error {
 		}
 	}
 	dockerFilePath := filepath.Join(target, dockerFileName)
-	dockerContent := fmt.Sprintf(dockerTemplate, config.Base.Image, config.Base.Version)
+	dockerContent := fmt.Sprintf(dockerTemplate, config.Base.Image, config.Base.Version, config.Build.Classifier, config.Build.Classifier)
 	err = ioutil.WriteFile(dockerFilePath, []byte(dockerContent), 0644)
 	if err != nil {
 		return err

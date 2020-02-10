@@ -1,0 +1,11 @@
+base:
+  image: xuanloc0511/migration_prod
+  version: 1.2.0
+build:
+  image: xuanloc0511/migration_proj
+  version: 1.1.0
+  classifier: project
+revisions:
+  - 1.0.0
+  - 1.1.0
+

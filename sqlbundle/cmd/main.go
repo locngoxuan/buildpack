@@ -33,10 +33,7 @@ func main() {
 	var bundleFile string
 	if len(strings.TrimSpace(*configFile)) > 0 {
 		bundleFile = strings.TrimSpace(*configFile)
-		root, err = filepath.Abs(strings.TrimSpace(*configFile))
-		if err != nil {
-			panic(err)
-		}
+		root, _ = filepath.Split(bundleFile)
 	} else {
 		root, err = filepath.Abs(".")
 		if err != nil {

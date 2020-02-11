@@ -14,6 +14,7 @@ import (
 	"scm.wcs.fortna.com/lngo/buildpack/docker"
 	"scm.wcs.fortna.com/lngo/buildpack/publisher"
 	"strings"
+	"time"
 )
 
 type ActionHandler func(bp *buildpack.BuildPack) buildpack.BuildResult
@@ -28,6 +29,7 @@ const (
 	actionBuild          = "build"
 	actionBuilders       = "builder"
 	actionPublishers     = "publisher"
+	defaultLabel         = "alpha"
 )
 
 func init() {
@@ -142,7 +144,7 @@ func ActionCleanHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 
 	for _, module := range bp.Config.Modules {
 		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - builder '%s'", module.Name, module.BuildTool))
-		build, err := builder.CreateBuilder(*bp, module, false)
+		build, err := builder.CreateBuilder(*bp, module, false, bp.Config.Version)
 		if err != nil {
 			return bp.Error("", err)
 		}
@@ -173,7 +175,7 @@ func ActionGenerateConfig(bp *buildpack.BuildPack) buildpack.BuildResult {
 	bp.Phase = buildpack.PhaseBuild
 	for _, module := range modules {
 		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - builder '%s'", module.Name, module.BuildTool))
-		build, err := builder.CreateBuilder(*bp, module, false)
+		build, err := builder.CreateBuilder(*bp, module, false, bp.Config.Version)
 		if err != nil {
 			return bp.Error("", err)
 		}
@@ -296,10 +298,33 @@ func buildAndPublish(bp *buildpack.BuildPack) error {
 		return err
 	}
 
+	versionStr := strings.TrimSpace(bp.Config.Version)
+	if len(bp.RuntimeConfig.Version()) > 0 {
+		versionStr = bp.RuntimeConfig.Version()
+	}
+
+	v, err := buildpack.FromString(versionStr)
+	if err != nil {
+		return err
+	}
+
+	finalVersionStr := versionStr
+	if bp.RuntimeConfig.IsRelease() {
+		finalVersionStr = v.WithoutLabel()
+	} else {
+		label := defaultLabel
+		if len(bp.RuntimeConfig.Label()) > 0 {
+			t := time.Now()
+			buildNumber := t.Format("20060102150405")
+			label = fmt.Sprintf("%s.%s", bp.RuntimeConfig.Label(), buildNumber)
+		}
+		finalVersionStr = v.WithLabel(label)
+	}
+
 	bp.Phase = buildpack.PhaseBuild
 	for _, module := range modules {
 		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - builder '%s'", module.Name, module.BuildTool))
-		build, err := builder.CreateBuilder(*bp, module, bp.RuntimeConfig.IsRelease())
+		build, err := builder.CreateBuilder(*bp, module, bp.RuntimeConfig.IsRelease(), finalVersionStr)
 		if err != nil {
 			return err
 		}
@@ -339,7 +364,7 @@ func buildAndPublish(bp *buildpack.BuildPack) error {
 		if module.Skip {
 			continue
 		}
-		publish, err := publisher.CreatePublisher(*bp, module, bp.RuntimeConfig.IsRelease())
+		publish, err := publisher.CreatePublisher(*bp, module, bp.RuntimeConfig.IsRelease(), finalVersionStr)
 		if err != nil {
 			return err
 		}

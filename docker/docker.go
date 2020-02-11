@@ -3,7 +3,11 @@ package docker
 import (
 	"context"
 	client "docker.io/go-docker"
+	"docker.io/go-docker/api/types"
+	"encoding/base64"
+	"encoding/json"
 	"errors"
+	"io"
 	"os"
 )
 
@@ -14,18 +18,20 @@ const (
 type DockerClient struct {
 	Ctx    context.Context
 	Client *client.Client
+	Host   string
 }
 
-func NewClien(hosts []string) (DockerClient, error) {
+func NewClient(hosts []string) (DockerClient, error) {
 	dockerCli := DockerClient{
 		Ctx: context.Background(),
 	}
-	host, err := CheckDockerHostConnection(dockerCli.Ctx, hosts)
+	var err error
+	dockerCli.Host, err = CheckDockerHostConnection(dockerCli.Ctx, hosts)
 	if err != nil {
 		return dockerCli, err
 	}
 
-	_ = os.Setenv("DOCKER_HOST", host)
+	_ = os.Setenv("DOCKER_HOST", dockerCli.Host)
 	dockerCli.Client, err = client.NewEnvClient()
 	if err != nil {
 		panic(err)
@@ -55,4 +61,41 @@ func CheckDockerHostConnection(ctx context.Context, hosts []string) (string, err
 		return host, nil
 	}
 	return "", errors.New("can not connect to docker host")
+}
+
+func (c *DockerClient) BuildImage(file string, tags []string) (types.ImageBuildResponse, error) {
+	dockerBuildContext, err := os.Open(file)
+	if err != nil {
+		return types.ImageBuildResponse{}, err
+	}
+
+	opt := types.ImageBuildOptions{
+		NoCache:     true,
+		Remove:      true,
+		ForceRemove: true,
+		Tags:        tags,
+		Dockerfile:  "Dockerfile",
+	}
+
+	return c.Client.ImageBuild(c.Ctx, dockerBuildContext, opt)
+}
+
+func auth(usernam, password string) string {
+	authConfig := types.AuthConfig{
+		Username: usernam,
+		Password: password,
+	}
+	encodedJSON, err := json.Marshal(authConfig)
+	if err != nil {
+		panic(err)
+	}
+	return base64.URLEncoding.EncodeToString(encodedJSON)
+}
+
+func (c *DockerClient) DeployImage(username, password, image string) (io.ReadCloser, error) {
+	opt := types.ImagePushOptions{
+		RegistryAuth: auth(username, password),
+		All:          true,
+	}
+	return c.Client.ImagePush(c.Ctx, image, opt)
 }

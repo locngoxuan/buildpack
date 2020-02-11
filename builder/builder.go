@@ -2,15 +2,13 @@ package builder
 
 import (
 	"errors"
-	"fmt"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
-	"strings"
-	"time"
 )
 
 const (
 	builderFileName = "builder.yml"
+	defaultLabel    = "alpha"
 )
 
 type Builder struct {
@@ -50,7 +48,7 @@ type BuildTool interface {
 	PostBuild(ctx BuildContext) error
 }
 
-func CreateBuilder(bp buildpack.BuildPack, moduleConfig buildpack.ModuleConfig, release bool) (Builder, error) {
+func CreateBuilder(bp buildpack.BuildPack, moduleConfig buildpack.ModuleConfig, release bool, version string) (Builder, error) {
 	b := Builder{
 		BuildContext: BuildContext{
 			moduleConfig.Name,
@@ -69,27 +67,7 @@ func CreateBuilder(bp buildpack.BuildPack, moduleConfig buildpack.ModuleConfig, 
 	}
 
 	b.BuildTool = tool
-	versionStr := strings.TrimSpace(b.BuildContext.BuildPack.Config.Version)
-	if len(b.BuildContext.BuildPack.RuntimeConfig.Version()) > 0 {
-		versionStr = b.BuildContext.BuildPack.RuntimeConfig.Version()
-	}
-
-	v, err := buildpack.FromString(versionStr)
-	if err != nil {
-		return b, err
-	}
-
-	if b.BuildContext.Release {
-		b.BuildContext.Version = v.WithoutLabel()
-	} else {
-		label := labelSnapshot
-		if len(b.BuildContext.RuntimeConfig.Label()) > 0 {
-			t := time.Now()
-			buildNumber := t.Format("20060102150405")
-			label = fmt.Sprintf("%s.%s", b.BuildContext.RuntimeConfig.Label(), buildNumber)
-		}
-		b.BuildContext.Version = v.WithLabel(label)
-	}
+	b.BuildContext.Version = version
 	return b, b.BuildTool.LoadConfig(b.BuildContext)
 }
 

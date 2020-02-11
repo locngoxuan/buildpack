@@ -5,6 +5,10 @@ import (
 	"scm.wcs.fortna.com/lngo/buildpack"
 )
 
+const (
+	defaultLabel = "alpha"
+)
+
 type Publisher struct {
 	PublishTool
 	PublishContext
@@ -26,6 +30,7 @@ type PublishContext struct {
 	buildpack.BuildPack
 	Release    bool
 	WorkingDir string
+	Version    string
 	Values     map[string]interface{}
 }
 
@@ -41,7 +46,7 @@ func (bc *PublishContext) GetFile(args ...string) string {
 	return p
 }
 
-func CreatePublisher(bp buildpack.BuildPack, moduleConfig buildpack.ModuleConfig, release bool) (Publisher, error) {
+func CreatePublisher(bp buildpack.BuildPack, moduleConfig buildpack.ModuleConfig, release bool, version string) (Publisher, error) {
 	p := Publisher{
 		PublishContext: PublishContext{
 			moduleConfig.Name,
@@ -49,6 +54,7 @@ func CreatePublisher(bp buildpack.BuildPack, moduleConfig buildpack.ModuleConfig
 			bp,
 			release,
 			bp.GetModuleWorkingDir(moduleConfig.Path),
+			bp.Config.Version,
 			make(map[string]interface{}),
 		},
 	}
@@ -62,6 +68,7 @@ func CreatePublisher(bp buildpack.BuildPack, moduleConfig buildpack.ModuleConfig
 		tool = &DoNothingPublishTool{}
 	}
 	p.PublishTool = tool
+	p.PublishContext.Version = version
 	return p, p.LoadConfig(p.PublishContext)
 }
 

@@ -1,9 +1,12 @@
 package builder
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"scm.wcs.fortna.com/lngo/buildpack"
 	"scm.wcs.fortna.com/lngo/buildpack/sqlbundle"
+	"strings"
 )
 
 const (
@@ -30,7 +33,7 @@ func (b *SQLBundleBuildTool) LoadConfig(ctx BuildContext) error {
 		Clean:       true,
 		Dockerize:   true,
 		DockerHosts: ctx.BuildPack.Config.DockerConfig.Hosts,
-		Verbose:     ctx.Verbose(),
+		Version:     ctx.Version,
 	}
 	return nil
 }
@@ -52,5 +55,35 @@ func (b *SQLBundleBuildTool) Build(ctx BuildContext) error {
 }
 
 func (b *SQLBundleBuildTool) PostBuild(ctx BuildContext) error {
+	config, err := sqlbundle.ReadBundle(b.Bundle.BundleFile)
+	if err != nil {
+		return err
+	}
+	parts := strings.Split(config.Build.Image, "/")
+	finalName := fmt.Sprintf("%s-%s.tar", strings.Join(parts, "-"), ctx.Version)
+	finalBuild := filepath.Join(ctx.WorkingDir, "target", finalName)
+
+	moduleInCommon := filepath.Join(ctx.GetCommonDirectory(), ctx.Name)
+	err = os.MkdirAll(moduleInCommon, 0777)
+	if err != nil {
+		return err
+	}
+
+	//copy tar
+	published := filepath.Join(moduleInCommon, finalName)
+	err = buildpack.CopyFile(finalBuild, published)
+	if err != nil {
+		return err
+	}
+	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Copy %s to %s", finalBuild, published))
+
+	//copy bundle
+	bundleSrc := filepath.Join(ctx.WorkingDir, "target", bundleFileName)
+	bundleDst := filepath.Join(moduleInCommon, bundleFileName)
+	err = buildpack.CopyFile(bundleSrc, bundleDst)
+	if err != nil {
+		return err
+	}
+	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Copy %s to %s", bundleSrc, bundleDst))
 	return nil
 }

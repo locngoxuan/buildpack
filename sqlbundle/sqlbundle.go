@@ -1,7 +1,6 @@
 package sqlbundle
 
 import (
-	"docker.io/go-docker/api/types"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -72,7 +71,7 @@ type SQLBundle struct {
 	Clean       bool
 	Dockerize   bool
 	DockerHosts []string
-	Verbose     bool
+	Version     string
 }
 
 var termFd uintptr
@@ -120,6 +119,11 @@ func (b *SQLBundle) Run(writer io.Writer) error {
 		return err
 	}
 
+	finalVersion := config.Build.Version
+	if len(b.Version) > 0 {
+		finalVersion = b.Version
+	}
+
 	target := filepath.Join(b.WorkingDir, targetDirName)
 	_ = os.RemoveAll(target)
 	err = os.MkdirAll(target, 0766)
@@ -155,18 +159,30 @@ func (b *SQLBundle) Run(writer io.Writer) error {
 		return err
 	}
 
+	bundleInTarget := filepath.Join(target, bundleConfig)
+	err = CopyFile(b.BundleFile, bundleInTarget)
+	if err != nil {
+		return err
+	}
+
 	if b.Dockerize {
 		if b.DockerHosts == nil || len(b.DockerHosts) == 0 {
 			return errors.New("docker hosts is not configured")
 		}
 		// exec docker build
-		client, err := docker.NewClien(b.DockerHosts)
+		client, err := docker.NewClient(b.DockerHosts)
 		if err != nil {
 			return err
 		}
 
+		parts := strings.Split(config.Build.Image, "/")
+		finalName := fmt.Sprintf("%s-%s", strings.Join(parts, "-"), finalVersion)
+		finalBuild := filepath.Join(target, fmt.Sprintf("%s.tar", finalName))
+		tags := []string{fmt.Sprintf("%s:%s", config.Build.Image, finalVersion)}
+
+		//create build context
 		tar := new(archivex.TarFile)
-		err = tar.Create(filepath.Join(target, "dist.tar"))
+		err = tar.Create(finalBuild)
 		if err != nil {
 			return err
 		}
@@ -179,6 +195,9 @@ func (b *SQLBundle) Run(writer io.Writer) error {
 		if err != nil {
 			return err
 		}
+		defer func() {
+			_ = f.Close()
+		}()
 		fileInfo, _ := f.Stat()
 		err = tar.Add(dockerFileName, f, fileInfo)
 		if err != nil {
@@ -188,27 +207,14 @@ func (b *SQLBundle) Run(writer io.Writer) error {
 		if err != nil {
 			return err
 		}
-
-		opt := types.ImageBuildOptions{
-			NoCache:     true,
-			Remove:      true,
-			ForceRemove: true,
-			Tags:        []string{fmt.Sprintf("%s:%s", config.Build.Image, config.Build.Version)},
-			Dockerfile:  "Dockerfile",
-		}
-
-		dockerBuildContext, err := os.Open(filepath.Join(target, "dist.tar"))
-		if err != nil {
-			return err
-		}
-		response, err := client.Client.ImageBuild(client.Ctx, dockerBuildContext, opt)
+		response, err := client.BuildImage(finalBuild, tags)
 		if err != nil {
 			return err
 		}
 		defer func() {
 			_ = response.Body.Close()
 		}()
-		printHeader(fmt.Sprintf("Building docker image %s:%s", config.Build.Image, config.Build.Version), endLineN)
+		printHeader(fmt.Sprintf("Building docker image %s:%s", config.Build.Image, finalVersion), endLineN)
 		return displayImageBuildLog(response.Body)
 	}
 

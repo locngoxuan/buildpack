@@ -11,6 +11,7 @@ import (
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
 	"scm.wcs.fortna.com/lngo/buildpack/builder"
+	"scm.wcs.fortna.com/lngo/buildpack/docker"
 	"scm.wcs.fortna.com/lngo/buildpack/publisher"
 	"strings"
 )
@@ -72,7 +73,7 @@ func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 	}()
 
 	if !b.RuntimeConfig.SkipContainer() {
-		_, err := buildpack.CheckDockerHostConnection(context.Background(), b.Config.DockerConfig.Hosts)
+		_, err := docker.CheckDockerHostConnection(context.Background(), b.Config.DockerConfig.Hosts)
 		if err != nil {
 			return b.Error("", err)
 		}

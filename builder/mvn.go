@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
+	"scm.wcs.fortna.com/lngo/buildpack/docker"
 	"strings"
 )
 
@@ -37,7 +38,7 @@ func RunOnHost(ctx BuildContext, buildOption MVNBuildConfig, args ...string) err
 }
 
 func RunContainer(ctx BuildContext, buildOption MVNBuildConfig, args ...string) error {
-	dockerHost, err := buildpack.CheckDockerHostConnection(context.Background(), ctx.Config.DockerConfig.Hosts)
+	dockerHost, err := docker.CheckDockerHostConnection(context.Background(), ctx.Config.DockerConfig.Hosts)
 	if err != nil {
 		return errors.New(fmt.Sprintf("can not connect to docker host: %s", err.Error()))
 	}

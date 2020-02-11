@@ -1,4 +1,4 @@
-package buildpack
+package docker
 
 import (
 	"context"
@@ -10,6 +10,28 @@ import (
 const (
 	dockerDefaultHost = "unix:///var/run/docker.sock"
 )
+
+type DockerClient struct {
+	Ctx    context.Context
+	Client *client.Client
+}
+
+func NewClien(hosts []string) (DockerClient, error) {
+	dockerCli := DockerClient{
+		Ctx: context.Background(),
+	}
+	host, err := CheckDockerHostConnection(dockerCli.Ctx, hosts)
+	if err != nil {
+		return dockerCli, err
+	}
+
+	_ = os.Setenv("DOCKER_HOST", host)
+	dockerCli.Client, err = client.NewEnvClient()
+	if err != nil {
+		panic(err)
+	}
+	return dockerCli, nil
+}
 
 func CheckDockerHostConnection(ctx context.Context, hosts []string) (string, error) {
 	if len(hosts) == 0 {

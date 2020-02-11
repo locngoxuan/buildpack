@@ -1,21 +1,27 @@
 package sqlbundle
 
 import (
+	"docker.io/go-docker/api/types"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/docker/docker/pkg/term"
+	"github.com/jhoonb/archivex"
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"scm.wcs.fortna.com/lngo/buildpack/docker"
 	"sort"
 	"strings"
 )
 
 const (
 	bundleConfig       = "sqlbundle.yml"
-	targetDir          = "target"
-	generatedDir       = "generated-sql"
+	targetDirName      = "target"
+	generatedDirName   = "generated-sql"
 	sqlExt             = ".sql"
 	dockerFileName     = "Dockerfile"
 	checkPointFileName = "CHECKPOINT"
@@ -61,12 +67,50 @@ type BundleBaseConfig struct {
 }
 
 type SQLBundle struct {
-	WorkingDir string
-	BundleFile string
-	Clean      bool
+	WorkingDir  string
+	BundleFile  string
+	Clean       bool
+	Dockerize   bool
+	DockerHosts []string
+	Verbose     bool
 }
 
-func (b *SQLBundle) Run() error {
+var termFd uintptr
+var width = 200
+var output io.Writer
+
+const endLineN = "\n"
+const endLineR = "\r"
+
+func printHeader(msg, end string) {
+	ws, err := term.GetWinsize(termFd)
+	if err == nil {
+		width = int(ws.Width) / 2
+	}
+
+	if output != nil {
+		fmt.Println("[INFO]")
+		_, _ = fmt.Fprintf(output, fmt.Sprintf("[INFO] %s%s", strings.Repeat("-", width), end))
+		_, _ = fmt.Fprintf(output, fmt.Sprintf("[INFO] %s%s", msg, end))
+		_, _ = fmt.Fprintf(output, fmt.Sprintf("[INFO] %s%s", strings.Repeat("-", width), end))
+		fmt.Println("[INFO]")
+	}
+}
+
+func printLineMessage(msg, end string) {
+	if output != nil {
+		_, _ = fmt.Fprintf(output, fmt.Sprintf("[INFO] %s%s", msg, end))
+	}
+}
+
+func (b *SQLBundle) RunClean() error {
+	target := filepath.Join(b.WorkingDir, targetDirName)
+	return os.RemoveAll(target)
+}
+
+func (b *SQLBundle) Run(writer io.Writer) error {
+	termFd, _ = term.GetFdInfo(os.Stdout)
+	output = writer
 	if len(strings.TrimSpace(b.BundleFile)) == 0 {
 		b.BundleFile = filepath.Join(b.WorkingDir, bundleConfig)
 	}
@@ -76,9 +120,8 @@ func (b *SQLBundle) Run() error {
 		return err
 	}
 
-	_ = os.RemoveAll(targetDir)
-
-	target := filepath.Join(b.WorkingDir, targetDir)
+	target := filepath.Join(b.WorkingDir, targetDirName)
+	_ = os.RemoveAll(target)
 	err = os.MkdirAll(target, 0766)
 	if err != nil {
 		return err
@@ -91,14 +134,14 @@ func (b *SQLBundle) Run() error {
 		End:   "",
 	}
 	for _, revision := range config.Revisions {
-		fmt.Println("[SQLBUNDLE] process version", revision)
+		printHeader(fmt.Sprintf("Process version %s", revision), endLineN)
 		path := filepath.Join(b.WorkingDir, revision)
 		err := copyEachVersion(path, target, sequence, cp)
 		if err != nil {
 			return nil
 		}
-		fmt.Println(fmt.Sprintf("[SQLBUNDLE] update checkpoint to start = %s and end = %s", cp.Start, cp.End))
-		checkPointPath := filepath.Join(target, generatedDir, checkPointFileName)
+		printLineMessage(fmt.Sprintf("Update checkpoint : start = %s, end = %s", cp.Start, cp.End), endLineN)
+		checkPointPath := filepath.Join(target, generatedDirName, checkPointFileName)
 		checkPointContent := fmt.Sprintf(checkPointTemplate, cp.Start, cp.End)
 		err = ioutil.WriteFile(checkPointPath, []byte(checkPointContent), 0644)
 		if err != nil {
@@ -110,6 +153,90 @@ func (b *SQLBundle) Run() error {
 	err = ioutil.WriteFile(dockerFilePath, []byte(dockerContent), 0644)
 	if err != nil {
 		return err
+	}
+
+	if b.Dockerize {
+		if b.DockerHosts == nil || len(b.DockerHosts) == 0 {
+			return errors.New("docker hosts is not configured")
+		}
+		// exec docker build
+		client, err := docker.NewClien(b.DockerHosts)
+		if err != nil {
+			return err
+		}
+
+		tar := new(archivex.TarFile)
+		err = tar.Create(filepath.Join(target, "dist.tar"))
+		if err != nil {
+			return err
+		}
+		err = tar.AddAll(filepath.Join(target, generatedDirName), true)
+		if err != nil {
+			return err
+		}
+
+		f, err := os.Open(filepath.Join(target, dockerFileName))
+		if err != nil {
+			return err
+		}
+		fileInfo, _ := f.Stat()
+		err = tar.Add(dockerFileName, f, fileInfo)
+		if err != nil {
+			return err
+		}
+		err = tar.Close()
+		if err != nil {
+			return err
+		}
+
+		opt := types.ImageBuildOptions{
+			NoCache:     true,
+			Remove:      true,
+			ForceRemove: true,
+			Tags:        []string{fmt.Sprintf("%s:%s", config.Build.Image, config.Build.Version)},
+			Dockerfile:  "Dockerfile",
+		}
+
+		dockerBuildContext, err := os.Open(filepath.Join(target, "dist.tar"))
+		if err != nil {
+			return err
+		}
+		response, err := client.Client.ImageBuild(client.Ctx, dockerBuildContext, opt)
+		if err != nil {
+			return err
+		}
+		defer func() {
+			_ = response.Body.Close()
+		}()
+		printHeader(fmt.Sprintf("Building docker image %s:%s", config.Build.Image, config.Build.Version), endLineN)
+		return displayImageBuildLog(response.Body)
+	}
+
+	if b.Clean {
+		err = os.RemoveAll(target)
+		if err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func displayImageBuildLog(in io.Reader) error {
+	var dec = json.NewDecoder(in)
+	for {
+		var jm jsonmessage.JSONMessage
+		if err := dec.Decode(&jm); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		if jm.Stream == "" {
+			continue
+		}
+
+		printLineMessage(fmt.Sprintf("%s", jm.Stream), endLineR)
 	}
 	return nil
 }
@@ -150,7 +277,7 @@ func readCurrentDir(dirPath string) (CurrentDir, error) {
 
 func copyEachVersion(dir, target string, sequence *int, cp *CheckPoint) (error) {
 	bundleFile := filepath.Join(dir, bundleConfig)
-	generatedSql := filepath.Join(target, generatedDir)
+	generatedSql := filepath.Join(target, generatedDirName)
 	err := os.MkdirAll(generatedSql, 0766)
 	if err != nil {
 		return err
@@ -186,7 +313,7 @@ func copyEachVersion(dir, target string, sequence *int, cp *CheckPoint) (error) 
 		}
 
 		for _, patchNumber := range config.Patches {
-			fmt.Println("[SQLBUNDLE] process patch", patchNumber)
+			printHeader(fmt.Sprintf("Process patch %s", patchNumber), endLineN)
 			patchDir := filepath.Join(dir, patchNumber)
 			currentPathDir, err := readCurrentDir(patchDir)
 			if err != nil {
@@ -256,7 +383,7 @@ func ReadBundle(file string) (BundleConfig, error) {
 
 func CopyFile(src, dst string) error {
 	_, fileName := filepath.Split(src)
-	fmt.Println(fmt.Sprintf("[SQLBUNDLE] Copying %s to %s", fileName, dst))
+	printLineMessage(fmt.Sprintf("Copying %s to %s", fileName, dst), endLineN)
 	sourceFileStat, err := os.Stat(src)
 	if err != nil {
 		return err

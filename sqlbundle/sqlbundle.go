@@ -77,7 +77,7 @@ type SQLBundle struct {
 var termFd uintptr
 var width = 200
 var output io.Writer
-var classifierWeights map[string]int
+var classifiers map[string]int
 
 var sqlNamePrefix = 0
 
@@ -85,13 +85,13 @@ const endLineN = "\n"
 const endLineR = "\r"
 
 func init() {
-	classifierWeights = make(map[string]int)
-	classifierWeights["product"] = 1
-	classifierWeights["project"] = 2
+	classifiers = make(map[string]int)
+	classifiers["product"] = 1
+	classifiers["project"] = 2
 }
 
 func classifierPrefix(classifier string) int{
-	v, ok := classifierWeights[classifier]
+	v, ok := classifiers[classifier]
 	if !ok {
 		return 0
 	}
@@ -134,6 +134,11 @@ func (b *SQLBundle) Run(writer io.Writer) error {
 	config, err := ReadBundle(b.BundleFile)
 	if err != nil {
 		return err
+	}
+
+	_, ok := classifiers[config.Build.Classifier]
+	if !ok{
+		return errors.New("classifier "+config.Build.Classifier+" is not supported")
 	}
 
 	sqlNamePrefix = classifierPrefix(config.Build.Classifier)

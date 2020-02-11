@@ -77,9 +77,26 @@ type SQLBundle struct {
 var termFd uintptr
 var width = 200
 var output io.Writer
+var classifierWeights map[string]int
+
+var sqlNamePrefix = 0
 
 const endLineN = "\n"
 const endLineR = "\r"
+
+func init() {
+	classifierWeights = make(map[string]int)
+	classifierWeights["product"] = 1
+	classifierWeights["project"] = 2
+}
+
+func classifierPrefix(classifier string) int{
+	v, ok := classifierWeights[classifier]
+	if !ok {
+		return 0
+	}
+	return v
+}
 
 func printHeader(msg, end string) {
 	ws, err := term.GetWinsize(termFd)
@@ -119,6 +136,7 @@ func (b *SQLBundle) Run(writer io.Writer) error {
 		return err
 	}
 
+	sqlNamePrefix = classifierPrefix(config.Build.Classifier)
 	finalVersion := config.Build.Version
 	if len(b.Version) > 0 {
 		finalVersion = b.Version
@@ -337,7 +355,7 @@ func copyEachVersion(dir, target string, sequence *int, cp *CheckPoint) (error) 
 
 func replaceTimestampBySequence(fileName string, sequence int) (string, string) {
 	partOfName := strings.Split(fileName, "_")
-	partOfName[0] = fmt.Sprintf("%05d", sequence)
+	partOfName[0] = fmt.Sprintf("%d%05d", sqlNamePrefix,sequence)
 	return partOfName[0], strings.Join(partOfName, "_")
 }
 

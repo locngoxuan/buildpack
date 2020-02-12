@@ -399,7 +399,7 @@ func compileSqlFile(generatedDir string, currentDir CurrentDir, cp *CheckPoint, 
 func ReadBundle(file string) (BundleConfig, error) {
 	_, err := os.Stat(file)
 	if os.IsNotExist(err) {
-		err = errors.New("configuration file not found")
+		err = errors.New("sqlbundle.yml is not found")
 		return BundleConfig{}, err
 	}
 

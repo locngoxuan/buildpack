@@ -66,15 +66,30 @@ func (p *DockerSQLPublishTool) PrePublish(ctx PublishContext) error {
 		return err
 	}
 
-	p.Images = append(p.Images, fmt.Sprintf("%s/%s:%s", config.Build.Group, config.Build.Artifact, ctx.Version))
+	src := fmt.Sprintf("%s/%s:%s", config.Build.Group, config.Build.Artifact, ctx.Version)
+	dst := fmt.Sprintf("%s/%s:%s", config.Build.Group, config.Build.Artifact, ctx.Version)
+	if len(strings.TrimSpace(p.RegistryAddress)) > 0 {
+		dst = fmt.Sprintf("%s/%s", p.RegistryAddress, dst)
+	}
+
+	if dst != src {
+		cli, err := docker.NewClient(ctx.BuildPack.Config.Hosts)
+		if err != nil {
+			return err
+		}
+		err = cli.TagImage(src, dst)
+		if err != nil {
+			return err
+		}
+	}
+
+	p.Images = append(p.Images, dst)
 	return nil
 }
 
 func (p *DockerSQLPublishTool) Publish(ctx PublishContext) error {
 	for _, image := range p.Images {
-		if len(strings.TrimSpace(p.RegistryAddress)) > 0 {
-			image = fmt.Sprintf("%s/%s", p.RegistryAddress, image)
-		}
+
 		buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("publish %s", image))
 		err := deployImage(ctx.BuildPack.Config.DockerConfig.Hosts, p.Username, p.Password, image, ctx.Verbose())
 		if err != nil {

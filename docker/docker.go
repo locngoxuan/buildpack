@@ -92,10 +92,22 @@ func auth(usernam, password string) string {
 	return base64.URLEncoding.EncodeToString(encodedJSON)
 }
 
+func (c *DockerClient) TagImage(src, dest string) error{
+	return c.Client.ImageTag(c.Ctx, src, dest)
+}
+
 func (c *DockerClient) DeployImage(username, password, image string) (io.ReadCloser, error) {
 	opt := types.ImagePushOptions{
 		RegistryAuth: auth(username, password),
 		All:          true,
 	}
 	return c.Client.ImagePush(c.Ctx, image, opt)
+}
+
+func ValidateDockerHostConnection(hosts []string) error {
+	_, err := CheckDockerHostConnection(context.Background(), hosts)
+	if err != nil {
+		return err
+	}
+	return nil
 }

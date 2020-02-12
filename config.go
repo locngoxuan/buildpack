@@ -6,8 +6,6 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
-	"path/filepath"
-	"strings"
 )
 
 type Config struct {
@@ -77,21 +75,13 @@ type DockerConfig struct {
 }
 
 func ReadFromConfigFile(file string) (buildPackConfig Config, err error) {
-	pwd, err := filepath.Abs(filepath.Dir("."))
-	if err != nil {
-		return
-	}
-	configFile := file
-	if len(strings.TrimSpace(configFile)) == 0 {
-		configFile = filepath.Join(pwd, FileBuildPackConfig)
-	}
-	_, err = os.Stat(configFile)
+	_, err = os.Stat(file)
 	if os.IsNotExist(err) {
 		err = errors.New("configuration file not found")
 		return
 	}
 
-	yamlFile, err := ioutil.ReadFile(configFile)
+	yamlFile, err := ioutil.ReadFile(file)
 	if err != nil {
 		err = errors.New(fmt.Sprintf("read application config file get error %v", err))
 		return

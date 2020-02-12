@@ -24,7 +24,7 @@ build_sqlbundle:
 	env CGO_ENABLED=0 go build -ldflags="-s -w" -o ./bin/${SQLBUNDLE_BUILD} -a ./sqlbundle/cmd
 	env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o ./bin/${SQLBUNDLE_BUILD}-linux -a ./sqlbundle/cmd
 	env GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -o ./bin/${SQLBUNDLE_BUILD}-wins.exe -a ./sqlbundle/cmd
-	env GOOS=linux GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o ./bin/${SQLBUNDLE_BUILD}-linux -a ./sqlbundle/cmd
+	env GOOS=darwin GOARCH=amd64 CGO_ENABLED=0 go build -ldflags="-s -w" -o ./bin/${SQLBUNDLE_BUILD}-darwin -a ./sqlbundle/cmd
 
 #apply on release
 build_all: build_sqlbundle build_buildpack

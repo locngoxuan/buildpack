@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
 )
 
@@ -68,12 +69,24 @@ func main() {
 		return
 	}
 
-	configFile := buildpack.FileBuildPackConfig
+	root, err := filepath.Abs(".")
+	if err != nil {
+		buildpack.LogFatal(buildpack.BuildResult{
+			Success: false,
+			Action:  action,
+			Phase:   "init",
+			Err:     err,
+			Message: "",
+		})
+		return
+	}
+
+	configFile := filepath.Join(root, buildpack.FileBuildPackConfig)
 	if len(runtimeConfig.ConfigFile()) > 0 {
 		configFile = runtimeConfig.ConfigFile()
 	}
 	config, err := buildpack.ReadFromConfigFile(configFile)
-	if err != nil {
+	if err != nil && action != actionInit{
 		buildpack.LogFatal(buildpack.BuildResult{
 			Success: false,
 			Action:  action,

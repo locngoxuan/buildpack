@@ -2,8 +2,8 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
-	"github.com/docker/distribution/context"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -74,13 +74,6 @@ func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 		_ = os.RemoveAll(filepath.Join(b.RootDir, buildpack.CommonDirectory))
 	}()
 
-	if !b.RuntimeConfig.SkipContainer() {
-		_, err := docker.CheckDockerHostConnection(context.Background(), b.Config.DockerConfig.Hosts)
-		if err != nil {
-			return b.Error("", err)
-		}
-	}
-
 	return actionHandler(b)
 }
 
@@ -138,9 +131,24 @@ func ActionInitHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 	return bp.Success()
 }
 
+func validateDocker(bp *buildpack.BuildPack) error{
+	if !bp.RuntimeConfig.SkipContainer() {
+		_, err := docker.CheckDockerHostConnection(context.Background(), bp.Config.DockerConfig.Hosts)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func ActionCleanHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 	bp.Phase = buildpack.PhaseCleanAll
 	_ = os.RemoveAll(bp.GetCommonDirectory())
+
+	err := validateDocker(bp)
+	if err != nil{
+		return bp.Error("", err)
+	}
 
 	for _, module := range bp.Config.Modules {
 		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - builder '%s'", module.Name, module.BuildTool))
@@ -188,6 +196,10 @@ func ActionGenerateConfig(bp *buildpack.BuildPack) buildpack.BuildResult {
 }
 
 func ActionBuildHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
+	err := validateDocker(bp)
+	if err != nil{
+		return bp.Error("", err)
+	}
 	if bp.RuntimeConfig.IsRelease() {
 		return ActionReleaseHandler(bp)
 	}
@@ -314,10 +326,11 @@ func buildAndPublish(bp *buildpack.BuildPack) error {
 	} else {
 		label := defaultLabel
 		if len(bp.RuntimeConfig.Label()) > 0 {
-			t := time.Now()
-			buildNumber := t.Format("20060102150405")
-			label = fmt.Sprintf("%s.%s", bp.RuntimeConfig.Label(), buildNumber)
+			label = bp.RuntimeConfig.Label()
 		}
+		t := time.Now()
+		buildNumber := t.Format("20060102150405")
+		label = fmt.Sprintf("%s.%s", bp.RuntimeConfig.Label(), buildNumber)
 		finalVersionStr = v.WithLabel(label)
 	}
 

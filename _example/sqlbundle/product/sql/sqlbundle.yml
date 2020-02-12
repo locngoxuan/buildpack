@@ -1,8 +1,10 @@
 base:
-  image: xuanloc0511/migration
+  group: xuanloc0511
+  artifact: migration
   version: 1.0.0
 build:
-  image: xuanloc0511/migration_prod
+  group: xuanloc0511
+  artifact: migration_prod
   version: 1.2.0
   classifier: product
 revisions:

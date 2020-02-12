@@ -60,7 +60,8 @@ type BundleConfig struct {
 }
 
 type BundleBaseConfig struct {
-	Image      string `yaml:"image,omitempty"`
+	Group      string `yaml:"group,omitempty"`
+	Artifact   string `yaml:"artifact,omitempty"`
 	Version    string `yaml:"version,omitempty"`
 	Classifier string `yaml:"classifier,omitempty"`
 }
@@ -90,7 +91,7 @@ func init() {
 	classifiers["project"] = 2
 }
 
-func classifierPrefix(classifier string) int{
+func classifierPrefix(classifier string) int {
 	v, ok := classifiers[classifier]
 	if !ok {
 		return 0
@@ -124,6 +125,14 @@ func (b *SQLBundle) RunClean() error {
 	return os.RemoveAll(target)
 }
 
+func imageName(build BundleBaseConfig) string {
+	return fmt.Sprintf("%s/%s", build.Group, build.Artifact)
+}
+
+func imageNameWithTag(build BundleBaseConfig, tag string) string {
+	return fmt.Sprintf("%s/%s:%s", build.Group, build.Artifact, tag)
+}
+
 func (b *SQLBundle) Run(writer io.Writer) error {
 	termFd, _ = term.GetFdInfo(os.Stdout)
 	output = writer
@@ -137,8 +146,8 @@ func (b *SQLBundle) Run(writer io.Writer) error {
 	}
 
 	_, ok := classifiers[config.Build.Classifier]
-	if !ok{
-		return errors.New("classifier "+config.Build.Classifier+" is not supported")
+	if !ok {
+		return errors.New("classifier " + config.Build.Classifier + " is not supported")
 	}
 
 	sqlNamePrefix = classifierPrefix(config.Build.Classifier)
@@ -176,7 +185,7 @@ func (b *SQLBundle) Run(writer io.Writer) error {
 		}
 	}
 	dockerFilePath := filepath.Join(target, dockerFileName)
-	dockerContent := fmt.Sprintf(dockerTemplate, config.Base.Image, config.Base.Version, config.Build.Classifier, config.Build.Classifier)
+	dockerContent := fmt.Sprintf(dockerTemplate, imageName(*config.Base), config.Base.Version, config.Build.Classifier, config.Build.Classifier)
 	err = ioutil.WriteFile(dockerFilePath, []byte(dockerContent), 0644)
 	if err != nil {
 		return err
@@ -198,10 +207,9 @@ func (b *SQLBundle) Run(writer io.Writer) error {
 			return err
 		}
 
-		parts := strings.Split(config.Build.Image, "/")
-		finalName := fmt.Sprintf("%s-%s", strings.Join(parts, "-"), finalVersion)
+		finalName := fmt.Sprintf("%s-%s-%s", config.Build.Group, config.Build.Artifact, finalVersion)
 		finalBuild := filepath.Join(target, fmt.Sprintf("%s.tar", finalName))
-		tags := []string{fmt.Sprintf("%s:%s", config.Build.Image, finalVersion)}
+		tags := []string{imageNameWithTag(*config.Build, finalVersion)}
 
 		//create build context
 		tar := new(archivex.TarFile)
@@ -237,7 +245,7 @@ func (b *SQLBundle) Run(writer io.Writer) error {
 		defer func() {
 			_ = response.Body.Close()
 		}()
-		printHeader(fmt.Sprintf("Building docker image %s:%s", config.Build.Image, finalVersion), endLineN)
+		printHeader(fmt.Sprintf("Building docker image %s/%s:%s", config.Build.Group, config.Build.Artifact, finalVersion), endLineN)
 		return displayImageBuildLog(response.Body)
 	}
 
@@ -360,7 +368,7 @@ func copyEachVersion(dir, target string, sequence *int, cp *CheckPoint) (error) 
 
 func replaceTimestampBySequence(fileName string, sequence int) (string, string) {
 	partOfName := strings.Split(fileName, "_")
-	partOfName[0] = fmt.Sprintf("%d%05d", sqlNamePrefix,sequence)
+	partOfName[0] = fmt.Sprintf("%d%05d", sqlNamePrefix, sequence)
 	return partOfName[0], strings.Join(partOfName, "_")
 }
 

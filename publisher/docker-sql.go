@@ -66,7 +66,7 @@ func (p *DockerSQLPublishTool) PrePublish(ctx PublishContext) error {
 		return err
 	}
 
-	p.Images = append(p.Images, fmt.Sprintf("%s:%s", config.Build.Image, ctx.Version))
+	p.Images = append(p.Images, fmt.Sprintf("%s/%s:%s", config.Build.Group, config.Build.Artifact, ctx.Version))
 	return nil
 }
 

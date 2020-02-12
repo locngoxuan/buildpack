@@ -6,7 +6,6 @@ import (
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
 	"scm.wcs.fortna.com/lngo/buildpack/sqlbundle"
-	"strings"
 )
 
 const (
@@ -59,8 +58,7 @@ func (b *SQLBundleBuildTool) PostBuild(ctx BuildContext) error {
 	if err != nil {
 		return err
 	}
-	parts := strings.Split(config.Build.Image, "/")
-	finalName := fmt.Sprintf("%s-%s.tar", strings.Join(parts, "-"), ctx.Version)
+	finalName := fmt.Sprintf("%s-%s-%s.tar", config.Build.Group, config.Build.Artifact, ctx.Version)
 	finalBuild := filepath.Join(ctx.WorkingDir, "target", finalName)
 
 	moduleInCommon := filepath.Join(ctx.GetCommonDirectory(), ctx.Name)

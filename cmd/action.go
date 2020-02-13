@@ -51,6 +51,8 @@ func verifyAction(action string) error {
 	return nil
 }
 
+type HoolFunc func()
+
 func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 	actionHandler, ok := actions[b.Action]
 	if !ok {
@@ -63,8 +65,9 @@ func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 		return b.Error("", err)
 	}
 
+	commonDir := filepath.Join(b.RootDir, buildpack.CommonDirectory)
 	for _, module := range b.Config.Modules {
-		err = os.MkdirAll(b.BuildPathOnRoot(buildpack.CommonDirectory, module.Name), 0777)
+		err = os.MkdirAll(filepath.Join(commonDir, module.Name), 0777)
 		if err != nil {
 			return b.Error("", err)
 		}
@@ -72,14 +75,12 @@ func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 
 	signalChannel := make(chan os.Signal, 1)
 	signal.Notify(signalChannel, GetSingal()...)
-
-	needRemove := []string{
-		filepath.Join(b.RootDir, buildpack.CommonDirectory),
-	}
-	go ForceClearOnTerminated(signalChannel, needRemove...)
+	go ForceClearOnTerminated(signalChannel, func() {
+		_ = os.RemoveAll(commonDir)
+	})
 
 	defer func() {
-		_ = os.RemoveAll(filepath.Join(b.RootDir, buildpack.CommonDirectory))
+		_ = os.RemoveAll(commonDir)
 	}()
 
 	return actionHandler(b)

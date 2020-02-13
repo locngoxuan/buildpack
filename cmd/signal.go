@@ -21,13 +21,11 @@ func GetSingal() []os.Signal {
 	}
 }
 
-func ForceClearOnTerminated(ch chan os.Signal, dirs ...string) {
+func ForceClearOnTerminated(ch chan os.Signal, handler HoolFunc) {
 	for {
 		_ = <-ch
 		signal.Stop(ch)
-		for _, dir := range dirs {
-			_ = os.RemoveAll(dir)
-		}
+		handler()
 	}
 }
 

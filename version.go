@@ -21,8 +21,8 @@ func (v *Version) WithLabel(label string) string {
 	return fmt.Sprintf("%d.%d.%d-%s", v.Major, v.Minor, v.Patch, label)
 }
 
-func (v *Version) WithLabelAndBuildNumber(label string, buildNumber int) string {
-	return fmt.Sprintf("%d.%d.%d-%s.%d", v.Major, v.Minor, v.Patch, label, buildNumber)
+func (v *Version) WithLabelAndBuildNumber(label, buildNumber string) string {
+	return fmt.Sprintf("%d.%d.%d-%s.%s", v.Major, v.Minor, v.Patch, label, buildNumber)
 }
 
 func (v *Version) NextPatch() {

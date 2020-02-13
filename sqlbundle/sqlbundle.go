@@ -1,10 +1,8 @@
 package sqlbundle
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/docker/docker/pkg/term"
 	"github.com/jhoonb/archivex"
 	"gopkg.in/yaml.v2"
@@ -12,8 +10,8 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
-	"scm.wcs.fortna.com/lngo/buildpack/docker"
 	"sort"
+	"strconv"
 	"strings"
 )
 
@@ -45,6 +43,19 @@ type CurrentDir struct {
 type PathInfo struct {
 	Info os.FileInfo
 	Path string
+	Name string
+}
+
+func (p *PathInfo) prefixTimeStamp() int64 {
+	parts := strings.Split(p.Name, "_")
+	if len(parts) == 0 {
+		return p.Info.ModTime().Unix()
+	}
+	v, err := strconv.Atoi(parts[0])
+	if err != nil {
+		return p.Info.ModTime().Unix()
+	}
+	return int64(v)
 }
 
 type CheckPoint struct {
@@ -70,7 +81,6 @@ type SQLBundle struct {
 	WorkingDir  string
 	BundleFile  string
 	Clean       bool
-	Dockerize   bool
 	DockerHosts []string
 	Version     string
 }
@@ -127,10 +137,6 @@ func (b *SQLBundle) RunClean() error {
 
 func imageName(build BundleBaseConfig) string {
 	return fmt.Sprintf("%s/%s", build.Group, build.Artifact)
-}
-
-func imageNameWithTag(build BundleBaseConfig, tag string) string {
-	return fmt.Sprintf("%s/%s:%s", build.Group, build.Artifact, tag)
 }
 
 func (b *SQLBundle) Run(writer io.Writer) error {
@@ -197,83 +203,34 @@ func (b *SQLBundle) Run(writer io.Writer) error {
 		return err
 	}
 
-	if b.Dockerize {
-		if b.DockerHosts == nil || len(b.DockerHosts) == 0 {
-			return errors.New("docker hosts is not configured")
-		}
-		// exec docker build
-		client, err := docker.NewClient(b.DockerHosts)
-		if err != nil {
-			return err
-		}
-
-		finalName := fmt.Sprintf("%s-%s-%s", config.Build.Group, config.Build.Artifact, finalVersion)
-		finalBuild := filepath.Join(target, fmt.Sprintf("%s.tar", finalName))
-		tags := []string{imageNameWithTag(*config.Build, finalVersion)}
-
-		//create build context
-		tar := new(archivex.TarFile)
-		err = tar.Create(finalBuild)
-		if err != nil {
-			return err
-		}
-		err = tar.AddAll(filepath.Join(target, generatedDirName), true)
-		if err != nil {
-			return err
-		}
-
-		f, err := os.Open(filepath.Join(target, dockerFileName))
-		if err != nil {
-			return err
-		}
-		defer func() {
-			_ = f.Close()
-		}()
-		fileInfo, _ := f.Stat()
-		err = tar.Add(dockerFileName, f, fileInfo)
-		if err != nil {
-			return err
-		}
-		err = tar.Close()
-		if err != nil {
-			return err
-		}
-		response, err := client.BuildImage(finalBuild, tags)
-		if err != nil {
-			return err
-		}
-		defer func() {
-			_ = response.Body.Close()
-		}()
-		printHeader(fmt.Sprintf("Building docker image %s/%s:%s", config.Build.Group, config.Build.Artifact, finalVersion), endLineN)
-		return displayImageBuildLog(response.Body)
+	//create tar
+	tarFileName := fmt.Sprintf("%s-%s-%s.tar", config.Build.Group, config.Build.Artifact, finalVersion)
+	tarPath := filepath.Join(target, tarFileName)
+	tar := new(archivex.TarFile)
+	err = tar.Create(tarPath)
+	if err != nil {
+		return err
+	}
+	err = tar.AddAll(filepath.Join(target, generatedDirName), true)
+	if err != nil {
+		return err
 	}
 
-	if b.Clean {
-		err = os.RemoveAll(target)
-		if err != nil {
-			return err
-		}
+	f, err := os.Open(filepath.Join(target, dockerFileName))
+	if err != nil {
+		return err
 	}
-
-	return nil
-}
-
-func displayImageBuildLog(in io.Reader) error {
-	var dec = json.NewDecoder(in)
-	for {
-		var jm jsonmessage.JSONMessage
-		if err := dec.Decode(&jm); err != nil {
-			if err == io.EOF {
-				break
-			}
-			return err
-		}
-		if jm.Stream == "" {
-			continue
-		}
-
-		printLineMessage(fmt.Sprintf("%s", jm.Stream), endLineR)
+	defer func() {
+		_ = f.Close()
+	}()
+	fileInfo, _ := f.Stat()
+	err = tar.Add(dockerFileName, f, fileInfo)
+	if err != nil {
+		return err
+	}
+	err = tar.Close()
+	if err != nil {
+		return err
 	}
 	return nil
 }
@@ -302,11 +259,14 @@ func readCurrentDir(dirPath string) (CurrentDir, error) {
 		pathInfo := PathInfo{
 			Path: filePath,
 			Info: fileInfo,
+			Name: name,
 		}
 		if pathInfo.Info.IsDir() {
 			currentDir.Dirs = append(currentDir.Dirs, pathInfo)
 		} else {
-			currentDir.Files = append(currentDir.Files, pathInfo)
+			if filepath.Ext(filePath) == sqlExt {
+				currentDir.Files = append(currentDir.Files, pathInfo)
+			}
 		}
 	}
 	return currentDir, nil
@@ -375,7 +335,7 @@ func replaceTimestampBySequence(fileName string, sequence int) (string, string) 
 func compileSqlFile(generatedDir string, currentDir CurrentDir, cp *CheckPoint, sequence *int) error {
 	if len(currentDir.Files) > 0 {
 		sort.Slice(currentDir.Files, func(i, j int) bool {
-			return currentDir.Files[i].Info.ModTime().Unix() < currentDir.Files[j].Info.ModTime().Unix()
+			return currentDir.Files[i].prefixTimeStamp() < currentDir.Files[j].prefixTimeStamp()
 		})
 		cp.Start = cp.End
 		//copy files

@@ -20,12 +20,7 @@ type ArtifactoryMVNTool struct {
 	Password    string
 	AccessToken string
 	Packages    []ArtifactPackage
-	ArtifactOption
-}
-
-type ArtifactOption struct {
-	URL        string
-	Repository string
+	Repository  string
 }
 
 func (c *ArtifactoryMVNTool) Name() string {
@@ -47,10 +42,7 @@ func (c *ArtifactoryMVNTool) LoadConfig(ctx PublishContext) (error) {
 	c.Username = buildpack.GetRepoUser(repo)
 	c.Password = buildpack.GetRepoPass(repo)
 	c.AccessToken = buildpack.GetRepoToken(repo)
-	c.ArtifactOption = ArtifactOption{
-		URL:        repo.URL,
-		Repository: repo.ChannelConfig.Stable,
-	}
+	c.Repository = repo.ChannelConfig.Stable
 
 	if !ctx.Release {
 		c.Repository = repo.ChannelConfig.Unstable
@@ -122,7 +114,7 @@ func (c *ArtifactoryMVNTool) PrePublish(ctx PublishContext) error {
 
 		c.Packages = append(c.Packages, ArtifactPackage{
 			Source:      file,
-			Destination: fmt.Sprintf("%s/%s/%s/%s", c.URL, c.Repository, modulePath, fileName),
+			Destination: fmt.Sprintf("%s/%s/%s", c.Repository, modulePath, fileName),
 			MD5:         md5,
 			Username:    c.Username,
 			Password:    c.Password,

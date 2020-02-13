@@ -5,7 +5,6 @@ import (
 	"os"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
-	"scm.wcs.fortna.com/lngo/buildpack/docker"
 	"scm.wcs.fortna.com/lngo/buildpack/sqlbundle"
 )
 
@@ -27,15 +26,10 @@ func (b *SQLBundleBuildTool) GenerateConfig(ctx BuildContext) error {
 }
 
 func (b *SQLBundleBuildTool) LoadConfig(ctx BuildContext) error {
-	err := docker.ValidateDockerHostConnection(ctx.BuildPack.Config.Hosts)
-	if err != nil{
-		return err
-	}
 	b.Bundle = sqlbundle.SQLBundle{
 		WorkingDir:  ctx.WorkingDir,
 		BundleFile:  filepath.Join(ctx.WorkingDir, bundleFileName),
 		Clean:       true,
-		Dockerize:   true,
 		DockerHosts: ctx.BuildPack.Config.DockerConfig.Hosts,
 		Version:     ctx.Version,
 	}

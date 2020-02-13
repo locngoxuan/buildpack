@@ -5,10 +5,6 @@ import (
 	"scm.wcs.fortna.com/lngo/buildpack"
 )
 
-const (
-	defaultLabel = "alpha"
-)
-
 type Publisher struct {
 	PublishTool
 	PublishContext

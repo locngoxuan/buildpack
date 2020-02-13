@@ -18,7 +18,6 @@ func init() {
 }
 
 func main() {
-	dockerize := flags.Bool("dockerize", false, "build docker image")
 	configFile := flags.String("config", "", "path to specific configuration file")
 	clean := flags.Bool("clean", false, "clean after build")
 
@@ -46,7 +45,6 @@ func main() {
 		WorkingDir:  root,
 		BundleFile:  bundleFile,
 		Clean:       *clean,
-		Dockerize:   *dockerize,
 		DockerHosts: []string{"unix:///var/run/docker.sock", "tcp://127.0.0.1:2375"},
 	}
 	err = bundle.Run(os.Stdout)

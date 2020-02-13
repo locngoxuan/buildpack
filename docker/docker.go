@@ -92,7 +92,7 @@ func auth(usernam, password string) string {
 	return base64.URLEncoding.EncodeToString(encodedJSON)
 }
 
-func (c *DockerClient) TagImage(src, dest string) error{
+func (c *DockerClient) TagImage(src, dest string) error {
 	return c.Client.ImageTag(c.Ctx, src, dest)
 }
 
@@ -102,6 +102,14 @@ func (c *DockerClient) DeployImage(username, password, image string) (io.ReadClo
 		All:          true,
 	}
 	return c.Client.ImagePush(c.Ctx, image, opt)
+}
+
+func (c *DockerClient) RemoveImage(image string) ([]types.ImageDeleteResponseItem, error) {
+	opt := types.ImageRemoveOptions{
+		Force:         true,
+		PruneChildren: true,
+	}
+	return c.Client.ImageRemove(c.Ctx, image, opt)
 }
 
 func ValidateDockerHostConnection(hosts []string) error {

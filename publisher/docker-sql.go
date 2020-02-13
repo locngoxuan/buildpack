@@ -1,8 +1,11 @@
 package publisher
 
 import (
+	"encoding/json"
 	"fmt"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"io"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
@@ -18,6 +21,7 @@ const (
 
 type DockerSQLPublishTool struct {
 	Images []string
+	Client docker.DockerClient
 	RegistryOption
 }
 
@@ -46,14 +50,32 @@ func (p *DockerSQLPublishTool) LoadConfig(ctx PublishContext) error {
 	}
 
 	p.RegistryOption = RegistryOption{
-		RegistryAddress: repo.URL,
+		RegistryAddress: repo.ChannelConfig.Stable,
 		Username:        buildpack.GetRepoUser(repo),
 		Password:        buildpack.GetRepoPass(repo),
 	}
+
+	if !ctx.RuntimeConfig.IsRelease() {
+		p.RegistryOption.RegistryAddress = repo.ChannelConfig.Unstable
+	}
+
+	p.Client, err = docker.NewClient(ctx.BuildPack.Config.Hosts)
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
 func (p *DockerSQLPublishTool) Clean(ctx PublishContext) error {
+	if p.Images != nil && len(p.Images) > 0 {
+		for _, image := range p.Images {
+			err := clearImage(p.Client, image)
+			if err != nil {
+				buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("remove image %s get error %s", image, err))
+			}
+		}
+	}
 	return nil
 }
 
@@ -66,32 +88,53 @@ func (p *DockerSQLPublishTool) PrePublish(ctx PublishContext) error {
 		return err
 	}
 
-	src := fmt.Sprintf("%s/%s:%s", config.Build.Group, config.Build.Artifact, ctx.Version)
 	dst := fmt.Sprintf("%s/%s:%s", config.Build.Group, config.Build.Artifact, ctx.Version)
 	if len(strings.TrimSpace(p.RegistryAddress)) > 0 {
 		dst = fmt.Sprintf("%s/%s", p.RegistryAddress, dst)
 	}
 
-	if dst != src {
-		cli, err := docker.NewClient(ctx.BuildPack.Config.Hosts)
-		if err != nil {
-			return err
-		}
-		err = cli.TagImage(src, dst)
-		if err != nil {
-			return err
-		}
+	// build image
+	tarFileName := fmt.Sprintf("%s-%s-%s.tar", config.Build.Group, config.Build.Artifact, ctx.Version)
+	tarPath := filepath.Join(dir, tarFileName)
+	tags := []string{dst}
+	response, err := p.Client.BuildImage(tarPath, tags)
+	if err != nil {
+		return err
 	}
-
+	defer func() {
+		_ = response.Body.Close()
+	}()
+	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Building docker image %s", dst))
+	err = displayImageBuildLog(ctx.BuildPack, response.Body)
+	if err != nil {
+		return err
+	}
 	p.Images = append(p.Images, dst)
+	return nil
+}
+
+func displayImageBuildLog(bp buildpack.BuildPack, in io.Reader) error {
+	var dec = json.NewDecoder(in)
+	for {
+		var jm jsonmessage.JSONMessage
+		if err := dec.Decode(&jm); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		if jm.Stream == "" {
+			continue
+		}
+		buildpack.LogVerbose(bp, fmt.Sprintf("%s", jm.Stream))
+	}
 	return nil
 }
 
 func (p *DockerSQLPublishTool) Publish(ctx PublishContext) error {
 	for _, image := range p.Images {
-
 		buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("publish %s", image))
-		err := deployImage(ctx.BuildPack.Config.DockerConfig.Hosts, p.Username, p.Password, image, ctx.Verbose())
+		err := deployImage(p.Client, p.Username, p.Password, image, ctx.Verbose())
 		if err != nil {
 			return err
 		}
@@ -99,11 +142,7 @@ func (p *DockerSQLPublishTool) Publish(ctx PublishContext) error {
 	return nil
 }
 
-func deployImage(hosts []string, username, password, image string, verbose bool) error {
-	cli, err := docker.NewClient(hosts)
-	if err != nil {
-		return err
-	}
+func deployImage(cli docker.DockerClient, username, password, image string, verbose bool) error {
 	reader, err := cli.DeployImage(username, password, image)
 	if err != nil {
 		return err
@@ -117,8 +156,14 @@ func deployImage(hosts []string, username, password, image string, verbose bool)
 		_, _ = io.Copy(os.Stdout, reader)
 	} else {
 		// nothing
+		_, _ = io.Copy(ioutil.Discard, reader)
 	}
 	return nil
+}
+
+func clearImage(cli docker.DockerClient, image string) error {
+	_, err := cli.RemoveImage(image)
+	return err
 }
 
 func (p *DockerSQLPublishTool) PostPublish(ctx PublishContext) error {

@@ -58,7 +58,6 @@ type GitConfig struct {
 type RepositoryConfig struct {
 	Id            string `yaml:"id,omitempty"`
 	Name          string `yaml:"name,omitempty"`
-	URL           string `yaml:"url,omitempty"`
 	Username      string `yaml:"username,omitempty"`
 	Password      string `yaml:"password,omitempty"`
 	AccessToken   string `yaml:"access-token,omitempty"`

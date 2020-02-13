@@ -23,7 +23,7 @@ const (
 
 type RunMVN func(ctx BuildContext, buildOption MVNBuildConfig, args ...string) error
 
-func RunOnHost(ctx BuildContext, buildOption MVNBuildConfig, args ...string) error {
+func RunOnHost(ctx BuildContext, _ MVNBuildConfig, args ...string) error {
 	args = append(args, "-f", filepath.Join(ctx.WorkingDir, pomFileName))
 	cmd := exec.Command("mvn", args...)
 	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("working dir %s", ctx.WorkingDir))
@@ -35,6 +35,30 @@ func RunOnHost(ctx BuildContext, buildOption MVNBuildConfig, args ...string) err
 		cmd.Stderr = os.Stderr
 	}
 	return cmd.Run()
+}
+
+func removeBuildNumberIfNeed(bp buildpack.BuildPack, version string) string {
+	if bp.RuntimeConfig.IsRelease() {
+		return version
+	}
+
+	label := labelSnapshot
+	if len(bp.RuntimeConfig.Label()) > 0 {
+		label = bp.RuntimeConfig.Label()
+	}
+	if label != labelSnapshot {
+		return version
+	}
+	versionStr := strings.TrimSpace(bp.Config.Version)
+	if len(bp.RuntimeConfig.Version()) > 0 {
+		versionStr = bp.RuntimeConfig.Version()
+	}
+
+	v, err := buildpack.FromString(versionStr)
+	if err != nil {
+		return version
+	}
+	return v.WithLabel(labelSnapshot)
 }
 
 func RunContainer(ctx BuildContext, buildOption MVNBuildConfig, args ...string) error {
@@ -96,7 +120,7 @@ type MVNBuildConfig struct {
 
 func (c *MVNBuildTool) GenerateConfig(ctx BuildContext) error {
 	mvnOpt := &MVNBuildConfig{
-		RepoCache:   "",
+		RepoCache: "",
 	}
 
 	bytes, err := yaml.Marshal(mvnOpt)
@@ -112,14 +136,27 @@ func (c *MVNBuildTool) GenerateConfig(ctx BuildContext) error {
 }
 
 func (c *MVNBuildTool) LoadConfig(ctx BuildContext) (err error) {
+	c.Func = RunContainer
+	if ctx.SkipContainer() {
+		c.Func = RunOnHost
+	}
 	configFile := ctx.BuildPathOnRoot(ctx.Path, builderFileName)
 	if len(configFile) == 0 {
 		err = errors.New("can not get path of builder configuration file")
 		return
 	}
 	_, err = os.Stat(configFile)
-	if os.IsNotExist(err) {
-		err = errors.New("configuration file not found")
+	if err != nil {
+		if os.IsNotExist(err) {
+			c.MVNBuildConfig = MVNBuildConfig{
+				BuildOptions:   make([]string, 0),
+				ContainerImage: dockerContainerImage,
+				RepoCache:      "",
+			}
+			c.MVNBuildConfig.BuildOptions = append(c.MVNBuildConfig.BuildOptions, fmt.Sprintf("-Drevision=%s", removeBuildNumberIfNeed(ctx.BuildPack, ctx.Version)))
+			err = nil
+			return
+		}
 		return
 	}
 
@@ -136,11 +173,7 @@ func (c *MVNBuildTool) LoadConfig(ctx BuildContext) (err error) {
 		return
 	}
 	c.MVNBuildConfig = option
-	c.Func = RunContainer
-	if ctx.SkipContainer() {
-		c.Func = RunOnHost
-	}
-	c.MVNBuildConfig.BuildOptions = append(c.MVNBuildConfig.BuildOptions, fmt.Sprintf("-Drevision=%s", ctx.Version))
+	c.MVNBuildConfig.BuildOptions = append(c.MVNBuildConfig.BuildOptions, fmt.Sprintf("-Drevision=%s", removeBuildNumberIfNeed(ctx.BuildPack, ctx.Version)))
 	return
 }
 
@@ -187,7 +220,7 @@ func (c *MVNBuildTool) PostBuild(ctx BuildContext) error {
 
 	//copy pom
 	pomSrc := ctx.BuildPathOnRoot(ctx.Path, "target", pomFileName)
-	pomName := fmt.Sprintf("%s-%s.pom", pom.ArtifactId, ctx.Version)
+	pomName := fmt.Sprintf("%s-%s.pom", pom.ArtifactId, removeBuildNumberIfNeed(ctx.BuildPack, ctx.Version))
 	pomPublished := filepath.Join(moduleInCommon, pomName)
 	err = buildpack.CopyFile(pomSrc, pomPublished)
 	if err != nil {
@@ -198,7 +231,7 @@ func (c *MVNBuildTool) PostBuild(ctx BuildContext) error {
 
 	if pom.Classifier == "jar" || len(strings.TrimSpace(pom.Classifier)) == 0 {
 		//copy jar
-		jarName := fmt.Sprintf("%s-%s.jar", pom.ArtifactId, ctx.Version)
+		jarName := fmt.Sprintf("%s-%s.jar", pom.ArtifactId, removeBuildNumberIfNeed(ctx.BuildPack, ctx.Version))
 		jarSrc := ctx.BuildPathOnRoot(ctx.Path, "target", jarName)
 		jarPublished := filepath.Join(moduleInCommon, jarName)
 		err := buildpack.CopyFile(jarSrc, jarPublished)

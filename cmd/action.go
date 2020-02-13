@@ -330,8 +330,7 @@ func buildAndPublish(bp *buildpack.BuildPack) error {
 		}
 		t := time.Now()
 		buildNumber := t.Format("20060102150405")
-		label = fmt.Sprintf("%s.%s", label, buildNumber)
-		finalVersionStr = v.WithLabel(label)
+		finalVersionStr = v.WithLabelAndBuildNumber(label, buildNumber)
 	}
 
 	bp.Phase = buildpack.PhaseBuild

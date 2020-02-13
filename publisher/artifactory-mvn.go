@@ -142,6 +142,8 @@ func (c *ArtifactoryMVNTool) PrePublish(ctx PublishContext) error {
 }
 func (c *ArtifactoryMVNTool) Publish(ctx PublishContext) error {
 	for _, upload := range c.Packages {
+		buildpack.LogVerbose(ctx.BuildPack,
+			fmt.Sprintf("uploading %s with md5:%s", upload.Destination, upload.MD5))
 		err := uploadFile(upload)
 		if err != nil {
 			return err

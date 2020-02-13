@@ -2,6 +2,7 @@ package builder
 
 import (
 	"fmt"
+	"io/ioutil"
 	"os"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
@@ -22,6 +23,25 @@ func (b *SQLBundleBuildTool) Name() string {
 }
 
 func (b *SQLBundleBuildTool) GenerateConfig(ctx BuildContext) error {
+	file := ctx.GetFile(bundleFileName)
+	_, err := os.Stat(file)
+	if err != nil {
+		if os.IsExist(err) {
+			buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("file %s already exist", bundleFileName))
+			return nil
+		}
+
+		if os.IsNotExist(err) {
+			err = ioutil.WriteFile(file, []byte{}, 0644)
+			if err != nil {
+				return err
+			}
+			buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("create config file at %s", bundleFileName))
+			return nil
+		}
+		return err
+	}
+	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("file %s already exist", bundleFileName))
 	return nil
 }
 

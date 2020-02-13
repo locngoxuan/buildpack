@@ -6,11 +6,6 @@ import (
 	"scm.wcs.fortna.com/lngo/buildpack"
 )
 
-const (
-	builderFileName = "builder.yml"
-	defaultLabel    = "alpha"
-)
-
 type Builder struct {
 	BuildTool
 	BuildContext

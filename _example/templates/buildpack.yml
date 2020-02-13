@@ -10,13 +10,15 @@ git:
 
 repositories:
   - id: ""
-    type: ""
-    channel:
-      stable: ""
-      unstable: ""
-    username: ""
-    password: ""
-    access-token: ""
+    name: ""
+    stable:
+      address: ""
+      username: ""
+      password: ""
+    unstable:
+      address: ""
+      username: ""
+      password: ""
 
 modules:
   - position: 0

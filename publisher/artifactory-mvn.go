@@ -16,11 +16,10 @@ const (
 
 type ArtifactoryMVNTool struct {
 	buildpack.POM
-	Username    string
-	Password    string
-	AccessToken string
-	Packages    []ArtifactPackage
-	Repository  string
+	Username   string
+	Password   string
+	Packages   []ArtifactPackage
+	Repository string
 }
 
 func (c *ArtifactoryMVNTool) Name() string {
@@ -39,14 +38,33 @@ func (c *ArtifactoryMVNTool) LoadConfig(ctx PublishContext) (error) {
 	if err != nil {
 		return err
 	}
-	c.Username = buildpack.GetRepoUser(repo)
-	c.Password = buildpack.GetRepoPass(repo)
-	c.AccessToken = buildpack.GetRepoToken(repo)
-	c.Repository = repo.ChannelConfig.Stable
-
-	if !ctx.Release {
-		c.Repository = repo.ChannelConfig.Unstable
+	if ctx.Release {
+		if repo.StableChannel == nil {
+			return errors.New("missing stable channel configuration")
+		}
+		c.Repository = repo.StableChannel.Address
+		c.Username = repo.StableChannel.Username
+		c.Password = repo.StableChannel.Password
+	} else {
+		if repo.UnstableChannel == nil {
+			return errors.New("missing unstable channel configuration")
+		}
+		c.Repository = repo.UnstableChannel.Address
+		c.Username = repo.UnstableChannel.Username
+		c.Password = repo.UnstableChannel.Password
 	}
+
+	if len(buildpack.GetRepoUserFromEnv(repo)) > 0 {
+		c.Username = buildpack.GetRepoUserFromEnv(repo)
+	}
+	if len(buildpack.GetRepoPassFromEnv(repo)) > 0 {
+		c.Password = buildpack.GetRepoPassFromEnv(repo)
+	}
+
+	if c.Username == "" || c.Password == "" {
+		return errors.New("missing credential for publisher " + repo.Id)
+	}
+
 	return nil
 }
 func (c *ArtifactoryMVNTool) Clean(ctx PublishContext) error {

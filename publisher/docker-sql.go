@@ -2,6 +2,7 @@ package publisher
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/docker/docker/pkg/jsonmessage"
 	"io"
@@ -49,14 +50,41 @@ func (p *DockerSQLPublishTool) LoadConfig(ctx PublishContext) error {
 		return err
 	}
 
-	p.RegistryOption = RegistryOption{
-		RegistryAddress: repo.ChannelConfig.Stable,
-		Username:        buildpack.GetRepoUser(repo),
-		Password:        buildpack.GetRepoPass(repo),
+	if ctx.Release {
+		if repo.StableChannel == nil {
+			p.RegistryOption = RegistryOption{
+				RegistryAddress: "",
+				Username:        "",
+				Password:        "",
+			}
+		} else {
+			p.RegistryOption = RegistryOption{
+				RegistryAddress: repo.StableChannel.Address,
+				Username:        repo.StableChannel.Username,
+				Password:        repo.StableChannel.Password,
+			}
+		}
+	} else {
+		if repo.UnstableChannel == nil {
+			p.RegistryOption = RegistryOption{
+				RegistryAddress: "",
+				Username:        "",
+				Password:        "",
+			}
+		} else {
+			p.RegistryOption = RegistryOption{
+				RegistryAddress: repo.UnstableChannel.Address,
+				Username:        repo.UnstableChannel.Username,
+				Password:        repo.UnstableChannel.Password,
+			}
+		}
 	}
 
-	if !ctx.RuntimeConfig.IsRelease() {
-		p.RegistryOption.RegistryAddress = repo.ChannelConfig.Unstable
+	if len(buildpack.GetRepoUserFromEnv(repo)) > 0 {
+		p.Username = buildpack.GetRepoUserFromEnv(repo)
+	}
+	if len(buildpack.GetRepoPassFromEnv(repo)) > 0 {
+		p.Password = buildpack.GetRepoPassFromEnv(repo)
 	}
 
 	p.Client, err = docker.NewClient(ctx.BuildPack.Config.Hosts)
@@ -122,6 +150,9 @@ func displayImageBuildLog(bp buildpack.BuildPack, in io.Reader) error {
 				break
 			}
 			return err
+		}
+		if jm.Error != nil {
+			return errors.New(jm.Error.Message)
 		}
 		if jm.Stream == "" {
 			continue

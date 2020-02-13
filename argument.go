@@ -103,7 +103,7 @@ func (a *RuntimeConfig) readLabel() *RuntimeConfig {
 }
 
 func (a *RuntimeConfig) readVerbose() *RuntimeConfig {
-	a.flag.BoolVar(&a.verbose, "v", false, "Enable verbose mode, more log is going to printed")
+	a.flag.BoolVar(&a.verbose, "verbose", false, "Enable verbose mode, more log is going to printed")
 	return a
 }
 
@@ -113,7 +113,7 @@ func (a *RuntimeConfig) readPatch() *RuntimeConfig {
 }
 
 func (a *RuntimeConfig) readSkipTest() *RuntimeConfig {
-	a.flag.BoolVar(&a.skipUnitTest, "skip-ut", false, "Skip run unit test")
+	a.flag.BoolVar(&a.skipUnitTest, "skip-test", false, "Skip run unit test")
 	return a
 }
 

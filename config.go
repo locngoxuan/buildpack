@@ -56,17 +56,23 @@ type GitConfig struct {
 }
 
 type RepositoryConfig struct {
-	Id            string `yaml:"id,omitempty"`
-	Name          string `yaml:"name,omitempty"`
-	Username      string `yaml:"username,omitempty"`
-	Password      string `yaml:"password,omitempty"`
-	AccessToken   string `yaml:"access-token,omitempty"`
-	ChannelConfig `yaml:"channel,omitempty"`
+	Id              string         `yaml:"id,omitempty"`
+	Name            string         `yaml:"name,omitempty"`
+	StableChannel   *ChannelConfig `yaml:"stable,omitempty"`
+	UnstableChannel *ChannelConfig `yaml:"unstable,omitempty"`
+}
+
+func (r *RepositoryConfig) GetChannel(release bool) *ChannelConfig {
+	if release {
+		return r.StableChannel
+	}
+	return r.UnstableChannel
 }
 
 type ChannelConfig struct {
-	Stable   string `yaml:"stable,omitempty"`
-	Unstable string `yaml:"unstable,omitempty"`
+	Address  string `yaml:"address,omitempty"`
+	Username string `yaml:"username,omitempty"`
+	Password string `yaml:"password,omitempty"`
 }
 
 type DockerConfig struct {

@@ -3,6 +3,7 @@ package buildpack
 import (
 	"errors"
 	"path/filepath"
+	"sort"
 )
 
 type BuildResult struct {
@@ -28,7 +29,7 @@ type BuildPack struct {
 }
 
 const (
-	VERSION = "v1.1.0"
+	VERSION = "v1.2.0"
 
 	FileBuildPackConfig = "buildpack.yml"
 	CommonDirectory     = ".buildpack"
@@ -52,13 +53,15 @@ git:
 repositories:
   - id: ""
     name: ""
-    url: ""
-    channel:
-      stable: ""
-      unstable: ""
-    username: ""
-    password: ""
-    access-token: ""
+    stable:
+      address: ""
+      username: ""
+      password: ""
+    unstable:
+      address: ""
+      username: ""
+      password: ""
+
 modules:
   - position: 0
     name: ""
@@ -114,27 +117,6 @@ func (bp *BuildPack) Validate(release bool) error {
 		if len(bp.Config.Repos) == 0 {
 			return errors.New("not found repositories configuration")
 		}
-
-		appliedModules, err := ModulesToApply(*bp)
-		if err != nil {
-			return err
-		}
-
-		for _, module := range appliedModules {
-			if module.ModulePublishConfig.Skip {
-				continue
-			}
-			repo, err := bp.Config.GetRepoById(module.ModulePublishConfig.RepoId)
-			if err != nil {
-				return err
-			}
-
-			if IsEmptyString(GetRepoToken(repo)) &&
-				IsEmptyString(GetRepoUser(repo)) &&
-				IsEmptyString(GetRepoPass(repo)) {
-				return errors.New("repo '" + repo.Id + "' miss credentials configuration")
-			}
-		}
 	}
 	return nil
 }
@@ -153,43 +135,32 @@ func GetGitToken(bp BuildPack) string {
 	return str
 }
 
-func GetRepoToken(repo RepositoryConfig) string {
-	str := repo.AccessToken
-	if len(ReadEnvByUpperKey(FormatKey(RepoTokenPattern, repo.Id))) > 0 {
-		str = ReadEnvByUpperKey(FormatKey(RepoTokenPattern, repo.Id))
-	}
-	return str
+func GetRepoUserFromEnv(repo RepositoryConfig) string {
+	return ReadEnvByUpperKey(FormatKey(RepoUserPattern, repo.Id))
 }
 
-func GetRepoUser(repo RepositoryConfig) string {
-	str := repo.Username
-	if len(ReadEnvByUpperKey(FormatKey(RepoUserPattern, repo.Id))) > 0 {
-		str = ReadEnvByUpperKey(FormatKey(RepoUserPattern, repo.Id))
-	}
-	return str
-}
-
-func GetRepoPass(repo RepositoryConfig) string {
-	str := repo.Password
-	if len(ReadEnvByUpperKey(FormatKey(RepoPasswordPattern, repo.Id))) > 0 {
-		str = ReadEnvByUpperKey(FormatKey(RepoPasswordPattern, repo.Id))
-	}
-	return str
+func GetRepoPassFromEnv(repo RepositoryConfig) string {
+	return ReadEnvByUpperKey(FormatKey(RepoPasswordPattern, repo.Id))
 }
 
 func ModulesToApply(bp BuildPack) ([]ModuleConfig, error) {
 	ms := bp.RuntimeConfig.Modules()
+	var modules []ModuleConfig
 	if len(ms) == 0 {
-		return bp.Config.Modules, nil
+		modules = bp.Config.Modules
+
 	} else {
-		rs := make([]ModuleConfig, 0)
+		modules = make([]ModuleConfig, 0)
 		for _, moduleName := range ms {
 			m, err := bp.GetModuleByName(moduleName)
 			if err != nil {
 				return nil, err
 			}
-			rs = append(rs, m)
+			modules = append(modules, m)
 		}
-		return rs, nil
 	}
+	sort.Slice(modules, func(i, j int) bool {
+		return modules[i].Position < modules[j].Position
+	})
+	return modules, nil
 }

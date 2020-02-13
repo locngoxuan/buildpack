@@ -2,12 +2,12 @@ package main
 
 import (
 	"bufio"
-	"context"
 	"fmt"
 	"github.com/pkg/errors"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
 	"scm.wcs.fortna.com/lngo/buildpack/builder"
@@ -70,6 +70,14 @@ func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 		}
 	}
 
+	signalChannel := make(chan os.Signal, 1)
+	signal.Notify(signalChannel, GetSingal()...)
+
+	needRemove := []string{
+		filepath.Join(b.RootDir, buildpack.CommonDirectory),
+	}
+	go ForceClearOnTerminated(signalChannel, needRemove...)
+
 	defer func() {
 		_ = os.RemoveAll(filepath.Join(b.RootDir, buildpack.CommonDirectory))
 	}()
@@ -131,12 +139,9 @@ func ActionInitHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 	return bp.Success()
 }
 
-func validateDocker(bp *buildpack.BuildPack) error{
+func validateDocker(bp *buildpack.BuildPack) error {
 	if !bp.RuntimeConfig.SkipContainer() {
-		_, err := docker.CheckDockerHostConnection(context.Background(), bp.Config.DockerConfig.Hosts)
-		if err != nil {
-			return err
-		}
+		return docker.ValidateDockerHostConnection(bp.DockerConfig.Hosts)
 	}
 	return nil
 }
@@ -146,7 +151,7 @@ func ActionCleanHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 	_ = os.RemoveAll(bp.GetCommonDirectory())
 
 	err := validateDocker(bp)
-	if err != nil{
+	if err != nil {
 		return bp.Error("", err)
 	}
 
@@ -197,7 +202,7 @@ func ActionGenerateConfig(bp *buildpack.BuildPack) buildpack.BuildResult {
 
 func ActionBuildHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 	err := validateDocker(bp)
-	if err != nil{
+	if err != nil {
 		return bp.Error("", err)
 	}
 	if bp.RuntimeConfig.IsRelease() {

@@ -21,7 +21,7 @@ ACTION:
   build        Create a build then publish to repository if --release=true is set
 
 Examples:
-  buildpack init -v=0.1.0              
+  buildpack init --version=0.1.0              
   buildpack config        
   buildpack version
   buildpack build --label=beta         
@@ -32,7 +32,7 @@ Options:`
 )
 
 func Usage(f *flag.FlagSet) {
-	fmt.Println(usagePrefix)
+	_, _ = fmt.Fprint(f.Output(), usagePrefix)
 	f.PrintDefaults()
 	os.Exit(1)
 }
@@ -62,6 +62,10 @@ func main() {
 		return
 	}
 
+	if runtimeConfig.Verbose() {
+		buildpack.LogOnlyMsg(fmt.Sprintf("Command: %v", os.Args))
+	}
+
 	action := os.Args[1]
 	err = verifyAction(action)
 	if err != nil {
@@ -86,7 +90,7 @@ func main() {
 		configFile = runtimeConfig.ConfigFile()
 	}
 	config, err := buildpack.ReadFromConfigFile(configFile)
-	if err != nil && action != actionInit{
+	if err != nil && action != actionInit {
 		buildpack.LogFatal(buildpack.BuildResult{
 			Success: false,
 			Action:  action,
@@ -111,5 +115,4 @@ func main() {
 	if !result.Success {
 		buildpack.LogFatal(result)
 	}
-	os.Exit(0)
 }

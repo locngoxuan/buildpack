@@ -57,6 +57,7 @@ func CheckDockerHostConnection(ctx context.Context, hosts []string) (string, err
 			_ = cli.Close()
 			continue
 		}
+		_ = cli.Close()
 		err = nil
 		return host, nil
 	}

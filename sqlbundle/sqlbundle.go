@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	FileConfig         = "SQLBundle"
+	FileConfig         = "SQLBundleFile"
 	TargetDirName      = "target"
 	GeneratedDirName   = "generated-sql"
 	ExtSql             = ".sql"

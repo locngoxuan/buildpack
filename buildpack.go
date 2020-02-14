@@ -31,9 +31,9 @@ type BuildPack struct {
 const (
 	VERSION = "v1.4.0"
 
-	FileBuildPackConfig          = "Buildpack"
-	FileBuildPackBuilderConfig   = "Buildpack.build"
-	FileBuildPackPublisherConfig = "Buildpack.publish"
+	FileBuildPackConfig          = "BuildPackFile"
+	FileBuildPackBuilderConfig   = "BuildPackFile.build"
+	FileBuildPackPublisherConfig = "BuildPackFile.publish"
 
 	CommonDirectory = ".buildpack"
 

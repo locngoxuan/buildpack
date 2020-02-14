@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/docker/docker/pkg/term"
-	"github.com/jhoonb/archivex"
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
@@ -16,22 +15,14 @@ import (
 )
 
 const (
-	bundleConfig       = "sqlbundle.yml"
-	targetDirName      = "target"
-	generatedDirName   = "generated-sql"
-	sqlExt             = ".sql"
-	dockerFileName     = "Dockerfile"
-	checkPointFileName = "CHECKPOINT"
-	dockerTemplate     = `FROM %s:%s
+	FileConfig         = "SQLBundle"
+	TargetDirName      = "target"
+	GeneratedDirName   = "generated-sql"
+	ExtSql             = ".sql"
+	CheckPointFileName = "CHECKPOINT"
 
-MAINTAINER sqlbundle <sqlbundle@fortna.com>
-
-COPY generated-sql/*.sql /sql/%s/
-COPY generated-sql/CHECKPOINT /sql/%s/
-`
 	checkPointTemplate = `start=%s
-end=%s
-`
+end=%s`
 )
 
 type CurrentDir struct {
@@ -64,45 +55,35 @@ type CheckPoint struct {
 }
 
 type BundleConfig struct {
-	Base      *BundleBaseConfig `yaml:"base"`
-	Build     *BundleBaseConfig `yaml:"build"`
-	Revisions []string          `yaml:"revisions,omitempty"`
-	Patches   []string          `yaml:"patches,omitempty"`
-}
-
-type BundleBaseConfig struct {
-	Group      string `yaml:"group,omitempty"`
-	Artifact   string `yaml:"artifact,omitempty"`
-	Version    string `yaml:"version,omitempty"`
-	Classifier string `yaml:"classifier,omitempty"`
+	Target    string   `yaml:"target,omitempty"`
+	Revisions []string `yaml:"revisions,omitempty"`
+	Patches   []string `yaml:"patches,omitempty"`
 }
 
 type SQLBundle struct {
-	WorkingDir  string
-	BundleFile  string
-	Clean       bool
-	DockerHosts []string
-	Version     string
+	WorkingDir string
+	BundleFile string
+	Clean      bool
+	Version    string
 }
 
 var termFd uintptr
 var width = 200
 var output io.Writer
-var classifiers map[string]int
+var targets map[string]int
 
 var sqlNamePrefix = 0
 
 const endLineN = "\n"
-const endLineR = "\r"
 
 func init() {
-	classifiers = make(map[string]int)
-	classifiers["product"] = 1
-	classifiers["project"] = 2
+	targets = make(map[string]int)
+	targets["product"] = 1
+	targets["project"] = 2
 }
 
-func classifierPrefix(classifier string) int {
-	v, ok := classifiers[classifier]
+func targetPrefix(classifier string) int {
+	v, ok := targets[classifier]
 	if !ok {
 		return 0
 	}
@@ -131,38 +112,42 @@ func printLineMessage(msg, end string) {
 }
 
 func (b *SQLBundle) RunClean() error {
-	target := filepath.Join(b.WorkingDir, targetDirName)
+	target := filepath.Join(b.WorkingDir, TargetDirName)
 	return os.RemoveAll(target)
-}
-
-func imageName(build BundleBaseConfig) string {
-	return fmt.Sprintf("%s/%s", build.Group, build.Artifact)
 }
 
 func (b *SQLBundle) Run(writer io.Writer) error {
 	termFd, _ = term.GetFdInfo(os.Stdout)
 	output = writer
 	if len(strings.TrimSpace(b.BundleFile)) == 0 {
-		b.BundleFile = filepath.Join(b.WorkingDir, bundleConfig)
+		b.BundleFile = filepath.Join(b.WorkingDir, FileConfig)
 	}
 
+	fmt.Println(b.BundleFile)
 	config, err := ReadBundle(b.BundleFile)
 	if err != nil {
 		return err
 	}
 
-	_, ok := classifiers[config.Build.Classifier]
+	_, ok := targets[config.Target]
 	if !ok {
-		return errors.New("classifier " + config.Build.Classifier + " is not supported")
+		return errors.New("target " + config.Target + " is not supported")
 	}
 
-	sqlNamePrefix = classifierPrefix(config.Build.Classifier)
-	finalVersion := config.Build.Version
+	sqlNamePrefix = targetPrefix(config.Target)
+	finalVersion := ""
+	if len(config.Revisions) > 0 {
+		finalVersion = config.Revisions[len(config.Revisions)-1]
+	}
 	if len(b.Version) > 0 {
 		finalVersion = b.Version
 	}
 
-	target := filepath.Join(b.WorkingDir, targetDirName)
+	if finalVersion == "" {
+		return errors.New("version is not specified")
+	}
+
+	target := filepath.Join(b.WorkingDir, TargetDirName)
 	_ = os.RemoveAll(target)
 	err = os.MkdirAll(target, 0766)
 	if err != nil {
@@ -183,52 +168,16 @@ func (b *SQLBundle) Run(writer io.Writer) error {
 			return nil
 		}
 		printLineMessage(fmt.Sprintf("Update checkpoint : start = %s, end = %s", cp.Start, cp.End), endLineN)
-		checkPointPath := filepath.Join(target, generatedDirName, checkPointFileName)
+		checkPointPath := filepath.Join(target, GeneratedDirName, CheckPointFileName)
 		checkPointContent := fmt.Sprintf(checkPointTemplate, cp.Start, cp.End)
 		err = ioutil.WriteFile(checkPointPath, []byte(checkPointContent), 0644)
 		if err != nil {
 			return err
 		}
 	}
-	dockerFilePath := filepath.Join(target, dockerFileName)
-	dockerContent := fmt.Sprintf(dockerTemplate, imageName(*config.Base), config.Base.Version, config.Build.Classifier, config.Build.Classifier)
-	err = ioutil.WriteFile(dockerFilePath, []byte(dockerContent), 0644)
-	if err != nil {
-		return err
-	}
 
-	bundleInTarget := filepath.Join(target, bundleConfig)
+	bundleInTarget := filepath.Join(target, FileConfig)
 	err = CopyFile(b.BundleFile, bundleInTarget)
-	if err != nil {
-		return err
-	}
-
-	//create tar
-	tarFileName := fmt.Sprintf("%s-%s-%s.tar", config.Build.Group, config.Build.Artifact, finalVersion)
-	tarPath := filepath.Join(target, tarFileName)
-	tar := new(archivex.TarFile)
-	err = tar.Create(tarPath)
-	if err != nil {
-		return err
-	}
-	err = tar.AddAll(filepath.Join(target, generatedDirName), true)
-	if err != nil {
-		return err
-	}
-
-	f, err := os.Open(filepath.Join(target, dockerFileName))
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = f.Close()
-	}()
-	fileInfo, _ := f.Stat()
-	err = tar.Add(dockerFileName, f, fileInfo)
-	if err != nil {
-		return err
-	}
-	err = tar.Close()
 	if err != nil {
 		return err
 	}
@@ -264,7 +213,7 @@ func readCurrentDir(dirPath string) (CurrentDir, error) {
 		if pathInfo.Info.IsDir() {
 			currentDir.Dirs = append(currentDir.Dirs, pathInfo)
 		} else {
-			if filepath.Ext(filePath) == sqlExt {
+			if filepath.Ext(filePath) == ExtSql {
 				currentDir.Files = append(currentDir.Files, pathInfo)
 			}
 		}
@@ -273,8 +222,8 @@ func readCurrentDir(dirPath string) (CurrentDir, error) {
 }
 
 func copyEachVersion(dir, target string, sequence *int, cp *CheckPoint) (error) {
-	bundleFile := filepath.Join(dir, bundleConfig)
-	generatedSql := filepath.Join(target, generatedDirName)
+	bundleFile := filepath.Join(dir, FileConfig)
+	generatedSql := filepath.Join(target, GeneratedDirName)
 	err := os.MkdirAll(generatedSql, 0766)
 	if err != nil {
 		return err
@@ -341,7 +290,7 @@ func compileSqlFile(generatedDir string, currentDir CurrentDir, cp *CheckPoint, 
 		//copy files
 		for _, file := range currentDir.Files {
 			_, fileName := filepath.Split(file.Path)
-			if filepath.Ext(fileName) != sqlExt {
+			if filepath.Ext(fileName) != ExtSql {
 				continue
 			}
 			sequenceStr, fullName := replaceTimestampBySequence(fileName, *sequence)
@@ -359,7 +308,7 @@ func compileSqlFile(generatedDir string, currentDir CurrentDir, cp *CheckPoint, 
 func ReadBundle(file string) (BundleConfig, error) {
 	_, err := os.Stat(file)
 	if os.IsNotExist(err) {
-		err = errors.New("sqlbundle.yml is not found")
+		err = errors.New(file + " is not found")
 		return BundleConfig{}, err
 	}
 

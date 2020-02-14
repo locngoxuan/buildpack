@@ -6,6 +6,7 @@ func init() {
 	publishTools = make(map[string]PublishTool)
 	publishTools[artifactoryMvnTool] = &ArtifactoryMVNTool{}
 	publishTools[dockerSqlPublishTool] = &DockerSQLPublishTool{}
+	publishTools[dockerAppPublishTool] = &DockerAPPPublishTool{}
 }
 
 func Listed() []string {

@@ -51,7 +51,7 @@ func verifyAction(action string) error {
 	return nil
 }
 
-type HoolFunc func()
+type HookFunc func()
 
 func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 	actionHandler, ok := actions[b.Action]
@@ -73,15 +73,17 @@ func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 		}
 	}
 
-	signalChannel := make(chan os.Signal, 1)
-	signal.Notify(signalChannel, GetSingal()...)
-	go ForceClearOnTerminated(signalChannel, func() {
-		_ = os.RemoveAll(commonDir)
-	})
+	if !b.RuntimeConfig.IsDebug() {
+		signalChannel := make(chan os.Signal, 1)
+		signal.Notify(signalChannel, GetSingal()...)
+		go ForceClearOnTerminated(signalChannel, func() {
+			_ = os.RemoveAll(commonDir)
+		})
 
-	defer func() {
-		_ = os.RemoveAll(commonDir)
-	}()
+		defer func() {
+			_ = os.RemoveAll(commonDir)
+		}()
+	}
 
 	return actionHandler(b)
 }

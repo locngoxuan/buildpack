@@ -23,7 +23,6 @@ func main() {
 
 	err := flags.Parse(os.Args[1:])
 	if err != nil {
-		fmt.Println(err)
 		flags.Usage()
 		os.Exit(2)
 	}
@@ -38,14 +37,13 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		bundleFile = filepath.Join(root, "sqlbundle.yml")
+		bundleFile = filepath.Join(root, sqlbundle.FileConfig)
 	}
 
 	bundle := sqlbundle.SQLBundle{
-		WorkingDir:  root,
-		BundleFile:  bundleFile,
-		Clean:       *clean,
-		DockerHosts: []string{"unix:///var/run/docker.sock", "tcp://127.0.0.1:2375"},
+		WorkingDir: root,
+		BundleFile: bundleFile,
+		Clean:      *clean,
 	}
 	err = bundle.Run(os.Stdout)
 	if err != nil {

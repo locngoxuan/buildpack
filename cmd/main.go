@@ -90,7 +90,10 @@ func main() {
 		configFile = runtimeConfig.ConfigFile()
 	}
 	config, err := buildpack.ReadFromConfigFile(configFile)
-	if err != nil && action != actionInit {
+	if err != nil && action != actionInit &&
+		action != actionVersion &&
+		action != actionBuilders &&
+		action != actionPublishers {
 		buildpack.LogFatal(buildpack.BuildResult{
 			Success: false,
 			Action:  action,

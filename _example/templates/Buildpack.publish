@@ -1,0 +1,10 @@
+# example of docker
+docker:
+  base: xuanloc0511/migration:1.0.0
+  build: xuanloc0511/migration_prod
+  file: Dockerfile
+
+# example of maven repo
+artifactory:
+  group: com.fortna.zeus
+  artifact: zeus-kernel

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/jhoonb/archivex"
 	"io"
 	"io/ioutil"
 	"os"
@@ -17,7 +18,6 @@ import (
 
 const (
 	dockerSqlPublishTool = "docker-sql"
-	sqlBundleFileName    = "sqlbundle.yml"
 )
 
 type DockerSQLPublishTool struct {
@@ -110,20 +110,51 @@ func (p *DockerSQLPublishTool) Clean(ctx PublishContext) error {
 func (p *DockerSQLPublishTool) PrePublish(ctx PublishContext) error {
 	p.Images = make([]string, 0)
 	dir := filepath.Join(ctx.GetCommonDirectory(), ctx.Name)
-	bundleFile := filepath.Join(dir, sqlBundleFileName)
-	config, err := sqlbundle.ReadBundle(bundleFile)
+
+	// create tar then using to build image
+	tarFileName := fmt.Sprintf("%s-%s.tar", ctx.Name, ctx.Version)
+	tarPath := filepath.Join(dir, tarFileName)
+	tar := new(archivex.TarFile)
+	err := tar.Create(tarPath)
+	if err != nil {
+		return err
+	}
+	err = tar.AddAll(filepath.Join(dir, sqlbundle.GeneratedDirName), true)
 	if err != nil {
 		return err
 	}
 
-	dst := fmt.Sprintf("%s/%s:%s", config.Build.Group, config.Build.Artifact, ctx.Version)
+	f, err := os.Open(filepath.Join(dir, dockerFileName))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+	fileInfo, _ := f.Stat()
+	err = tar.Add(dockerFileName, f, fileInfo)
+	if err != nil {
+		return err
+	}
+	err = tar.Close()
+	if err != nil {
+		return err
+	}
+
+	//create tag
+	publishInfoPath := filepath.Join(ctx.WorkingDir, buildpack.FileBuildPackPublisherConfig)
+	config, err := readDockerImageInfo(publishInfoPath)
+	if err != nil {
+		return err
+	}
+	if config.Docker == nil{
+		return errors.New("missing image info for docker publishing")
+	}
+	dst := fmt.Sprintf("%s:%s", config.Docker.Build, ctx.Version)
 	if len(strings.TrimSpace(p.RegistryAddress)) > 0 {
 		dst = fmt.Sprintf("%s/%s", p.RegistryAddress, dst)
 	}
-
-	// build image
-	tarFileName := fmt.Sprintf("%s-%s-%s.tar", config.Build.Group, config.Build.Artifact, ctx.Version)
-	tarPath := filepath.Join(dir, tarFileName)
+	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Building docker image %s", dst))
 	tags := []string{dst}
 	response, err := p.Client.BuildImage(tarPath, tags)
 	if err != nil {
@@ -132,7 +163,6 @@ func (p *DockerSQLPublishTool) PrePublish(ctx PublishContext) error {
 	defer func() {
 		_ = response.Body.Close()
 	}()
-	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Building docker image %s", dst))
 	err = displayImageBuildLog(ctx.BuildPack, response.Body)
 	if err != nil {
 		return err

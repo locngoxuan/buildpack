@@ -29,10 +29,13 @@ type BuildPack struct {
 }
 
 const (
-	VERSION = "v1.2.0"
+	VERSION = "v1.4.0"
 
-	FileBuildPackConfig = "buildpack.yml"
-	CommonDirectory     = ".buildpack"
+	FileBuildPackConfig          = "Buildpack"
+	FileBuildPackBuilderConfig   = "Buildpack.build"
+	FileBuildPackPublisherConfig = "Buildpack.publish"
+
+	CommonDirectory = ".buildpack"
 
 	PhaseInit        = "init"
 	PhaseBuildConfig = "build-config"

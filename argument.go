@@ -36,12 +36,14 @@ type RuntimeConfig struct {
 	modules       string
 	label         string
 	help          bool
+	debug         bool
 	release       bool
 }
 
 func ReadArgument(f *flag.FlagSet) (args RuntimeConfig, err error) {
 	args.flag = f
 	err = args.readVersion().
+		readDebug().
 		readHelp().
 		readShareData().
 		readConfigFile().
@@ -75,6 +77,11 @@ func ReadForUsage(f *flag.FlagSet) (args RuntimeConfig, err error) {
 		readRelease()
 	err = args.flag.Parse(os.Args[1:])
 	return
+}
+
+func (a *RuntimeConfig) readDebug() *RuntimeConfig {
+	a.flag.BoolVar(&a.debug, "debug", false, "Enable debug mode to keep .buildpack folder after build complete")
+	return a
 }
 
 func (a *RuntimeConfig) readRelease() *RuntimeConfig {
@@ -200,4 +207,8 @@ func (a *RuntimeConfig) IsRelease() bool {
 
 func (a *RuntimeConfig) IsHelp() bool {
 	return a.help
+}
+
+func (a *RuntimeConfig) IsDebug() bool {
+	return a.debug
 }

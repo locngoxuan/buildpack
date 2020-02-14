@@ -16,7 +16,6 @@ import (
 
 const (
 	dockerContainerImage = "xuanloc0511/mvn:3.6.3-2"
-	mvnFileName          = "mvn.yml"
 	mvnBuildTool         = "mvn"
 	pomFileName          = "pom.xml"
 	labelSnapshot        = "SNAPSHOT"
@@ -120,25 +119,6 @@ type MVNBuildConfig struct {
 }
 
 func (c *MVNBuildTool) GenerateConfig(ctx BuildContext) error {
-	file := ctx.GetFile(mvnFileName)
-	_, err := os.Stat(file)
-	if err != nil {
-		if os.IsExist(err) {
-			buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("file %s already exist", mvnFileName))
-			return nil
-		}
-
-		if os.IsNotExist(err) {
-			err = ioutil.WriteFile(file, []byte{}, 0644)
-			if err != nil {
-				return err
-			}
-			buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("create config file at %s", mvnFileName))
-			return nil
-		}
-		return err
-	}
-	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("file %s already exist", mvnFileName))
 	return nil
 }
 
@@ -147,7 +127,7 @@ func (c *MVNBuildTool) LoadConfig(ctx BuildContext) (err error) {
 	if ctx.SkipContainer() {
 		c.Func = RunOnHost
 	}
-	configFile := ctx.BuildPathOnRoot(ctx.Path, mvnFileName)
+	configFile := ctx.GetFile(buildpack.FileBuildPackBuilderConfig)
 	if len(configFile) == 0 {
 		err = errors.New("can not get path of builder configuration file")
 		return

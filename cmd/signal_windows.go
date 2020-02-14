@@ -20,7 +20,7 @@ func GetSingal() []os.Signal {
 	}
 }
 
-func ForceClearOnTerminated(ch chan os.Signal, handler HoolFunc) {
+func ForceClearOnTerminated(ch chan os.Signal, handler HookFunc) {
 	for {
 		_ = <-ch
 		signal.Stop(ch)

@@ -2,7 +2,6 @@ package builder
 
 import (
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
@@ -11,7 +10,6 @@ import (
 
 const (
 	sqlBundleBuildTool = "sqlbundle"
-	bundleFileName     = "sqlbundle.yml"
 )
 
 type SQLBundleBuildTool struct {
@@ -23,35 +21,15 @@ func (b *SQLBundleBuildTool) Name() string {
 }
 
 func (b *SQLBundleBuildTool) GenerateConfig(ctx BuildContext) error {
-	file := ctx.GetFile(bundleFileName)
-	_, err := os.Stat(file)
-	if err != nil {
-		if os.IsExist(err) {
-			buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("file %s already exist", bundleFileName))
-			return nil
-		}
-
-		if os.IsNotExist(err) {
-			err = ioutil.WriteFile(file, []byte{}, 0644)
-			if err != nil {
-				return err
-			}
-			buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("create config file at %s", bundleFileName))
-			return nil
-		}
-		return err
-	}
-	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("file %s already exist", bundleFileName))
 	return nil
 }
 
 func (b *SQLBundleBuildTool) LoadConfig(ctx BuildContext) error {
 	b.Bundle = sqlbundle.SQLBundle{
-		WorkingDir:  ctx.WorkingDir,
-		BundleFile:  filepath.Join(ctx.WorkingDir, bundleFileName),
-		Clean:       true,
-		DockerHosts: ctx.BuildPack.Config.DockerConfig.Hosts,
-		Version:     ctx.Version,
+		WorkingDir: ctx.WorkingDir,
+		BundleFile: ctx.GetFile(sqlbundle.FileConfig),
+		Clean:      true,
+		Version:    ctx.Version,
 	}
 	return nil
 }
@@ -73,34 +51,23 @@ func (b *SQLBundleBuildTool) Build(ctx BuildContext) error {
 }
 
 func (b *SQLBundleBuildTool) PostBuild(ctx BuildContext) error {
-	config, err := sqlbundle.ReadBundle(b.Bundle.BundleFile)
-	if err != nil {
-		return err
-	}
-	finalName := fmt.Sprintf("%s-%s-%s.tar", config.Build.Group, config.Build.Artifact, ctx.Version)
-	finalBuild := filepath.Join(ctx.WorkingDir, "target", finalName)
-
 	moduleInCommon := filepath.Join(ctx.GetCommonDirectory(), ctx.Name)
-	err = os.MkdirAll(moduleInCommon, 0777)
+	err := os.MkdirAll(moduleInCommon, 0777)
+	if err != nil {
+		return err
+	}
+	sqlTarget := ctx.GetFile("target")
+	err = copyDirectory(ctx.BuildPack, sqlTarget, moduleInCommon)
 	if err != nil {
 		return err
 	}
 
-	//copy tar
-	published := filepath.Join(moduleInCommon, finalName)
-	err = buildpack.CopyFile(finalBuild, published)
+	dockerSrc := ctx.GetFile(appDockerfile)
+	dockerDst := filepath.Join(moduleInCommon, appDockerfile)
+	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("Copying %s/%s to %s", ctx.Path, appDockerfile, dockerDst))
+	err = buildpack.CopyFile(dockerSrc, dockerDst)
 	if err != nil {
 		return err
 	}
-	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Copy %s to %s", finalBuild, published))
-
-	//copy bundle
-	bundleSrc := filepath.Join(ctx.WorkingDir, "target", bundleFileName)
-	bundleDst := filepath.Join(moduleInCommon, bundleFileName)
-	err = buildpack.CopyFile(bundleSrc, bundleDst)
-	if err != nil {
-		return err
-	}
-	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Copy %s to %s", bundleSrc, bundleDst))
 	return nil
 }

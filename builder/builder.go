@@ -2,6 +2,10 @@ package builder
 
 import (
 	"errors"
+	"fmt"
+	"io"
+	"io/ioutil"
+	"os"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
 )
@@ -88,4 +92,83 @@ func (b *Builder) Build() error {
 
 func (b *Builder) PostBuild() error {
 	return b.BuildTool.PostBuild(b.BuildContext)
+}
+
+func copyDirectory(bp buildpack.BuildPack, scrDir, dest string) error {
+	entries, err := ioutil.ReadDir(scrDir)
+	if err != nil {
+		return err
+	}
+	for _, entry := range entries {
+		sourcePath := filepath.Join(scrDir, entry.Name())
+		destPath := filepath.Join(dest, entry.Name())
+
+		fileInfo, err := os.Stat(sourcePath)
+		if err != nil {
+			return err
+		}
+
+		switch fileInfo.Mode() & os.ModeType {
+		case os.ModeDir:
+			if err := createIfNotExists(destPath, 0755); err != nil {
+				return err
+			}
+			if err := copyDirectory(bp, sourcePath, destPath); err != nil {
+				return err
+			}
+		default:
+			_, name := filepath.Split(sourcePath)
+			buildpack.LogVerbose(bp, fmt.Sprintf("Copying %s to %s", name, destPath))
+			if err := copy(sourcePath, destPath); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+func copy(srcFile, dstFile string) error {
+	out, err := os.Create(dstFile)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = out.Close()
+	}()
+
+	in, err := os.Open(srcFile)
+	defer func() {
+		_ = in.Close()
+	}()
+	if err != nil {
+		return err
+	}
+
+	_, err = io.Copy(out, in)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func exists(filePath string) bool {
+	if _, err := os.Stat(filePath); os.IsNotExist(err) {
+		return false
+	}
+
+	return true
+}
+
+func createIfNotExists(dir string, perm os.FileMode) error {
+	if exists(dir) {
+		return nil
+	}
+
+	if err := os.MkdirAll(dir, perm); err != nil {
+		return fmt.Errorf("failed to create directory: '%s', error: '%s'", dir, err.Error())
+	}
+
+	return nil
 }

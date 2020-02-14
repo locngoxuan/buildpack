@@ -115,6 +115,12 @@ func main() {
 		})
 	}
 	result := Handle(buildPack)
+
+	// force to remove again
+	commonDir := filepath.Join(buildPack.RootDir, buildpack.CommonDirectory)
+	_ = os.RemoveAll(commonDir)
+	
+	//log error
 	if !result.Success {
 		buildpack.LogFatal(result)
 	}

@@ -147,9 +147,25 @@ func (p *DockerSQLPublishTool) PrePublish(ctx PublishContext) error {
 	if err != nil {
 		return err
 	}
-	if config.Docker == nil{
+	if config.Docker == nil {
 		return errors.New("missing image info for docker publishing")
 	}
+
+	reader, err := p.Client.PullImage(p.Username, p.Password, config.Docker.Base)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = reader.Close()
+	}()
+
+	if ctx.Verbose() {
+		_, _ = io.Copy(os.Stdout, reader)
+	} else {
+		_, _ = io.Copy(ioutil.Discard, reader)
+	}
+
 	dst := fmt.Sprintf("%s:%s", config.Docker.Build, ctx.Version)
 	if len(strings.TrimSpace(p.RegistryAddress)) > 0 {
 		dst = fmt.Sprintf("%s/%s", p.RegistryAddress, dst)

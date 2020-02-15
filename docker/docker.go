@@ -64,6 +64,14 @@ func CheckDockerHostConnection(ctx context.Context, hosts []string) (string, err
 	return "", errors.New("can not connect to docker host")
 }
 
+func (c *DockerClient) PullImage(username, password, image string) (io.ReadCloser, error) {
+	opt := types.ImagePullOptions{
+		RegistryAuth: auth(username, password),
+		All:          true,
+	}
+	return c.Client.ImagePull(c.Ctx, image, opt)
+}
+
 func (c *DockerClient) BuildImage(file string, tags []string) (types.ImageBuildResponse, error) {
 	dockerBuildContext, err := os.Open(file)
 	if err != nil {

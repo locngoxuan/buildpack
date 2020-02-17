@@ -89,6 +89,23 @@ func (c *DockerClient) BuildImage(file string, tags []string) (types.ImageBuildR
 	return c.Client.ImageBuild(c.Ctx, dockerBuildContext, opt)
 }
 
+func (c *DockerClient) BuildImageWithSpecificDockerFile(tarFile, dockerFile string, tags []string) (types.ImageBuildResponse, error) {
+	dockerBuildContext, err := os.Open(tarFile)
+	if err != nil {
+		return types.ImageBuildResponse{}, err
+	}
+
+	opt := types.ImageBuildOptions{
+		NoCache:     true,
+		Remove:      true,
+		ForceRemove: true,
+		Tags:        tags,
+		Dockerfile:  dockerFile,
+	}
+
+	return c.Client.ImageBuild(c.Ctx, dockerBuildContext, opt)
+}
+
 func auth(usernam, password string) string {
 	authConfig := types.AuthConfig{
 		Username: usernam,

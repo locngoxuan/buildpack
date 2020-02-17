@@ -7,6 +7,7 @@ func init() {
 	publishTools[artifactoryMvnTool] = &ArtifactoryMVNTool{}
 	publishTools[dockerSqlPublishTool] = &DockerSQLPublishTool{}
 	publishTools[dockerAppPublishTool] = &DockerAPPPublishTool{}
+	publishTools[dockerAutoPublishTool] = &DockerAMPublishTool{}
 }
 
 func Listed() []string {

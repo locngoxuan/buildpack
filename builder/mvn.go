@@ -26,6 +26,9 @@ type RunMVN func(ctx BuildContext, buildOption MVNBuildConfig, args ...string) e
 func RunOnHost(ctx BuildContext, _ MVNBuildConfig, args ...string) error {
 	args = append(args, "-f", filepath.Join(ctx.WorkingDir, pomFileName))
 	cmd := exec.Command("mvn", args...)
+	defer func() {
+		_ = os.RemoveAll(filepath.Join(ctx.WorkingDir, "target"))
+	}()
 	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("working dir %s", ctx.WorkingDir))
 	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("mvn %+v", args))
 	if ctx.RuntimeConfig.Verbose() {
@@ -66,7 +69,9 @@ func RunContainer(ctx BuildContext, buildOption MVNBuildConfig, args ...string) 
 	if err != nil {
 		return errors.New(fmt.Sprintf("can not connect to docker host: %s", err.Error()))
 	}
-
+	defer func() {
+		_ = os.RemoveAll(filepath.Join(ctx.WorkingDir, "target"))
+	}()
 	dockerCommandArg := make([]string, 0)
 	dockerCommandArg = append(dockerCommandArg, "-H", dockerHost)
 	dockerCommandArg = append(dockerCommandArg, "run", "--rm")

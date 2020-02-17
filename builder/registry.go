@@ -7,6 +7,7 @@ func init() {
 	buildTools[mvnBuildTool] = &MVNBuildTool{}
 	buildTools[mvnAppBuildTool] = &MVNAppBuildTool{}
 	buildTools[sqlBundleBuildTool] = &SQLBundleBuildTool{}
+	buildTools[noBuildTool] = &NoBuild{}
 }
 
 func Listed() []string {

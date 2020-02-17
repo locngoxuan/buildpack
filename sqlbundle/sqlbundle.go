@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	sqlBundleFile      = "SQLBundleFile"
+	sqlBundleFile      = "Sqlbundlefile"
 	TargetDirName      = "target"
 	GeneratedDirName   = "generated-sql"
 	ExtSql             = ".sql"
@@ -38,7 +38,7 @@ type PathInfo struct {
 }
 
 func FileConfig() string {
-	return strings.ToLower(sqlBundleFile)
+	return sqlBundleFile
 }
 
 func (p *PathInfo) prefixTimeStamp() int64 {

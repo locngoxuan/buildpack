@@ -4,7 +4,6 @@ import (
 	"errors"
 	"path/filepath"
 	"sort"
-	"strings"
 )
 
 type BuildResult struct {
@@ -78,15 +77,15 @@ modules:
 )
 
 func BuildPackFile() string {
-	return strings.ToLower(buildPackFile)
+	return buildPackFile
 }
 
 func BuildPackFile_Build() string {
-	return strings.ToLower(buildPackFileBuild)
+	return buildPackFileBuild
 }
 
 func BuildPackFile_Publish() string {
-	return strings.ToLower(buildPackFilePublish)
+	return buildPackFilePublish
 }
 
 func NewBuildPack(action string, config Config, rtConfig RuntimeConfig) (*BuildPack, error) {

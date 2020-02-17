@@ -37,7 +37,7 @@ func main() {
 		if err != nil {
 			panic(err)
 		}
-		bundleFile = filepath.Join(root, sqlbundle.FileConfig)
+		bundleFile = filepath.Join(root, sqlbundle.FileConfig())
 	}
 
 	bundle := sqlbundle.SQLBundle{

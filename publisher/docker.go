@@ -25,7 +25,7 @@ type DockerImageInfo struct {
 
 type BaseImageInfo struct {
 	Image    string `yaml:"image,omitempty"`
-	Registry RegistryInfo
+	Registry RegistryInfo `yaml:"registry,omitempty"`
 }
 
 type RegistryInfo struct {
@@ -93,7 +93,7 @@ func pullImageIfNeed(bp buildpack.BuildPack, client docker.DockerClient, info Ba
 		}
 	}
 
-	//update username passwork if need
+	//update username password if need
 	if len(info.Registry.Username) > 0 {
 		channelConfig.Username = info.Registry.Username
 	}

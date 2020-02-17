@@ -34,25 +34,43 @@ func (c *MVNAppBuildTool) PostBuild(ctx BuildContext) error {
 	if err != nil {
 		return err
 	}
+	// copy pom.xml to pre-docker dir
+	pomSrc := filepath.Join(ctx.WorkingDir, "target", pomFileName)
+	pomDst := filepath.Join(moduleInCommon, pomFileName)
+	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("Copying %s to %s", pomSrc, pomDst))
+	err = buildpack.CopyFile(pomSrc, pomDst)
+	if err != nil {
+		return err
+	}
 
+	// create pre-docker directory
+	dockerPreDir := filepath.Join(moduleInCommon, "pre-docker")
+	err = os.MkdirAll(dockerPreDir, 0777)
+	if err != nil {
+		return err
+	}
+
+	// copy application.yml to pre-docker dir
 	appYMLSrc := filepath.Join(ctx.WorkingDir, wesAppConfig)
-	appYMLDst := filepath.Join(moduleInCommon, wesAppConfig)
+	appYMLDst := filepath.Join(dockerPreDir, wesAppConfig)
 	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("Copying %s to %s", appYMLSrc, appYMLDst))
 	err = buildpack.CopyFile(appYMLSrc, appYMLDst)
 	if err != nil {
 		return err
 	}
 
+	// copy Dockerfile to pre-docker dir
 	dockerSrc := filepath.Join(ctx.WorkingDir, appDockerfile)
-	dockerDst := filepath.Join(moduleInCommon, appDockerfile)
+	dockerDst := filepath.Join(dockerPreDir, appDockerfile)
 	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("Copying %s to %s", appDockerfile, dockerDst))
 	err = buildpack.CopyFile(dockerSrc, dockerDst)
 	if err != nil {
 		return err
 	}
 
+	// copy dist directory to pre-docker dir
 	distFolderSrc := filepath.Join(ctx.WorkingDir, distFolderName)
-	distFolderDst := filepath.Join(moduleInCommon, distFolderName)
+	distFolderDst := filepath.Join(dockerPreDir, distFolderName)
 	err = os.MkdirAll(distFolderDst, 0755)
 	if err != nil {
 		return err
@@ -62,21 +80,14 @@ func (c *MVNAppBuildTool) PostBuild(ctx BuildContext) error {
 		return err
 	}
 
+	// copy libs directory to pre-docker dir
 	libFolderSrc := filepath.Join(ctx.WorkingDir, libsFolderName)
-	libFolderDst := filepath.Join(moduleInCommon, libsFolderName)
+	libFolderDst := filepath.Join(dockerPreDir, libsFolderName)
 	err = os.MkdirAll(libFolderDst, 0755)
 	if err != nil {
 		return err
 	}
 	err = copyDirectory(ctx.BuildPack, libFolderSrc, libFolderDst)
-	if err != nil {
-		return err
-	}
-
-	pomSrc := filepath.Join(ctx.WorkingDir, "target", pomFileName)
-	pomDst := filepath.Join(moduleInCommon, pomFileName)
-	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("Copying %s to %s", pomSrc, pomDst))
-	err = buildpack.CopyFile(pomSrc, pomDst)
 	if err != nil {
 		return err
 	}
@@ -87,25 +98,18 @@ func (c *MVNAppBuildTool) PostBuild(ctx BuildContext) error {
 		return err
 	}
 	tarName := fmt.Sprintf("%s-%s.tar", pom.ArtifactId, ctx.Version)
-	tarFile := filepath.Join(ctx.WorkingDir, "target", tarName)
-	//create tar
+	tarFile := filepath.Join(moduleInCommon, tarName)
+	//create tar at common directory
 	tar := new(archivex.TarFile)
 	err = tar.Create(tarFile)
 	if err != nil {
 		return err
 	}
-	err = tar.AddAll(moduleInCommon, false)
+	err = tar.AddAll(dockerPreDir, false)
 	if err != nil {
 		return err
 	}
 	err = tar.Close()
-	if err != nil {
-		return err
-	}
-
-	tarDst := filepath.Join(moduleInCommon, tarName)
-	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("Copying %s to %s", tarName, tarDst))
-	err = buildpack.CopyFile(tarFile, tarDst)
 	if err != nil {
 		return err
 	}

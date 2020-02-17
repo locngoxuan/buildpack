@@ -45,6 +45,16 @@ func main() {
 		BundleFile: bundleFile,
 		Clean:      *clean,
 	}
+
+	if *clean{
+		err = bundle.RunClean()
+		if err != nil {
+			fmt.Println(err)
+			os.Exit(1)
+		}
+		return
+	}
+
 	err = bundle.Run(os.Stdout)
 	if err != nil {
 		fmt.Println(err)

@@ -15,7 +15,7 @@ import (
 )
 
 const (
-	FileConfig         = "SQLBundleFile"
+	sqlBundleFile      = "SQLBundleFile"
 	TargetDirName      = "target"
 	GeneratedDirName   = "generated-sql"
 	ExtSql             = ".sql"
@@ -35,6 +35,10 @@ type PathInfo struct {
 	Info os.FileInfo
 	Path string
 	Name string
+}
+
+func FileConfig() string {
+	return strings.ToLower(sqlBundleFile)
 }
 
 func (p *PathInfo) prefixTimeStamp() int64 {
@@ -120,7 +124,7 @@ func (b *SQLBundle) Run(writer io.Writer) error {
 	termFd, _ = term.GetFdInfo(os.Stdout)
 	output = writer
 	if len(strings.TrimSpace(b.BundleFile)) == 0 {
-		b.BundleFile = filepath.Join(b.WorkingDir, FileConfig)
+		b.BundleFile = filepath.Join(b.WorkingDir, FileConfig())
 	}
 
 	fmt.Println(b.BundleFile)
@@ -176,7 +180,7 @@ func (b *SQLBundle) Run(writer io.Writer) error {
 		}
 	}
 
-	bundleInTarget := filepath.Join(target, FileConfig)
+	bundleInTarget := filepath.Join(target, FileConfig())
 	err = CopyFile(b.BundleFile, bundleInTarget)
 	if err != nil {
 		return err
@@ -222,7 +226,7 @@ func readCurrentDir(dirPath string) (CurrentDir, error) {
 }
 
 func copyEachVersion(dir, target string, sequence *int, cp *CheckPoint) (error) {
-	bundleFile := filepath.Join(dir, FileConfig)
+	bundleFile := filepath.Join(dir, FileConfig())
 	generatedSql := filepath.Join(target, GeneratedDirName)
 	err := os.MkdirAll(generatedSql, 0766)
 	if err != nil {

@@ -85,7 +85,7 @@ func main() {
 		return
 	}
 
-	configFile := filepath.Join(root, buildpack.FileBuildPackConfig)
+	configFile := filepath.Join(root, buildpack.BuildPackFile())
 	if len(runtimeConfig.ConfigFile()) > 0 {
 		configFile = runtimeConfig.ConfigFile()
 	}
@@ -114,12 +114,13 @@ func main() {
 			Message: "",
 		})
 	}
+
 	result := Handle(buildPack)
 
 	// force to remove again
 	commonDir := filepath.Join(buildPack.RootDir, buildpack.CommonDirectory)
 	_ = os.RemoveAll(commonDir)
-	
+
 	//log error
 	if !result.Success {
 		buildpack.LogFatal(result)

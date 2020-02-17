@@ -59,7 +59,7 @@ func CreatePublisher(bp buildpack.BuildPack, moduleConfig buildpack.ModuleConfig
 		return p, err
 	}
 
-	tool, ok := publishTools[repoConfig.Name]
+	tool, ok := publishTools[repoConfig.Publisher]
 	if !ok {
 		tool = &DoNothingPublishTool{}
 	}

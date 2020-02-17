@@ -57,12 +57,12 @@ type GitConfig struct {
 
 type RepositoryConfig struct {
 	Id              string         `yaml:"id,omitempty"`
-	Name            string         `yaml:"name,omitempty"`
-	StableChannel   *ChannelConfig `yaml:"stable,omitempty"`
-	UnstableChannel *ChannelConfig `yaml:"unstable,omitempty"`
+	Publisher       string         `yaml:"publisher,omitempty"`
+	StableChannel   ChannelConfig `yaml:"stable,omitempty"`
+	UnstableChannel ChannelConfig `yaml:"unstable,omitempty"`
 }
 
-func (r *RepositoryConfig) GetChannel(release bool) *ChannelConfig {
+func (r *RepositoryConfig) GetChannel(release bool) ChannelConfig {
 	if release {
 		return r.StableChannel
 	}

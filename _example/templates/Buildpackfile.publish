@@ -1,6 +1,13 @@
 # example of docker
 docker:
-  base: xuanloc0511/migration:1.0.0
+  base:
+    image: xuanloc0511/migration:1.0.0
+    registry:
+      repo: ""
+      address: ""
+      username: ""
+      password: ""
+
   build: xuanloc0511/migration_prod
   file: Dockerfile
 

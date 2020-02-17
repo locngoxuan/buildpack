@@ -4,6 +4,7 @@ import (
 	"errors"
 	"path/filepath"
 	"sort"
+	"strings"
 )
 
 type BuildResult struct {
@@ -21,7 +22,7 @@ type BuildPack struct {
 
 	// working dir
 	RootDir string
-
+	RepoMan
 	// configuration
 	Config
 	RuntimeConfig
@@ -29,11 +30,11 @@ type BuildPack struct {
 }
 
 const (
-	VERSION = "v1.4.0"
+	VERSION = "v1.4.1"
 
-	FileBuildPackConfig          = "BuildPackFile"
-	FileBuildPackBuilderConfig   = "BuildPackFile.build"
-	FileBuildPackPublisherConfig = "BuildPackFile.publish"
+	buildPackFile         = "Buildpackfile"
+	buildPackFileBuild   = "Buildpackfile.build"
+	buildPackFilePublish = "Buildpackfile.publish"
 
 	CommonDirectory = ".buildpack"
 
@@ -55,7 +56,7 @@ git:
   access-token: ""
 repositories:
   - id: ""
-    name: ""
+    publisher: ""
     stable:
       address: ""
       username: ""
@@ -76,19 +77,54 @@ modules:
 `
 )
 
+func BuildPackFile() string {
+	return strings.ToLower(buildPackFile)
+}
+
+func BuildPackFile_Build() string {
+	return strings.ToLower(buildPackFileBuild)
+}
+
+func BuildPackFile_Publish() string {
+	return strings.ToLower(buildPackFilePublish)
+}
+
 func NewBuildPack(action string, config Config, rtConfig RuntimeConfig) (*BuildPack, error) {
 	root, err := filepath.Abs(".")
 	if err != nil {
 		return nil, err
 	}
 
-	return &BuildPack{
+	bp := &BuildPack{
 		Action:        action,
 		RootDir:       root,
 		Phase:         PhaseInit,
 		Config:        config,
 		RuntimeConfig: rtConfig,
-	}, nil
+	}
+
+	bp.RepoMan = RepoMan{
+		repos: make(map[string]*RepositoryConfig),
+	}
+
+	for _, repo := range config.Repos {
+		_, ok := bp.RepoMan.repos[repo.Id]
+		if !ok {
+			bp.RepoMan.repos[repo.Id] = &RepositoryConfig{
+				Id:              repo.Id,
+				Publisher:       repo.Publisher,
+				StableChannel:   repo.StableChannel,
+				UnstableChannel: repo.UnstableChannel,
+			}
+		}
+
+		userName := ReadEnvByUpperKey(FormatKey(RepoUserPattern, repo.Id))
+		passWord := ReadEnvByUpperKey(FormatKey(RepoPasswordPattern, repo.Id))
+
+		bp.RepoMan.UpdateUserName(repo.Id, userName)
+		bp.RepoMan.UpdatePassword(repo.Id, passWord)
+	}
+	return bp, nil
 }
 
 func (b *BuildPack) Error(msg string, err error) BuildResult {
@@ -136,14 +172,6 @@ func GetGitToken(bp BuildPack) string {
 		str = ReadEnv(GitToken)
 	}
 	return str
-}
-
-func GetRepoUserFromEnv(repo RepositoryConfig) string {
-	return ReadEnvByUpperKey(FormatKey(RepoUserPattern, repo.Id))
-}
-
-func GetRepoPassFromEnv(repo RepositoryConfig) string {
-	return ReadEnvByUpperKey(FormatKey(RepoPasswordPattern, repo.Id))
 }
 
 func ModulesToApply(bp BuildPack) ([]ModuleConfig, error) {

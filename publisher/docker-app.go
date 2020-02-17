@@ -24,7 +24,7 @@ func (p *DockerAPPPublishTool) PrePublish(ctx PublishContext) error {
 	p.Images = make([]string, 0)
 	dir := filepath.Join(ctx.GetCommonDirectory(), ctx.Name)
 
-	dockerConfigFile := filepath.Join(ctx.WorkingDir, buildpack.FileBuildPackPublisherConfig)
+	dockerConfigFile := filepath.Join(ctx.WorkingDir, buildpack.BuildPackFile_Publish())
 	config, err := readDockerImageInfo(dockerConfigFile)
 	if err != nil {
 		return err
@@ -35,6 +35,11 @@ func (p *DockerAPPPublishTool) PrePublish(ctx PublishContext) error {
 	if len(config.Docker.Build) == 0 ||
 		len(ctx.Version) == 0 {
 		return errors.New("missing docker image parameter")
+	}
+
+	err = pullImageIfNeed(ctx.BuildPack, p.Client, config.Docker.Base)
+	if err != nil {
+		return err
 	}
 
 	pomFile := filepath.Join(dir, "pom.xml")

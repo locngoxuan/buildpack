@@ -16,7 +16,7 @@ func (bp *BuildPack) GetCommonDirectory() string {
 }
 
 func (bp *BuildPack) GetBuildPackConfigPath() string {
-	p, err := filepath.Abs(filepath.Join(bp.RootDir, FileBuildPackConfig))
+	p, err := filepath.Abs(filepath.Join(bp.RootDir, BuildPackFile()))
 	if err != nil {
 		LogFatal(bp.Error("", err))
 	}

@@ -106,7 +106,7 @@ func readFromTerminal(reader *bufio.Reader, msg string) (string, error) {
 
 func ActionInitHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 	bp.Phase = buildpack.PhaseBuildConfig
-	configFile := filepath.Join(bp.RootDir, buildpack.FileBuildPackConfig)
+	configFile := filepath.Join(bp.RootDir, buildpack.BuildPackFile())
 	if _, err := os.Stat(configFile); err == nil {
 		// file exists
 		// should ask question for overriding
@@ -289,13 +289,13 @@ func ActionReleaseHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 		return bp.Error("", err)
 	}
 
-	err = ioutil.WriteFile(buildpack.FileBuildPackConfig, bytes, 0644)
+	err = ioutil.WriteFile(buildpack.BuildPackFile(), bytes, 0644)
 	if err != nil {
 		return bp.Error("", err)
 	}
 
 	msg := fmt.Sprintf("[BUILD-PACK] Pump version from %s to %s", oldVersion, bp.Config.Version)
-	err = bp.Add(buildpack.FileBuildPackConfig)
+	err = bp.Add(buildpack.BuildPackFile())
 	if err != nil {
 		return bp.Error("", err)
 	}

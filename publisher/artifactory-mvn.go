@@ -34,35 +34,17 @@ func (c *ArtifactoryMVNTool) LoadConfig(ctx PublishContext) (error) {
 	if err != nil {
 		return err
 	}
-	repo, err := ctx.GetRepoById(module.RepoId)
+	channel, err := ctx.FindChannelById(ctx.IsRelease(), module.RepoId)
 	if err != nil {
 		return err
 	}
-	if ctx.Release {
-		if repo.StableChannel == nil {
-			return errors.New("missing stable channel configuration")
-		}
-		c.Repository = repo.StableChannel.Address
-		c.Username = repo.StableChannel.Username
-		c.Password = repo.StableChannel.Password
-	} else {
-		if repo.UnstableChannel == nil {
-			return errors.New("missing unstable channel configuration")
-		}
-		c.Repository = repo.UnstableChannel.Address
-		c.Username = repo.UnstableChannel.Username
-		c.Password = repo.UnstableChannel.Password
-	}
 
-	if len(buildpack.GetRepoUserFromEnv(repo)) > 0 {
-		c.Username = buildpack.GetRepoUserFromEnv(repo)
-	}
-	if len(buildpack.GetRepoPassFromEnv(repo)) > 0 {
-		c.Password = buildpack.GetRepoPassFromEnv(repo)
-	}
+	c.Repository = channel.Address
+	c.Username = channel.Username
+	c.Password = channel.Password
 
 	if c.Username == "" || c.Password == "" {
-		return errors.New("missing credential for publisher " + repo.Id)
+		return errors.New("missing credential for publisher " + module.RepoId)
 	}
 
 	return nil

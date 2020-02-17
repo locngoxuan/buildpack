@@ -27,7 +27,7 @@ func (b *SQLBundleBuildTool) GenerateConfig(ctx BuildContext) error {
 func (b *SQLBundleBuildTool) LoadConfig(ctx BuildContext) error {
 	b.Bundle = sqlbundle.SQLBundle{
 		WorkingDir: ctx.WorkingDir,
-		BundleFile: ctx.GetFile(sqlbundle.FileConfig),
+		BundleFile: ctx.GetFile(sqlbundle.FileConfig()),
 		Clean:      true,
 		Version:    ctx.Version,
 	}

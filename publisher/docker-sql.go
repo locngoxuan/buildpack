@@ -45,46 +45,16 @@ func (p *DockerSQLPublishTool) LoadConfig(ctx PublishContext) error {
 	if err != nil {
 		return err
 	}
-	repo, err := ctx.GetRepoById(module.RepoId)
+
+	channel, err := ctx.FindChannelById(ctx.IsRelease(), module.RepoId)
 	if err != nil {
 		return err
 	}
 
-	if ctx.Release {
-		if repo.StableChannel == nil {
-			p.RegistryOption = RegistryOption{
-				RegistryAddress: "",
-				Username:        "",
-				Password:        "",
-			}
-		} else {
-			p.RegistryOption = RegistryOption{
-				RegistryAddress: repo.StableChannel.Address,
-				Username:        repo.StableChannel.Username,
-				Password:        repo.StableChannel.Password,
-			}
-		}
-	} else {
-		if repo.UnstableChannel == nil {
-			p.RegistryOption = RegistryOption{
-				RegistryAddress: "",
-				Username:        "",
-				Password:        "",
-			}
-		} else {
-			p.RegistryOption = RegistryOption{
-				RegistryAddress: repo.UnstableChannel.Address,
-				Username:        repo.UnstableChannel.Username,
-				Password:        repo.UnstableChannel.Password,
-			}
-		}
-	}
-
-	if len(buildpack.GetRepoUserFromEnv(repo)) > 0 {
-		p.Username = buildpack.GetRepoUserFromEnv(repo)
-	}
-	if len(buildpack.GetRepoPassFromEnv(repo)) > 0 {
-		p.Password = buildpack.GetRepoPassFromEnv(repo)
+	p.RegistryOption = RegistryOption{
+		RegistryAddress: channel.Address,
+		Username:        channel.Username,
+		Password:        channel.Password,
 	}
 
 	p.Client, err = docker.NewClient(ctx.BuildPack.Config.Hosts)
@@ -142,7 +112,7 @@ func (p *DockerSQLPublishTool) PrePublish(ctx PublishContext) error {
 	}
 
 	//create tag
-	publishInfoPath := filepath.Join(ctx.WorkingDir, buildpack.FileBuildPackPublisherConfig)
+	publishInfoPath := filepath.Join(ctx.WorkingDir, buildpack.BuildPackFile_Publish())
 	config, err := readDockerImageInfo(publishInfoPath)
 	if err != nil {
 		return err
@@ -151,19 +121,9 @@ func (p *DockerSQLPublishTool) PrePublish(ctx PublishContext) error {
 		return errors.New("missing image info for docker publishing")
 	}
 
-	reader, err := p.Client.PullImage(p.Username, p.Password, config.Docker.Base)
+	err = pullImageIfNeed(ctx.BuildPack, p.Client, config.Docker.Base)
 	if err != nil {
 		return err
-	}
-
-	defer func() {
-		_ = reader.Close()
-	}()
-
-	if ctx.Verbose() {
-		_, _ = io.Copy(os.Stdout, reader)
-	} else {
-		_, _ = io.Copy(ioutil.Discard, reader)
 	}
 
 	dst := fmt.Sprintf("%s:%s", config.Docker.Build, ctx.Version)

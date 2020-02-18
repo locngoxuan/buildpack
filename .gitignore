@@ -70,3 +70,4 @@ _testmain.go
 .idea/
 target
 */target
+/gocd-plugins/.nb-gradle/

@@ -7,7 +7,6 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
-	"os/signal"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
 	"scm.wcs.fortna.com/lngo/buildpack/builder"
@@ -51,8 +50,6 @@ func verifyAction(action string) error {
 	return nil
 }
 
-type HookFunc func()
-
 func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 	actionHandler, ok := actions[b.Action]
 	if !ok {
@@ -74,9 +71,7 @@ func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 	}
 
 	if !b.RuntimeConfig.IsDebug() {
-		signalChannel := make(chan os.Signal, 1)
-		signal.Notify(signalChannel, GetSingal()...)
-		go ForceClearOnTerminated(signalChannel, func() {
+		go buildpack.HookOnTerminated(func() {
 			_ = os.RemoveAll(commonDir)
 		})
 

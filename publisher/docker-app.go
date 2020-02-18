@@ -42,16 +42,11 @@ func (p *DockerAPPPublishTool) PrePublish(ctx PublishContext) error {
 		return err
 	}
 
-	pomFile := filepath.Join(dir, "pom.xml")
-	pom, err := buildpack.ReadPOM(pomFile)
-	if err != nil {
-		return err
-	}
 	imageTag := fmt.Sprintf("%s:%s", config.Docker.Build, ctx.Version)
 	if len(strings.TrimSpace(p.RegistryAddress)) > 0 {
 		imageTag = fmt.Sprintf("%s/%s", p.RegistryAddress, imageTag)
 	}
-	tarFileName := fmt.Sprintf("%s-%s.tar", pom.ArtifactId, ctx.Version)
+	tarFileName := fmt.Sprintf("%s-%s.tar", ctx.Name, ctx.Version)
 	tarPath := filepath.Join(dir, tarFileName)
 	tags := []string{imageTag}
 	response, err := p.Client.BuildImage(tarPath, tags)

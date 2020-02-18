@@ -93,7 +93,8 @@ func main() {
 	if err != nil && action != actionInit &&
 		action != actionVersion &&
 		action != actionBuilders &&
-		action != actionPublishers {
+		action != actionPublishers &&
+		action != actionClean {
 		buildpack.LogFatal(buildpack.BuildResult{
 			Success: false,
 			Action:  action,

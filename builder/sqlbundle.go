@@ -43,6 +43,10 @@ func (b *SQLBundleBuildTool) PreBuild(ctx BuildContext) error {
 }
 
 func (b *SQLBundleBuildTool) Build(ctx BuildContext) error {
+	//force clean
+	go buildpack.HookOnTerminated(func() {
+		_ = os.RemoveAll(filepath.Join(ctx.WorkingDir, "target"))
+	})
 	defer func() {
 		_ = os.RemoveAll(filepath.Join(ctx.WorkingDir, "target"))
 	}()

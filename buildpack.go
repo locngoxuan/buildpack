@@ -2,6 +2,8 @@ package buildpack
 
 import (
 	"errors"
+	"os"
+	"os/signal"
 	"path/filepath"
 	"sort"
 )
@@ -75,6 +77,22 @@ modules:
       id: ""
 `
 )
+
+type HookFunc func()
+
+func HookOnTerminated(handles ...HookFunc) {
+	signalChannel := make(chan os.Signal, 1)
+	signal.Notify(signalChannel, GetSingal()...)
+	go func(ch chan os.Signal) {
+		for {
+			_ = <-ch
+			signal.Stop(ch)
+			for _, handle := range handles {
+				handle()
+			}
+		}
+	}(signalChannel)
+}
 
 func BuildPackFile() string {
 	return buildPackFile

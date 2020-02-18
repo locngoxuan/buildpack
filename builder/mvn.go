@@ -26,6 +26,10 @@ type RunMVN func(ctx BuildContext, buildOption MVNBuildConfig, args ...string) e
 func RunOnHost(ctx BuildContext, _ MVNBuildConfig, args ...string) error {
 	args = append(args, "-f", filepath.Join(ctx.WorkingDir, pomFileName))
 	cmd := exec.Command("mvn", args...)
+
+	go buildpack.HookOnTerminated(func() {
+		_ = os.RemoveAll(filepath.Join(ctx.WorkingDir, "target"))
+	})
 	defer func() {
 		_ = os.RemoveAll(filepath.Join(ctx.WorkingDir, "target"))
 	}()

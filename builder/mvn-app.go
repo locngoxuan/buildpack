@@ -93,11 +93,7 @@ func (c *MVNAppBuildTool) PostBuild(ctx BuildContext) error {
 	}
 
 	// tar info
-	pom, err := buildpack.ReadPOM(pomSrc)
-	if err != nil {
-		return err
-	}
-	tarName := fmt.Sprintf("%s-%s.tar", pom.ArtifactId, ctx.Version)
+	tarName := fmt.Sprintf("%s-%s.tar", ctx.Name, ctx.Version)
 	tarFile := filepath.Join(moduleInCommon, tarName)
 	//create tar at common directory
 	tar := new(archivex.TarFile)

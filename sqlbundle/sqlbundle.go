@@ -127,7 +127,6 @@ func (b *SQLBundle) Run(writer io.Writer) error {
 		b.BundleFile = filepath.Join(b.WorkingDir, FileConfig())
 	}
 
-	fmt.Println(b.BundleFile)
 	config, err := ReadBundle(b.BundleFile)
 	if err != nil {
 		return err

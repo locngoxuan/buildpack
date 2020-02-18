@@ -148,9 +148,11 @@ func ActionCleanHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 	bp.Phase = buildpack.PhaseCleanAll
 	_ = os.RemoveAll(bp.GetCommonDirectory())
 
-	err := validateDocker(bp)
-	if err != nil {
-		return bp.Error("", err)
+	if len(bp.Config.Modules) > 0 {
+		err := validateDocker(bp)
+		if err != nil {
+			return bp.Error("", err)
+		}
 	}
 
 	for _, module := range bp.Config.Modules {
@@ -338,33 +340,7 @@ func buildAndPublish(bp *buildpack.BuildPack) error {
 
 	bp.Phase = buildpack.PhaseBuild
 	for _, module := range modules {
-		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - builder '%s'", module.Name, module.BuildTool))
-		build, err := builder.CreateBuilder(*bp, module, bp.RuntimeConfig.IsRelease(), finalVersionStr)
-		if err != nil {
-			return err
-		}
-		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - clean", module.Name))
-		err = build.Clean()
-		if err != nil {
-			return err
-		}
-		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - pre build", module.Name))
-		err = build.PreBuild()
-		if err != nil {
-			return err
-		}
-		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - building...", module.Name))
-		err = build.Build()
-		if err != nil {
-			return err
-		}
-		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - post build", module.Name))
-		err = build.PostBuild()
-		if err != nil {
-			return err
-		}
-		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - clean", module.Name))
-		err = build.Clean()
+		err = build(bp, module, finalVersionStr)
 		if err != nil {
 			return err
 		}
@@ -379,35 +355,78 @@ func buildAndPublish(bp *buildpack.BuildPack) error {
 		if module.Skip {
 			continue
 		}
-		publish, err := publisher.CreatePublisher(*bp, module, bp.RuntimeConfig.IsRelease(), finalVersionStr)
+		err = publish(bp, module, finalVersionStr)
 		if err != nil {
 			return err
 		}
-		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - publisher '%s'", module.Name, publish.ToolName()))
-		err = publish.Clean()
-		if err != nil {
-			return err
-		}
-		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - pre publish", module.Name))
-		err = publish.PrePublish()
-		if err != nil {
-			return err
-		}
-		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - publish...", module.Name))
-		err = publish.Publish()
-		if err != nil {
-			return err
-		}
-		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - post publish", module.Name))
-		err = publish.PostPublish()
-		if err != nil {
-			return err
-		}
+	}
+	return nil
+}
+
+func build(bp *buildpack.BuildPack, module buildpack.ModuleConfig, finalVersionStr string) error {
+	buildpack.LogInfo(*bp, fmt.Sprintf("module %s - builder '%s'", module.Name, module.BuildTool))
+	build, err := builder.CreateBuilder(*bp, module, bp.RuntimeConfig.IsRelease(), finalVersionStr)
+	if err != nil {
+		return err
+	}
+	buildpack.LogInfo(*bp, fmt.Sprintf("module %s - clean", module.Name))
+	err = build.Clean()
+	if err != nil {
+		return err
+	}
+
+	defer func() {
 		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - clean", module.Name))
-		err = publish.Clean()
-		if err != nil {
-			return err
-		}
+		_ = build.Clean()
+	}()
+
+	buildpack.LogInfo(*bp, fmt.Sprintf("module %s - pre build", module.Name))
+	err = build.PreBuild()
+	if err != nil {
+		return err
+	}
+	buildpack.LogInfo(*bp, fmt.Sprintf("module %s - building...", module.Name))
+	err = build.Build()
+	if err != nil {
+		return err
+	}
+	buildpack.LogInfo(*bp, fmt.Sprintf("module %s - post build", module.Name))
+	err = build.PostBuild()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func publish(bp *buildpack.BuildPack, module buildpack.ModuleConfig, finalVersionStr string) error {
+	publish, err := publisher.CreatePublisher(*bp, module, bp.RuntimeConfig.IsRelease(), finalVersionStr)
+	if err != nil {
+		return err
+	}
+	buildpack.LogInfo(*bp, fmt.Sprintf("module %s - publisher '%s'", module.Name, publish.ToolName()))
+	err = publish.Clean()
+	if err != nil {
+		return err
+	}
+	buildpack.LogInfo(*bp, fmt.Sprintf("module %s - pre publish", module.Name))
+	err = publish.PrePublish()
+	if err != nil {
+		return err
+	}
+	buildpack.LogInfo(*bp, fmt.Sprintf("module %s - publish...", module.Name))
+	err = publish.Publish()
+	if err != nil {
+		return err
+	}
+	buildpack.LogInfo(*bp, fmt.Sprintf("module %s - post publish", module.Name))
+	err = publish.PostPublish()
+	if err != nil {
+		return err
+	}
+	buildpack.LogInfo(*bp, fmt.Sprintf("module %s - clean", module.Name))
+	err = publish.Clean()
+	if err != nil {
+		return err
 	}
 	return nil
 }

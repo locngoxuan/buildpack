@@ -3,7 +3,6 @@ package publisher
 import (
 	"errors"
 	"fmt"
-	"github.com/jhoonb/archivex"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
 	"strings"
@@ -48,21 +47,6 @@ func (p *DockerAMPublishTool) PrePublish(ctx PublishContext) error {
 	tarFileName := fmt.Sprintf("%s-%s.tar", ctx.Name, ctx.Version)
 	tarPath := filepath.Join(dir, tarFileName)
 	// create tar
-
-	tar := new(archivex.TarFile)
-	err = tar.Create(tarPath)
-	if err != nil {
-		return err
-	}
-	err = tar.AddAll(ctx.WorkingDir, false)
-	if err != nil {
-		return err
-	}
-	err = tar.Close()
-	if err != nil {
-		return err
-	}
-
 	tags := []string{imageTag}
 	response, err := p.Client.BuildImageWithSpecificDockerFile(tarPath, config.Docker.File, tags)
 	if err != nil {

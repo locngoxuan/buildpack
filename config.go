@@ -14,6 +14,7 @@ type Config struct {
 	DockerConfig `yaml:"docker,omitempty"`
 	Repos        []RepositoryConfig `yaml:"repositories,omitempty"`
 	Modules      []ModuleConfig     `yaml:"modules,omitempty"`
+	Cleans       []string           `yaml:"clean,omitempty"`
 }
 
 func (c *Config) GetModuleByName(name string) (ModuleConfig, error) {
@@ -56,8 +57,8 @@ type GitConfig struct {
 }
 
 type RepositoryConfig struct {
-	Id              string         `yaml:"id,omitempty"`
-	Publisher       string         `yaml:"publisher,omitempty"`
+	Id              string        `yaml:"id,omitempty"`
+	Publisher       string        `yaml:"publisher,omitempty"`
 	StableChannel   ChannelConfig `yaml:"stable,omitempty"`
 	UnstableChannel ChannelConfig `yaml:"unstable,omitempty"`
 }

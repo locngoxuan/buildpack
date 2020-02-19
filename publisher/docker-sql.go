@@ -7,7 +7,6 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/jhoonb/archivex"
 	"io"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
@@ -139,7 +138,7 @@ func (p *DockerSQLPublishTool) PrePublish(ctx PublishContext) error {
 	defer func() {
 		_ = response.Body.Close()
 	}()
-	err = displayImageBuildLog(ctx.BuildPack, response.Body)
+	err = displayDockerLog(ctx.BuildPack, response.Body)
 	if err != nil {
 		return err
 	}
@@ -147,7 +146,7 @@ func (p *DockerSQLPublishTool) PrePublish(ctx PublishContext) error {
 	return nil
 }
 
-func displayImageBuildLog(bp buildpack.BuildPack, in io.Reader) error {
+func displayDockerLog(bp buildpack.BuildPack, in io.Reader) error {
 	var dec = json.NewDecoder(in)
 	for {
 		var jm jsonmessage.JSONMessage
@@ -171,7 +170,15 @@ func displayImageBuildLog(bp buildpack.BuildPack, in io.Reader) error {
 func (p *DockerSQLPublishTool) Publish(ctx PublishContext) error {
 	for _, image := range p.Images {
 		buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("publish %s", image))
-		err := deployImage(p.Client, p.Username, p.Password, image, ctx.Verbose())
+		reader, err := deployImage(p.Client, p.Username, p.Password, image, ctx.Verbose())
+		if err != nil {
+			return err
+		}
+
+		defer func() {
+			_ = reader.Close()
+		}()
+		err = displayDockerLog(ctx.BuildPack, reader)
 		if err != nil {
 			return err
 		}
@@ -179,23 +186,8 @@ func (p *DockerSQLPublishTool) Publish(ctx PublishContext) error {
 	return nil
 }
 
-func deployImage(cli docker.DockerClient, username, password, image string, verbose bool) error {
-	reader, err := cli.DeployImage(username, password, image)
-	if err != nil {
-		return err
-	}
-
-	defer func() {
-		_ = reader.Close()
-	}()
-
-	if verbose {
-		_, _ = io.Copy(os.Stdout, reader)
-	} else {
-		// nothing
-		_, _ = io.Copy(ioutil.Discard, reader)
-	}
-	return nil
+func deployImage(cli docker.DockerClient, username, password, image string, verbose bool) (io.ReadCloser, error) {
+	return cli.DeployImage(username, password, image)
 }
 
 func clearImage(cli docker.DockerClient, image string) error {

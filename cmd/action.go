@@ -57,12 +57,12 @@ func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 	}
 
 	// create build-pack directory
-	err := os.MkdirAll(b.GetCommonDirectory(), 0777)
+	commonDir := b.GetCommonDirectory()
+	err := os.MkdirAll(commonDir, 0777)
 	if err != nil {
 		return b.Error("", err)
 	}
 
-	commonDir := filepath.Join(b.RootDir, buildpack.CommonDirectory)
 	for _, module := range b.Config.Modules {
 		err = os.MkdirAll(filepath.Join(commonDir, module.Name), 0777)
 		if err != nil {
@@ -70,15 +70,26 @@ func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 		}
 	}
 
-	if !b.RuntimeConfig.IsDebug() {
-		go buildpack.HookOnTerminated(func() {
-			_ = os.RemoveAll(commonDir)
-		})
+	go buildpack.HookOnTerminated(func() {
+		_ = os.RemoveAll(commonDir)
 
-		defer func() {
-			_ = os.RemoveAll(commonDir)
-		}()
-	}
+		if len(b.Config.Cleans) > 0 {
+			for _, path := range b.Config.Cleans {
+				_ = os.RemoveAll(filepath.Join(b.RootDir, path))
+			}
+		}
+
+	})
+
+	defer func(cleans []string) {
+		_ = os.RemoveAll(commonDir)
+
+		if len(b.Config.Cleans) > 0 {
+			for _, path := range cleans {
+				_ = os.RemoveAll(filepath.Join(b.RootDir, path))
+			}
+		}
+	}(b.Config.Cleans)
 
 	return actionHandler(b)
 }
@@ -147,6 +158,13 @@ func validateDocker(bp *buildpack.BuildPack) error {
 func ActionCleanHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 	bp.Phase = buildpack.PhaseCleanAll
 	_ = os.RemoveAll(bp.GetCommonDirectory())
+
+	if len(bp.Config.Cleans) > 0 {
+		for _, path := range bp.Config.Cleans {
+			buildpack.LogInfo(*bp, fmt.Sprintf("remove %s", path))
+			_ = os.RemoveAll(filepath.Join(bp.RootDir, path))
+		}
+	}
 
 	if len(bp.Config.Modules) > 0 {
 		err := validateDocker(bp)

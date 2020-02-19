@@ -62,7 +62,7 @@ func main() {
 		return
 	}
 
-	if runtimeConfig.Verbose() {
+	if runtimeConfig.Verbose() || runtimeConfig.IsDebug() {
 		buildpack.LogOnlyMsg(fmt.Sprintf("Command: %v", os.Args))
 	}
 
@@ -117,10 +117,6 @@ func main() {
 	}
 
 	result := Handle(buildPack)
-
-	// force to remove again
-	commonDir := filepath.Join(buildPack.RootDir, buildpack.CommonDirectory)
-	_ = os.RemoveAll(commonDir)
 
 	//log error
 	if !result.Success {

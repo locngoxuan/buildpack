@@ -57,7 +57,7 @@ func (p *DockerAPPPublishTool) PrePublish(ctx PublishContext) error {
 		_ = response.Body.Close()
 	}()
 	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Building docker image %s", imageTag))
-	err = displayImageBuildLog(ctx.BuildPack, response.Body)
+	err = displayDockerLog(ctx.BuildPack, response.Body)
 	if err != nil {
 		return err
 	}

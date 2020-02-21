@@ -14,23 +14,30 @@ import (
 	"time"
 )
 
-const (
-	tagName  = "build-pack"
-	tagEmail = "buildpack@fortna.com"
-)
-
 type GitClient struct {
 	Token         string
+	Name          string
+	Email         string
 	Repo          *git.Repository
 	CurrentBranch *plumbing.Reference
 	Remote        *git.Remote
 }
 
-func InitGitClient(root string, accessToken string) (cli GitClient, err error) {
+func InitGitClient(root, name, email, accessToken string) (cli GitClient, err error) {
 	if len(accessToken) == 0 {
 		err = errors.New("access token is empty")
 		return
 	}
+	if len(name) == 0 {
+		err = errors.New("missing name of owner")
+		return
+	}
+	if len(email) == 0 {
+		err = errors.New("missing email of owner")
+		return
+	}
+	cli.Name = name
+	cli.Email = email
 	cli.Token = accessToken
 	cli.Repo, err = git.PlainOpen(root)
 	if err != nil {
@@ -139,19 +146,23 @@ func (c *GitClient) Validate() error {
 	return err
 }
 
+func (c *GitClient) signature() *object.Signature {
+	return &object.Signature{
+		Name:  c.Name,
+		Email: c.Email,
+		When:  time.Now(),
+	}
+}
+
 func (c *GitClient) Tag(version string) error {
 	reference, err := c.Repo.Storer.Reference(c.CurrentBranch.Name())
 	if err != nil {
 		return err
 	}
 	tag := object.Tag{
-		Name:    version,
-		Message: "Release of " + version,
-		Tagger: object.Signature{
-			Name:  tagName,
-			Email: tagEmail,
-			When:  time.Now(),
-		},
+		Name:       version,
+		Message:    "Release of " + version,
+		Tagger:     *c.signature(),
 		Target:     reference.Hash(),
 		TargetType: plumbing.CommitObject,
 	}
@@ -261,18 +272,11 @@ func (c *GitClient) Commit(msg string) error {
 	if err != nil {
 		return err
 	}
+	sign := c.signature()
 	_, err = wt.Commit(msg, &git.CommitOptions{
-		All: true,
-		Author: &object.Signature{
-			Name:  tagName,
-			Email: tagEmail,
-			When:  time.Now(),
-		},
-		Committer: &object.Signature{
-			Name:  tagName,
-			Email: tagEmail,
-			When:  time.Now(),
-		},
+		All:       true,
+		Author:    sign,
+		Committer: sign,
 	})
 	if err != nil {
 		return err

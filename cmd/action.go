@@ -251,11 +251,9 @@ func ActionReleaseHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 		return bp.Error("", err)
 	}
 
-	if !bp.SkipBranching() {
-		bp.GitClient, err = buildpack.InitGitClient(bp.RootDir, buildpack.GetGitToken(*bp))
-		if err != nil {
-			return bp.Error("", err)
-		}
+	bp.GitClient, err = buildpack.InitGitClient(bp.RootDir, bp.Config.GitConfig.Name, bp.Config.GitConfig.Email, buildpack.GetGitToken(*bp))
+	if err != nil {
+		return bp.Error("", err)
 	}
 
 	// run release action for each module
@@ -279,6 +277,8 @@ func ActionReleaseHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 
 	// branching
 	if !bp.SkipBranching() || bp.RuntimeConfig.IsPatch() {
+		bp.Phase = buildpack.PhaseBranching
+
 		// increase patch number
 		_v := *v
 		_v.NextPatch()
@@ -289,10 +289,9 @@ func ActionReleaseHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 			return bp.Error("", err)
 		}
 
-		bp.Phase = buildpack.PhaseBranching
-		versionStr := v.BranchBaseMinor()
-		buildpack.LogInfo(*bp, fmt.Sprintf("create branch for version %s", versionStr))
-		err = bp.Branch(versionStr)
+		branchName := v.BranchBaseMinor()
+		buildpack.LogInfo(*bp, fmt.Sprintf("create branch for version %s", branchName))
+		err = bp.Branch(branchName)
 		if err != nil {
 			return bp.Error("", err)
 		}

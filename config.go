@@ -52,6 +52,8 @@ type ModulePublishConfig struct {
 
 type GitConfig struct {
 	AccessToken string `yaml:"access-token,omitempty"`
+	Name        string `yaml:"name,omitempty"`
+	Email       string `yaml:"email,omitempty"`
 	SSHPath     string `yaml:"ssh-path,omitempty"`
 	SSHPass     string `yaml:"ssh-pass,omitempty"`
 }

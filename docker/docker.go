@@ -67,7 +67,7 @@ func CheckDockerHostConnection(ctx context.Context, hosts []string) (string, err
 func (c *DockerClient) PullImage(username, password, image string) (io.ReadCloser, error) {
 	opt := types.ImagePullOptions{
 		RegistryAuth: auth(username, password),
-		All:          true,
+		All:          false,
 	}
 	return c.Client.ImagePull(c.Ctx, image, opt)
 }

@@ -264,19 +264,33 @@ func ActionReleaseHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 		return bp.Error("", err)
 	}
 
+	// tagging
+	bp.Phase = buildpack.PhaseTagging
+	v, err := buildpack.FromString(bp.Config.Version)
+	if err != nil {
+		return bp.Error("", err)
+	}
+	oldVersion := v.WithoutLabel()
+	buildpack.LogInfo(*bp, fmt.Sprintf("create tag for version %s", oldVersion))
+	err = bp.Tag(oldVersion)
+	if err != nil {
+		return bp.Error("", err)
+	}
+
 	// branching
-	if !bp.SkipBranching() {
+	if !bp.SkipBranching() || bp.RuntimeConfig.IsPatch() {
+		// increase patch number
+		_v := *v
+		_v.NextPatch()
+		bp.Config.Version = _v.WithoutLabel()
+		buildpack.LogInfo(*bp, fmt.Sprintf("change version to %s before branching", bp.Config.Version))
+		err = updateBuildpackconfig(*bp, oldVersion)
+		if err != nil {
+			return bp.Error("", err)
+		}
+
 		bp.Phase = buildpack.PhaseBranching
-		v, err := buildpack.FromString(bp.Config.Version)
-		if err != nil {
-			return bp.Error("", err)
-		}
 		versionStr := v.BranchBaseMinor()
-		buildpack.LogInfo(*bp, fmt.Sprintf("create tag for version %s", versionStr))
-		err = bp.Tag(versionStr)
-		if err != nil {
-			return bp.Error("", err)
-		}
 		buildpack.LogInfo(*bp, fmt.Sprintf("create branch for version %s", versionStr))
 		err = bp.Branch(versionStr)
 		if err != nil {
@@ -286,11 +300,6 @@ func ActionReleaseHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 
 	// pump version if needed
 	bp.Phase = buildpack.PhasePumpVersion
-	v, err := buildpack.FromString(bp.Config.Version)
-	if err != nil {
-		return bp.Error("", err)
-	}
-	oldVersion := v.WithoutLabel()
 	if bp.RuntimeConfig.IsPatch() {
 		v.NextPatch()
 	} else {
@@ -299,32 +308,39 @@ func ActionReleaseHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 
 	bp.Config.Version = v.WithoutLabel()
 	buildpack.LogInfo(*bp, fmt.Sprintf("next version is %s", bp.Config.Version))
-	bytes, err := yaml.Marshal(bp.Config)
-	if err != nil {
-		return bp.Error("", err)
-	}
-
-	err = ioutil.WriteFile(buildpack.BuildPackFile(), bytes, 0644)
-	if err != nil {
-		return bp.Error("", err)
-	}
-
-	msg := fmt.Sprintf("[BUILD-PACK] Pump version from %s to %s", oldVersion, bp.Config.Version)
-	err = bp.Add(buildpack.BuildPackFile())
-	if err != nil {
-		return bp.Error("", err)
-	}
-
-	err = bp.Commit(msg)
-	if err != nil {
-		return bp.Error("", err)
-	}
-
-	err = bp.Push()
+	err = updateBuildpackconfig(*bp, oldVersion)
 	if err != nil {
 		return bp.Error("", err)
 	}
 	return bp.Success()
+}
+
+func updateBuildpackconfig(bp buildpack.BuildPack, oldVersion string) error {
+	bytes, err := yaml.Marshal(bp.Config)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(buildpack.BuildPackFile(), bytes, 0644)
+	if err != nil {
+		return err
+	}
+
+	msg := fmt.Sprintf("[BUILDPACK] Pump version from %s to %s", oldVersion, bp.Config.Version)
+	err = bp.Add(buildpack.BuildPackFile())
+	if err != nil {
+		return err
+	}
+
+	err = bp.Commit(msg)
+	if err != nil {
+		return err
+	}
+	err = bp.Push()
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func buildAndPublish(bp *buildpack.BuildPack) error {

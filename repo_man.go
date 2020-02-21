@@ -17,7 +17,7 @@ func (r *RepoMan) Print(){
 
 func (r *RepoMan) UpdateUserName(id, username string) {
 	repo, ok := r.repos[id]
-	if !ok {
+	if !ok || len(username) == 0{
 		return
 	}
 	repo.StableChannel.Username = username
@@ -26,7 +26,7 @@ func (r *RepoMan) UpdateUserName(id, username string) {
 
 func (r *RepoMan) UpdatePassword(id, password string) {
 	repo, ok := r.repos[id]
-	if !ok {
+	if !ok || len(password) == 0{
 		return
 	}
 	repo.StableChannel.Password = password

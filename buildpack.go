@@ -31,7 +31,7 @@ type BuildPack struct {
 }
 
 const (
-	VERSION = "v1.4.2"
+	VERSION = "v1.4.3"
 
 	buildPackFile        = "Buildpackfile"
 	buildPackFileBuild   = "Buildpackfile.build"
@@ -45,6 +45,7 @@ const (
 	PhaseBuild       = "build"
 	PhasePublish     = "publish"
 	PhaseCleanAll    = "clean-all"
+	PhaseTagging     = "tagging"
 	PhaseBranching   = "branching"
 	PhasePumpVersion = "pump-version"
 

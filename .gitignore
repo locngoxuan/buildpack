@@ -6,6 +6,8 @@
 !Makefile
 !Dockerfile
 !Jenkinsfile
+!Buildpackfile
+!Buildpackfile.*
 
 # Unignore all dirs
 !*/

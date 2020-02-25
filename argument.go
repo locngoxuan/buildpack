@@ -31,6 +31,7 @@ type RuntimeConfig struct {
 	skipUnitTest  bool
 	skipPublish   bool
 	skipBranching bool
+	skipClean     bool
 	patch         bool
 	version       string
 	modules       string
@@ -54,6 +55,7 @@ func ReadArgument(f *flag.FlagSet) (args RuntimeConfig, err error) {
 		readSkipPublish().
 		readSkipBranching().
 		readSkipContainer().
+		readSkipClean().
 		readLabel().
 		readRelease().
 		parse()
@@ -81,6 +83,11 @@ func ReadForUsage(f *flag.FlagSet) (args RuntimeConfig, err error) {
 
 func (a *RuntimeConfig) readDebug() *RuntimeConfig {
 	a.flag.BoolVar(&a.debug, "debug", false, "Enable debug mode to keep .buildpack folder after build complete")
+	return a
+}
+
+func (a *RuntimeConfig) readSkipClean() *RuntimeConfig {
+	a.flag.BoolVar(&a.skipClean, "skip-clean", false, "Skip cleaning after build and publish")
 	return a
 }
 
@@ -187,6 +194,10 @@ func (a *RuntimeConfig) SkipContainer() bool {
 
 func (a *RuntimeConfig) SkipPublish() bool {
 	return a.skipPublish
+}
+
+func (a *RuntimeConfig) SkipClean() bool {
+	return a.skipClean
 }
 
 func (a *RuntimeConfig) SkipUnitTest() bool {

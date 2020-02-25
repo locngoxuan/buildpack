@@ -28,7 +28,8 @@ Examples:
   buildpack build --release           
   buildpack build --release --path     
 
-Options:`
+Options:
+`
 )
 
 func Usage(f *flag.FlagSet) {
@@ -88,6 +89,7 @@ func main() {
 	configFile := filepath.Join(root, buildpack.BuildPackFile())
 	if len(runtimeConfig.ConfigFile()) > 0 {
 		configFile = runtimeConfig.ConfigFile()
+		root, _ = filepath.Split(configFile)
 	}
 	config, err := buildpack.ReadFromConfigFile(configFile)
 	if err != nil && action != actionInit &&
@@ -105,7 +107,7 @@ func main() {
 		return
 	}
 
-	buildPack, err := buildpack.NewBuildPack(action, config, runtimeConfig)
+	buildPack, err := buildpack.NewBuildPack(action, root, config, runtimeConfig)
 	if err != nil {
 		buildpack.LogFatal(buildpack.BuildResult{
 			Success: false,

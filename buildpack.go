@@ -4,7 +4,6 @@ import (
 	"errors"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"sort"
 )
 
@@ -31,7 +30,7 @@ type BuildPack struct {
 }
 
 const (
-	VERSION = "v1.4.4"
+	VERSION = "v1.4.6"
 
 	buildPackFile        = "Buildpackfile"
 	buildPackFileBuild   = "Buildpackfile.build"
@@ -107,15 +106,10 @@ func BuildPackFile_Publish() string {
 	return buildPackFilePublish
 }
 
-func NewBuildPack(action string, config Config, rtConfig RuntimeConfig) (*BuildPack, error) {
-	root, err := filepath.Abs(".")
-	if err != nil {
-		return nil, err
-	}
-
+func NewBuildPack(action string, rootDir string, config Config, rtConfig RuntimeConfig) (*BuildPack, error) {
 	bp := &BuildPack{
 		Action:        action,
-		RootDir:       root,
+		RootDir:       rootDir,
 		Phase:         PhaseInit,
 		Config:        config,
 		RuntimeConfig: rtConfig,

@@ -71,6 +71,9 @@ func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 	}
 
 	go buildpack.HookOnTerminated(func() {
+		if b.RuntimeConfig.SkipClean() {
+			return
+		}
 		_ = os.RemoveAll(commonDir)
 
 		if len(b.Config.Cleans) > 0 {
@@ -82,6 +85,9 @@ func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 	})
 
 	defer func(cleans []string) {
+		if b.RuntimeConfig.SkipClean() {
+			return
+		}
 		_ = os.RemoveAll(commonDir)
 
 		if len(b.Config.Cleans) > 0 {
@@ -409,6 +415,9 @@ func build(bp *buildpack.BuildPack, module buildpack.ModuleConfig, finalVersionS
 	}
 
 	defer func() {
+		if bp.RuntimeConfig.SkipClean() {
+			return
+		}
 		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - clean", module.Name))
 		_ = build.Clean()
 	}()
@@ -441,6 +450,14 @@ func publish(bp *buildpack.BuildPack, module buildpack.ModuleConfig, finalVersio
 	if err != nil {
 		return err
 	}
+	defer func() {
+		if bp.RuntimeConfig.SkipClean() {
+			return
+		}
+		buildpack.LogInfo(*bp, fmt.Sprintf("module %s - clean", module.Name))
+		_ = publish.Clean()
+	}()
+
 	buildpack.LogInfo(*bp, fmt.Sprintf("module %s - pre publish", module.Name))
 	err = publish.PrePublish()
 	if err != nil {
@@ -453,11 +470,6 @@ func publish(bp *buildpack.BuildPack, module buildpack.ModuleConfig, finalVersio
 	}
 	buildpack.LogInfo(*bp, fmt.Sprintf("module %s - post publish", module.Name))
 	err = publish.PostPublish()
-	if err != nil {
-		return err
-	}
-	buildpack.LogInfo(*bp, fmt.Sprintf("module %s - clean", module.Name))
-	err = publish.Clean()
 	if err != nil {
 		return err
 	}

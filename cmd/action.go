@@ -277,6 +277,7 @@ func ActionSnapshotHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 	if err != nil {
 		return bp.Error("", err)
 	}
+
 	return bp.Success()
 }
 

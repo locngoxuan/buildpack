@@ -88,7 +88,17 @@ func main() {
 
 	configFile := filepath.Join(root, buildpack.BuildPackFile())
 	if len(runtimeConfig.ConfigFile()) > 0 {
-		configFile = runtimeConfig.ConfigFile()
+		configFile, err = filepath.Abs(runtimeConfig.ConfigFile())
+		if err != nil {
+			buildpack.LogFatal(buildpack.BuildResult{
+				Success: false,
+				Action:  action,
+				Phase:   "init",
+				Err:     err,
+				Message: "",
+			})
+			return
+		}
 		root, _ = filepath.Split(configFile)
 	}
 	config, err := buildpack.ReadFromConfigFile(configFile)

@@ -347,6 +347,21 @@ func ActionReleaseHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 	if err != nil {
 		return bp.Error("", err)
 	}
+
+	ver2pic := buildpack.DefaultVer2Pick("RELEASE", oldVersion)
+	err = ver2pic.Generate(bp.RootDir)
+	if err != nil {
+		buildpack.LogInfo(*bp, fmt.Sprintf("generating image of version get error %s", err.Error()))
+	}
+	ver2pic = buildpack.DefaultVer2Pick("DEVELOP", bp.Config.Version)
+	err = ver2pic.Generate(bp.RootDir)
+	if err != nil {
+		buildpack.LogInfo(*bp, fmt.Sprintf("generating image of version get error %s", err.Error()))
+	}
+	err = updateImageVersion(*bp)
+	if err != nil {
+		buildpack.LogInfo(*bp, fmt.Sprintf("pushing image of version to git get error %s", err.Error()))
+	}
 	return bp.Success()
 }
 
@@ -367,6 +382,29 @@ func updateBuildpackconfig(bp buildpack.BuildPack, oldVersion string) error {
 		return err
 	}
 
+	err = bp.Commit(msg)
+	if err != nil {
+		return err
+	}
+	err = bp.Push()
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func updateImageVersion(bp buildpack.BuildPack) error {
+	err := bp.Add("VERSION_DEVELOP")
+	if err != nil {
+		return err
+	}
+
+	err = bp.Add("VERSION_RELEASE")
+	if err != nil {
+		return err
+	}
+
+	msg := fmt.Sprintf("[BUILDPACK] Update image of version")
 	err = bp.Commit(msg)
 	if err != nil {
 		return err

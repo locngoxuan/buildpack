@@ -26,16 +26,19 @@ type RuntimeConfig struct {
 
 	shareData     string
 	configFile    string
+	version       string
+	modules       string
+	label         string
+	devVersion    string
+	relVersion    string
 	verbose       bool
 	skipContainer bool
 	skipUnitTest  bool
 	skipPublish   bool
 	skipBranching bool
+	skipTag       bool
 	skipClean     bool
 	patch         bool
-	version       string
-	modules       string
-	label         string
 	help          bool
 	debug         bool
 	release       bool
@@ -53,9 +56,12 @@ func ReadArgument(f *flag.FlagSet) (args RuntimeConfig, err error) {
 		readPatch().
 		readSkipTest().
 		readSkipPublish().
+		readSkipTag().
 		readSkipBranching().
 		readSkipContainer().
 		readSkipClean().
+		readDevVersion().
+		readRelVersion().
 		readLabel().
 		readRelease().
 		parse()
@@ -65,6 +71,7 @@ func ReadArgument(f *flag.FlagSet) (args RuntimeConfig, err error) {
 func ReadForUsage(f *flag.FlagSet) (args RuntimeConfig, err error) {
 	args.flag = f
 	args.readVersion().
+		readDebug().
 		readHelp().
 		readShareData().
 		readConfigFile().
@@ -73,16 +80,35 @@ func ReadForUsage(f *flag.FlagSet) (args RuntimeConfig, err error) {
 		readPatch().
 		readSkipTest().
 		readSkipPublish().
+		readSkipTag().
 		readSkipBranching().
 		readSkipContainer().
+		readSkipClean().
+		readDevVersion().
+		readRelVersion().
 		readLabel().
 		readRelease()
 	err = args.flag.Parse(os.Args[1:])
 	return
 }
 
+func (a *RuntimeConfig) readDevVersion() *RuntimeConfig {
+	a.flag.StringVar(&a.devVersion, "version-dev", "", "Version of development")
+	return a
+}
+
+func (a *RuntimeConfig) readRelVersion() *RuntimeConfig {
+	a.flag.StringVar(&a.relVersion, "version-rel", "", "Latest stable version")
+	return a
+}
+
 func (a *RuntimeConfig) readDebug() *RuntimeConfig {
 	a.flag.BoolVar(&a.debug, "debug", false, "Enable debug mode to keep .buildpack folder after build complete")
+	return a
+}
+
+func (a *RuntimeConfig) readSkipTag() *RuntimeConfig {
+	a.flag.BoolVar(&a.skipTag, "skip-tag", false, "Skip cleaning after build and publish")
 	return a
 }
 
@@ -188,6 +214,14 @@ func (a *RuntimeConfig) Verbose() bool {
 	return a.verbose
 }
 
+func (a *RuntimeConfig) V2PDev() string {
+	return a.devVersion
+}
+
+func (a *RuntimeConfig) V2PRel() string {
+	return a.relVersion
+}
+
 func (a *RuntimeConfig) SkipContainer() bool {
 	return a.skipContainer
 }
@@ -198,6 +232,10 @@ func (a *RuntimeConfig) SkipPublish() bool {
 
 func (a *RuntimeConfig) SkipClean() bool {
 	return a.skipClean
+}
+
+func (a *RuntimeConfig) SkipTag() bool {
+	return a.skipTag
 }
 
 func (a *RuntimeConfig) SkipUnitTest() bool {

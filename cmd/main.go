@@ -19,6 +19,7 @@ ACTION:
   builder      List all builder supported
   publisher    List all publisher supported
   build        Create a build then publish to repository if --release=true is set
+  ver2pic      Generate image of version
 
 Examples:
   buildpack init --version=0.1.0              

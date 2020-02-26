@@ -41,7 +41,7 @@ func init() {
 	actions[actionBuild] = ActionBuildHandler
 	actions[actionBuilders] = ActionListBuildersHandler
 	actions[actionPublishers] = ActionListPublishersHandler
-	actions[actionVer2Pic] = ActionVersionToPick
+	actions[actionVer2Pic] = ActionVersionToPic
 }
 
 func verifyAction(action string) error {
@@ -107,9 +107,15 @@ func ActionVersionHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 	return bp.Success()
 }
 
-func ActionVersionToPick(bp *buildpack.BuildPack) buildpack.BuildResult {
+func ActionVersionToPic(bp *buildpack.BuildPack) buildpack.BuildResult {
 	//generate develop
-	v2p := buildpack.DefaultVer2Pick("DEVELOP", bp.Config.Version)
+
+	devVer := bp.Config.Version
+	if len(strings.TrimSpace(bp.RuntimeConfig.V2PDev())) > 0 {
+		devVer = strings.TrimSpace(bp.RuntimeConfig.V2PDev())
+	}
+
+	v2p := buildpack.DefaultVer2Pick("DEVELOP", devVer)
 	err := v2p.Generate(bp.RootDir)
 	if err != nil {
 		return bp.Error("", err)
@@ -120,13 +126,14 @@ func ActionVersionToPick(bp *buildpack.BuildPack) buildpack.BuildResult {
 		return bp.Error("", err)
 	}
 
-	if bp.IsPatch() {
-		v.PrevPatch()
-	} else {
-		v.PrevMinorVersion()
+	v.PrevMinorVersion()
+
+	relVer := v.WithoutLabel()
+	if len(strings.TrimSpace(bp.RuntimeConfig.V2PRel())) > 0 {
+		relVer = strings.TrimSpace(bp.RuntimeConfig.V2PRel())
 	}
 
-	v2p = buildpack.DefaultVer2Pick("RELEASE", v.WithoutLabel())
+	v2p = buildpack.DefaultVer2Pick("RELEASE", relVer)
 	err = v2p.Generate(bp.RootDir)
 	if err != nil {
 		return bp.Error("", err)
@@ -259,7 +266,7 @@ func ActionBuildHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 	if err != nil {
 		return bp.Error("", err)
 	}
-	if bp.RuntimeConfig.IsRelease() {
+	if bp.RuntimeConfig.IsRelease() || bp.RuntimeConfig.IsPatch() {
 		return ActionReleaseHandler(bp)
 	}
 	return ActionSnapshotHandler(bp)
@@ -299,21 +306,33 @@ func ActionReleaseHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 		return bp.Error("", err)
 	}
 
-	// tagging
-	bp.Phase = buildpack.PhaseTagging
 	v, err := buildpack.FromString(bp.Config.Version)
 	if err != nil {
 		return bp.Error("", err)
 	}
 	oldVersion := v.WithoutLabel()
-	buildpack.LogInfo(*bp, fmt.Sprintf("create tag for version %s", oldVersion))
-	err = bp.Tag(oldVersion)
-	if err != nil {
-		return bp.Error("", err)
+
+	// tagging
+	if !bp.SkipTag(){
+		bp.Phase = buildpack.PhaseTagging
+		buildpack.LogInfo(*bp, fmt.Sprintf("create tag for version %s", oldVersion))
+		err = bp.Tag(oldVersion)
+		if err != nil {
+			return bp.Error("", err)
+		}
 	}
 
 	// branching
-	if !bp.SkipBranching() || bp.RuntimeConfig.IsPatch() {
+	checkoutNewBranch := true
+	if bp.SkipBranching(){
+		checkoutNewBranch = false
+	}else{
+		if bp.RuntimeConfig.IsPatch(){
+			checkoutNewBranch = false
+		}
+	}
+
+	if checkoutNewBranch {
 		bp.Phase = buildpack.PhaseBranching
 
 		// increase patch number
@@ -434,7 +453,7 @@ func buildAndPublish(bp *buildpack.BuildPack) error {
 	}
 
 	finalVersionStr := versionStr
-	if bp.RuntimeConfig.IsRelease() {
+	if bp.RuntimeConfig.IsRelease() || bp.RuntimeConfig.IsPatch() {
 		finalVersionStr = v.WithoutLabel()
 	} else {
 		label := defaultLabel

@@ -28,6 +28,7 @@ const (
 	actionBuild          = "build"
 	actionBuilders       = "builder"
 	actionPublishers     = "publisher"
+	actionVer2Pic        = "ver2pic"
 	defaultLabel         = "alpha"
 )
 
@@ -40,6 +41,7 @@ func init() {
 	actions[actionBuild] = ActionBuildHandler
 	actions[actionBuilders] = ActionListBuildersHandler
 	actions[actionPublishers] = ActionListPublishersHandler
+	actions[actionVer2Pic] = ActionVersionToPick
 }
 
 func verifyAction(action string) error {
@@ -102,6 +104,34 @@ func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 
 func ActionVersionHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 	fmt.Println(buildpack.VERSION)
+	return bp.Success()
+}
+
+func ActionVersionToPick(bp *buildpack.BuildPack) buildpack.BuildResult {
+	//generate develop
+	v2p := buildpack.DefaultVer2Pick("DEVELOP", bp.Config.Version)
+	err := v2p.Generate(bp.RootDir)
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	v, err := buildpack.FromString(bp.Config.Version)
+	if err != nil {
+		return bp.Error("", err)
+	}
+
+	if bp.IsPatch() {
+		v.PrevPatch()
+	} else {
+		v.PrevMinorVersion()
+	}
+
+	v2p = buildpack.DefaultVer2Pick("RELEASE", v.WithoutLabel())
+	err = v2p.Generate(bp.RootDir)
+	if err != nil {
+		return bp.Error("", err)
+	}
+	//generate release
 	return bp.Success()
 }
 

@@ -25,6 +25,28 @@ func (v *Version) WithLabelAndBuildNumber(label, buildNumber string) string {
 	return fmt.Sprintf("%d.%d.%d-%s.%s", v.Major, v.Minor, v.Patch, label, buildNumber)
 }
 
+func (v *Version) PrevPatch() {
+	if v.Patch > 0 {
+		v.Patch = v.Patch - 1
+	}
+}
+
+func (v *Version) PrevMinorVersion() {
+	if v.Minor > 0 {
+		v.Patch = 0
+		v.Minor = v.Minor - 1
+	}
+
+}
+
+func (v *Version) PrevMajorVersion() {
+	if v.Major > 0 {
+		v.Patch = 0
+		v.Minor = 0
+		v.Major = v.Major - 1
+	}
+}
+
 func (v *Version) NextPatch() {
 	v.Patch = v.Patch + 1
 }

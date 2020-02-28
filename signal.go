@@ -12,7 +12,7 @@ func GetSingal() []os.Signal {
 		os.Interrupt,
 		os.Kill,
 		unix.SIGHUP,
-		unix.SIGCHLD,
+		//unix.SIGCHLD,
 		unix.SIGKILL,
 		unix.SIGINT,
 		unix.SIGTERM,

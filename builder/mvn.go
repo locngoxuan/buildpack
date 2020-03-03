@@ -25,6 +25,7 @@ type RunMVN func(ctx BuildContext, buildOption MVNBuildConfig, args ...string) e
 
 func RunOnHost(ctx BuildContext, _ MVNBuildConfig, args ...string) error {
 	args = append(args, "-f", filepath.Join(ctx.WorkingDir, pomFileName))
+	args = append(args, "-N")
 	cmd := exec.Command("mvn", args...)
 	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("working dir %s", ctx.WorkingDir))
 	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("mvn %+v", args))
@@ -90,6 +91,7 @@ func RunContainer(ctx BuildContext, buildOption MVNBuildConfig, args ...string) 
 	dockerCommandArg = append(dockerCommandArg, "mvn")
 	// because this is inside container then path to pomFile is /working/{module-path}/pom.xml
 	args = append(args, "-f", filepath.Join(ctx.Path, pomFileName))
+	args = append(args, "-N")
 	for _, v := range args {
 		dockerCommandArg = append(dockerCommandArg, v)
 	}

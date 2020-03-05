@@ -38,6 +38,7 @@ type RuntimeConfig struct {
 	skipBranching bool
 	skipTag       bool
 	skipClean     bool
+	local         bool
 	patch         bool
 	help          bool
 	debug         bool
@@ -64,7 +65,20 @@ func ReadArgument(f *flag.FlagSet) (args RuntimeConfig, err error) {
 		readRelVersion().
 		readLabel().
 		readRelease().
+		readLocal().
 		parse()
+
+	if err != nil {
+		return
+	}
+
+	if args.local {
+		args.release = false
+		args.skipTag = true
+		args.skipBranching = true
+		args.skipPublish = true
+	}
+
 	return
 }
 
@@ -81,6 +95,7 @@ func ReadForUsage(f *flag.FlagSet) (args RuntimeConfig, err error) {
 		readSkipTest().
 		readSkipPublish().
 		readSkipTag().
+		readLocal().
 		readSkipBranching().
 		readSkipContainer().
 		readSkipClean().
@@ -89,6 +104,15 @@ func ReadForUsage(f *flag.FlagSet) (args RuntimeConfig, err error) {
 		readLabel().
 		readRelease()
 	err = args.flag.Parse(os.Args[1:])
+	if err != nil{
+		return
+	}
+	if args.local {
+		args.release = false
+		args.skipTag = true
+		args.skipBranching = true
+		args.skipPublish = true
+	}
 	return
 }
 
@@ -114,6 +138,11 @@ func (a *RuntimeConfig) readSkipTag() *RuntimeConfig {
 
 func (a *RuntimeConfig) readSkipClean() *RuntimeConfig {
 	a.flag.BoolVar(&a.skipClean, "skip-clean", false, "Skip cleaning after build and publish")
+	return a
+}
+
+func (a *RuntimeConfig) readLocal() *RuntimeConfig {
+	a.flag.BoolVar(&a.local, "local", false, "Local mode")
 	return a
 }
 
@@ -252,6 +281,10 @@ func (a *RuntimeConfig) IsPatch() bool {
 
 func (a *RuntimeConfig) IsRelease() bool {
 	return a.release
+}
+
+func (a *RuntimeConfig) IsLocal() bool {
+	return a.local
 }
 
 func (a *RuntimeConfig) IsHelp() bool {

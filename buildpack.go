@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/signal"
 	"sort"
+	"strings"
 )
 
 type BuildResult struct {
@@ -30,7 +31,7 @@ type BuildPack struct {
 }
 
 const (
-	VERSION = "v1.5.3"
+	VERSION = "v1.5.4"
 
 	buildPackFile        = "Buildpackfile"
 	buildPackFileBuild   = "Buildpackfile.build"
@@ -189,9 +190,29 @@ func GetGitToken(bp BuildPack) string {
 func ModulesToApply(bp BuildPack) ([]ModuleConfig, error) {
 	ms := bp.RuntimeConfig.Modules()
 	var modules []ModuleConfig
-	if len(ms) == 0 {
-		modules = bp.Config.Modules
+	excluded := 0
+	excludedName := make(map[string]struct{})
+	for _, moduleName := range ms {
+		if strings.HasPrefix(moduleName, "!") {
+			name := strings.TrimPrefix(moduleName, "!")
+			excludedName[name] = struct{}{}
+			excluded ++
+		}
+	}
 
+	if excluded > 0 && excluded != len(ms){
+		return modules, errors.New("modules option is mixed include and exclude")
+	}
+
+	if len(ms) == 0 || excluded > 0{
+		modules = make([]ModuleConfig, 0)
+		for _, m := range bp.Config.Modules{
+			_, ok := excludedName[m.Name]
+			if ok{
+				continue
+			}
+			modules = append(modules, m)
+		}
 	} else {
 		modules = make([]ModuleConfig, 0)
 		for _, moduleName := range ms {

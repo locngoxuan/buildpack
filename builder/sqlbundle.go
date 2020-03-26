@@ -25,9 +25,13 @@ func (b *SQLBundleBuildTool) GenerateConfig(ctx BuildContext) error {
 }
 
 func (b *SQLBundleBuildTool) LoadConfig(ctx BuildContext) error {
+	bundleFile, err := ctx.GetFile(sqlbundle.FileConfig())
+	if err != nil {
+		return err
+	}
 	b.Bundle = sqlbundle.SQLBundle{
 		WorkingDir: ctx.WorkingDir,
-		BundleFile: ctx.GetFile(sqlbundle.FileConfig()),
+		BundleFile: bundleFile,
 		Clean:      true,
 		Version:    ctx.Version,
 	}
@@ -56,13 +60,19 @@ func (b *SQLBundleBuildTool) PostBuild(ctx BuildContext) error {
 	if err != nil {
 		return err
 	}
-	sqlTarget := ctx.GetFile("target")
+	sqlTarget, err := ctx.GetFile("target")
+	if err != nil {
+		return err
+	}
 	err = copyDirectory(ctx.BuildPack, sqlTarget, moduleInCommon)
 	if err != nil {
 		return err
 	}
 
-	dockerSrc := ctx.GetFile(appDockerfile)
+	dockerSrc, err := ctx.GetFile(appDockerfile)
+	if err != nil {
+		return err
+	}
 	dockerDst := filepath.Join(moduleInCommon, appDockerfile)
 	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Copying %s to %s", appDockerfile, dockerDst))
 	err = buildpack.CopyFile(dockerSrc, dockerDst)

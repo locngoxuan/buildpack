@@ -1,7 +1,6 @@
 package publisher
 
 import (
-	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
 )
 
@@ -28,18 +27,6 @@ type PublishContext struct {
 	WorkingDir string
 	Version    string
 	Values     map[string]interface{}
-}
-
-func (bc *PublishContext) GetFile(args ...string) string {
-	parts := []string{
-		bc.WorkingDir,
-	}
-	parts = append(parts, args...)
-	p, err := filepath.Abs(filepath.Join(parts...))
-	if err != nil {
-		buildpack.LogFatal(bc.Error("", err))
-	}
-	return p
 }
 
 func CreatePublisher(bp buildpack.BuildPack, moduleConfig buildpack.ModuleConfig, release bool, version string) (Publisher, error) {

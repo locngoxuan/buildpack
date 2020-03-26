@@ -130,19 +130,19 @@ func main() {
 	}
 
 	result := Handle(buildPack)
-
-	//log error
-	if !result.Success {
-		if buildPack.RuntimeConfig.SkipClean() {
-			return
-		}
-		_ = os.RemoveAll(buildPack.GetCommonDirectory())
-
+	/**
+	clear BuildPack dir
+	 */
+	if !buildPack.RuntimeConfig.SkipClean() {
 		if len(buildPack.Config.Cleans) > 0 {
 			for _, path := range buildPack.Config.Cleans {
 				_ = os.RemoveAll(filepath.Join(buildPack.RootDir, path))
 			}
 		}
+		_ = os.RemoveAll(buildPack.GetCommonDirectory())
+	}
+	//log error
+	if !result.Success {
 		buildpack.LogFatal(result)
 	}
 }

@@ -86,19 +86,6 @@ func Handle(b *buildpack.BuildPack) buildpack.BuildResult {
 
 	})
 
-	defer func(cleans []string) {
-		if b.RuntimeConfig.SkipClean() {
-			return
-		}
-		_ = os.RemoveAll(commonDir)
-
-		if len(b.Config.Cleans) > 0 {
-			for _, path := range cleans {
-				_ = os.RemoveAll(filepath.Join(b.RootDir, path))
-			}
-		}
-	}(b.Config.Cleans)
-
 	return actionHandler(b)
 }
 
@@ -313,7 +300,7 @@ func ActionReleaseHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 	oldVersion := v.WithoutLabel()
 
 	// tagging
-	if !bp.SkipTag(){
+	if !bp.SkipTag() {
 		bp.Phase = buildpack.PhaseTagging
 		buildpack.LogInfo(*bp, fmt.Sprintf("create tag for version %s", oldVersion))
 		err = bp.Tag(oldVersion)
@@ -324,10 +311,10 @@ func ActionReleaseHandler(bp *buildpack.BuildPack) buildpack.BuildResult {
 
 	// branching
 	checkoutNewBranch := true
-	if bp.SkipBranching(){
+	if bp.SkipBranching() {
 		checkoutNewBranch = false
-	}else{
-		if bp.RuntimeConfig.IsPatch(){
+	} else {
+		if bp.RuntimeConfig.IsPatch() {
 			checkoutNewBranch = false
 		}
 	}
@@ -486,6 +473,11 @@ func buildAndPublish(bp *buildpack.BuildPack) error {
 		if err != nil {
 			return err
 		}
+	}
+
+	for _, module := range modules {
+		err = os.RemoveAll(filepath.Join(bp.GetCommonDirectory(), module.Name))
+		fmt.Println(err)
 	}
 	return nil
 }

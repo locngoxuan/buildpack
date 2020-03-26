@@ -43,28 +43,28 @@ func creatTar(ctx PublishContext, moduleInCommonDir string) error {
 	if err != nil {
 		return err
 	}
-	f, err := os.Open(filepath.Join(moduleInCommonDir, wesAppConfig))
+	wesAppFile, err := os.Open(filepath.Join(moduleInCommonDir, wesAppConfig))
 	if err != nil {
 		return err
 	}
 	defer func() {
-		_ = f.Close()
+		_ = wesAppFile.Close()
 	}()
-	fileInfo, _ := f.Stat()
-	err = tar.Add(wesAppConfig, f, fileInfo)
+	wesAppFileInfo, _ := wesAppFile.Stat()
+	err = tar.Add(wesAppConfig, wesAppFile, wesAppFileInfo)
 	if err != nil {
 		return err
 	}
 
-	f, err = os.Open(filepath.Join(moduleInCommonDir, dockerFileName))
+	dockerFile, err := os.Open(filepath.Join(moduleInCommonDir, dockerFileName))
 	if err != nil {
 		return err
 	}
 	defer func() {
-		_ = f.Close()
+		_ = dockerFile.Close()
 	}()
-	fileInfo, _ = f.Stat()
-	err = tar.Add(dockerFileName, f, fileInfo)
+	dockerFileInfo, _ := dockerFile.Stat()
+	err = tar.Add(dockerFileName, dockerFile, dockerFileInfo)
 	if err != nil {
 		return err
 	}

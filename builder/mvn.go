@@ -128,7 +128,10 @@ func (c *MVNBuildTool) LoadConfig(ctx BuildContext) (err error) {
 	if ctx.SkipContainer() {
 		c.Func = RunOnHost
 	}
-	configFile := ctx.GetFile(buildpack.BuildPackFile_Build())
+	configFile, err := ctx.GetFile(buildpack.BuildPackFile_Build())
+	if err != nil {
+		return err
+	}
 	if len(configFile) == 0 {
 		err = errors.New("can not get path of builder configuration file")
 		return

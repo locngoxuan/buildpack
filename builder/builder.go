@@ -25,16 +25,16 @@ type BuildContext struct {
 	Values     map[string]interface{}
 }
 
-func (bc *BuildContext) GetFile(args ...string) string {
+func (bc *BuildContext) GetFile(args ...string) (string, error) {
 	parts := []string{
 		bc.WorkingDir,
 	}
 	parts = append(parts, args...)
 	p, err := filepath.Abs(filepath.Join(parts...))
 	if err != nil {
-		buildpack.LogFatal(bc.Error("", err))
+		return "", err
 	}
-	return p
+	return p, nil
 }
 
 type BuildTool interface {

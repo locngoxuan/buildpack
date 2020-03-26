@@ -169,21 +169,25 @@ func displayDockerLog(bp buildpack.BuildPack, in io.Reader) error {
 
 func (p *DockerSQLPublishTool) Publish(ctx PublishContext) error {
 	for _, image := range p.Images {
-		buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("publish %s", image))
-		reader, err := deployImage(p.Client, p.Username, p.Password, image, ctx.Verbose())
-		if err != nil {
-			return err
-		}
-
-		defer func() {
-			_ = reader.Close()
-		}()
-		err = displayDockerLog(ctx.BuildPack, reader)
+		err := publish(ctx, image, p.Username, p.Password, p.Client)
 		if err != nil {
 			return err
 		}
 	}
 	return nil
+}
+
+func publish(ctx PublishContext, image, username, password string, client docker.DockerClient) error {
+	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("publish %s", image))
+	reader, err := deployImage(client, username, password, image, ctx.Verbose())
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = reader.Close()
+	}()
+	return displayDockerLog(ctx.BuildPack, reader)
 }
 
 func deployImage(cli docker.DockerClient, username, password, image string, verbose bool) (io.ReadCloser, error) {

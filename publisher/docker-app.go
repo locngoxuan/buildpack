@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/jhoonb/archivex"
+	"os"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
 	"strings"
@@ -11,6 +12,9 @@ import (
 
 const (
 	dockerAppPublishTool = "docker-app"
+	wesAppConfig         = "application.yml"
+	distFolderName       = "dist"
+	libsFolderName       = "libs"
 )
 
 type DockerAPPPublishTool struct {
@@ -31,10 +35,40 @@ func creatTar(ctx PublishContext, moduleInCommonDir string) error {
 	if err != nil {
 		return err
 	}
-	err = tar.AddAll(moduleInCommonDir, false)
+	err = tar.AddAll(filepath.Join(moduleInCommonDir, libsFolderName), true)
 	if err != nil {
 		return err
 	}
+	err = tar.AddAll(filepath.Join(moduleInCommonDir, distFolderName), true)
+	if err != nil {
+		return err
+	}
+	f, err := os.Open(filepath.Join(moduleInCommonDir, wesAppConfig))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+	fileInfo, _ := f.Stat()
+	err = tar.Add(wesAppConfig, f, fileInfo)
+	if err != nil {
+		return err
+	}
+
+	f, err = os.Open(filepath.Join(moduleInCommonDir, dockerFileName))
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = f.Close()
+	}()
+	fileInfo, _ = f.Stat()
+	err = tar.Add(dockerFileName, f, fileInfo)
+	if err != nil {
+		return err
+	}
+
 	err = tar.Close()
 	if err != nil {
 		return err

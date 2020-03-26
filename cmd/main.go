@@ -133,6 +133,16 @@ func main() {
 
 	//log error
 	if !result.Success {
+		if buildPack.RuntimeConfig.SkipClean() {
+			return
+		}
+		_ = os.RemoveAll(buildPack.GetCommonDirectory())
+
+		if len(buildPack.Config.Cleans) > 0 {
+			for _, path := range buildPack.Config.Cleans {
+				_ = os.RemoveAll(filepath.Join(buildPack.RootDir, path))
+			}
+		}
 		buildpack.LogFatal(result)
 	}
 }

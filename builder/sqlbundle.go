@@ -64,7 +64,7 @@ func (b *SQLBundleBuildTool) PostBuild(ctx BuildContext) error {
 
 	dockerSrc := ctx.GetFile(appDockerfile)
 	dockerDst := filepath.Join(moduleInCommon, appDockerfile)
-	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("Copying %s/%s to %s", ctx.Path, appDockerfile, dockerDst))
+	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("Copying %s to %s", appDockerfile, dockerDst))
 	err = buildpack.CopyFile(dockerSrc, dockerDst)
 	if err != nil {
 		return err

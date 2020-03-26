@@ -2,7 +2,6 @@ package builder
 
 import (
 	"fmt"
-	"github.com/jhoonb/archivex"
 	"os"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
@@ -29,48 +28,42 @@ func (c *MVNAppBuildTool) Build(ctx BuildContext) error {
 }
 
 func (c *MVNAppBuildTool) PostBuild(ctx BuildContext) error {
-	moduleInCommon := filepath.Join(ctx.GetCommonDirectory(), ctx.Name)
-	err := os.MkdirAll(moduleInCommon, 0777)
+	moduleInCommonDir := filepath.Join(ctx.GetCommonDirectory(), ctx.Name)
+	err := os.MkdirAll(moduleInCommonDir, 0777)
 	if err != nil {
 		return err
 	}
-	// copy pom.xml to pre-docker dir
+	// copy pom.xml to .buildpack/{modulename}/ directory
 	pomSrc := filepath.Join(ctx.WorkingDir, "target", pomFileName)
-	pomDst := filepath.Join(moduleInCommon, pomFileName)
+	pomDst := filepath.Join(moduleInCommonDir, pomFileName)
 	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("Copying %s to %s", pomSrc, pomDst))
 	err = buildpack.CopyFile(pomSrc, pomDst)
 	if err != nil {
 		return err
 	}
 
-	// create pre-docker directory
-	dockerPreDir := filepath.Join(moduleInCommon, "pre-docker")
-	err = os.MkdirAll(dockerPreDir, 0777)
-	if err != nil {
-		return err
-	}
-
-	// copy application.yml to pre-docker dir
+	// copy application.yml to common dir
 	appYMLSrc := filepath.Join(ctx.WorkingDir, wesAppConfig)
-	appYMLDst := filepath.Join(dockerPreDir, wesAppConfig)
-	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("Copying %s to %s", appYMLSrc, appYMLDst))
+	appYMLDst := filepath.Join(moduleInCommonDir, wesAppConfig)
+	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Copying %s to %s", appYMLSrc, appYMLDst))
 	err = buildpack.CopyFile(appYMLSrc, appYMLDst)
 	if err != nil {
 		return err
 	}
 
-	// copy Dockerfile to pre-docker dir
+	// copy Dockerfile to common dir
 	dockerSrc := filepath.Join(ctx.WorkingDir, appDockerfile)
-	dockerDst := filepath.Join(dockerPreDir, appDockerfile)
-	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("Copying %s to %s", appDockerfile, dockerDst))
+	dockerDst := filepath.Join(moduleInCommonDir, appDockerfile)
+	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Copying %s to %s", appDockerfile, dockerDst))
 	err = buildpack.CopyFile(dockerSrc, dockerDst)
 	if err != nil {
 		return err
 	}
 
-	// copy dist directory to pre-docker dir
+	// copy dist directory to common dir
 	distFolderSrc := filepath.Join(ctx.WorkingDir, distFolderName)
-	distFolderDst := filepath.Join(dockerPreDir, distFolderName)
+	distFolderDst := filepath.Join(moduleInCommonDir, distFolderName)
+	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Copying %s to %s", distFolderName, distFolderDst))
 	err = os.MkdirAll(distFolderDst, 0755)
 	if err != nil {
 		return err
@@ -80,32 +73,15 @@ func (c *MVNAppBuildTool) PostBuild(ctx BuildContext) error {
 		return err
 	}
 
-	// copy libs directory to pre-docker dir
+	// copy libs directory to common dir
 	libFolderSrc := filepath.Join(ctx.WorkingDir, libsFolderName)
-	libFolderDst := filepath.Join(dockerPreDir, libsFolderName)
+	libFolderDst := filepath.Join(moduleInCommonDir, libsFolderName)
+	buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Copying %s to %s", libsFolderName, libFolderDst))
 	err = os.MkdirAll(libFolderDst, 0755)
 	if err != nil {
 		return err
 	}
 	err = copyDirectory(ctx.BuildPack, libFolderSrc, libFolderDst)
-	if err != nil {
-		return err
-	}
-
-	// tar info
-	tarName := fmt.Sprintf("%s-%s.tar", ctx.Name, ctx.Version)
-	tarFile := filepath.Join(moduleInCommon, tarName)
-	//create tar at common directory
-	tar := new(archivex.TarFile)
-	err = tar.Create(tarFile)
-	if err != nil {
-		return err
-	}
-	err = tar.AddAll(dockerPreDir, false)
-	if err != nil {
-		return err
-	}
-	err = tar.Close()
 	if err != nil {
 		return err
 	}

@@ -83,7 +83,7 @@ func (c *DockerClient) BuildImage(file string, tags []string) (types.ImageBuildR
 		Remove:      true,
 		ForceRemove: true,
 		Tags:        tags,
-		PullParent:  true,
+		PullParent:  false,
 		Dockerfile:  "Dockerfile",
 	}
 

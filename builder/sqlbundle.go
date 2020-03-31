@@ -64,7 +64,12 @@ func (b *SQLBundleBuildTool) PostBuild(ctx BuildContext) error {
 	if err != nil {
 		return err
 	}
-	err = copyDirectory(ctx.BuildPack, sqlTarget, moduleInCommon)
+	targetDst := filepath.Join(moduleInCommon, "target")
+	err = os.MkdirAll(targetDst, 0755)
+	if err != nil {
+		return err
+	}
+	err = copyDirectory(ctx.BuildPack, sqlTarget, targetDst)
 	if err != nil {
 		return err
 	}

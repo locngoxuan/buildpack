@@ -31,7 +31,7 @@ type BuildPack struct {
 }
 
 const (
-	VERSION = "v1.5.6"
+	VERSION = "v1.5.7"
 
 	buildPackFile        = "Buildpackfile"
 	buildPackFileBuild   = "Buildpackfile.build"

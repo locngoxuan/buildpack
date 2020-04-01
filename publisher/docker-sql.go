@@ -88,7 +88,7 @@ func (p *DockerSQLPublishTool) PrePublish(ctx PublishContext) error {
 	if err != nil {
 		return err
 	}
-	err = tar.AddAll(filepath.Join(dir, sqlbundle.GeneratedDirName), true)
+	err = tar.AddAll(filepath.Join(dir, sqlbundle.TargetDirName), true)
 	if err != nil {
 		return err
 	}

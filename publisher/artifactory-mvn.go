@@ -97,8 +97,12 @@ func (c *ArtifactoryMVNTool) PrePublish(ctx PublishContext) error {
 		if filepath.Ext(file) == ".pom" {
 
 		} else if filepath.Ext(file) == ".jar" {
-			ext := filepath.Ext(file)
-			pomFile = file[0:len(file)-len(ext)] + ".pom"
+			if strings.HasSuffix(file, "-javadoc.jar") {
+				pomFile = strings.ReplaceAll(file, "-javadoc.jar", ".pom")
+			} else {
+				ext := filepath.Ext(file)
+				pomFile = file[0:len(file)-len(ext)] + ".pom"
+			}
 		} else {
 			return errors.New("known ext of file " + file)
 		}

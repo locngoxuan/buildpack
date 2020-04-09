@@ -43,11 +43,13 @@ type RuntimeConfig struct {
 	help          bool
 	debug         bool
 	release       bool
+	devMode       bool
 }
 
 func ReadArgument(f *flag.FlagSet) (args RuntimeConfig, err error) {
 	args.flag = f
 	err = args.readVersion().
+		readDevMode().
 		readDebug().
 		readHelp().
 		readShareData().
@@ -79,12 +81,22 @@ func ReadArgument(f *flag.FlagSet) (args RuntimeConfig, err error) {
 		args.skipPublish = true
 	}
 
+	if args.devMode {
+		args.release = false
+		args.skipTag = true
+		args.skipBranching = true
+		args.skipPublish = true
+		args.skipClean = true
+		args.skipContainer = true
+	}
+
 	return
 }
 
 func ReadForUsage(f *flag.FlagSet) (args RuntimeConfig, err error) {
 	args.flag = f
 	args.readVersion().
+		readDevMode().
 		readDebug().
 		readHelp().
 		readShareData().
@@ -104,7 +116,7 @@ func ReadForUsage(f *flag.FlagSet) (args RuntimeConfig, err error) {
 		readLabel().
 		readRelease()
 	err = args.flag.Parse(os.Args[1:])
-	if err != nil{
+	if err != nil {
 		return
 	}
 	if args.local {
@@ -113,7 +125,20 @@ func ReadForUsage(f *flag.FlagSet) (args RuntimeConfig, err error) {
 		args.skipBranching = true
 		args.skipPublish = true
 	}
+	if args.devMode {
+		args.release = false
+		args.skipTag = true
+		args.skipBranching = true
+		args.skipPublish = true
+		args.skipClean = true
+		args.skipContainer = true
+	}
 	return
+}
+
+func (a *RuntimeConfig) readDevMode() *RuntimeConfig {
+	a.flag.BoolVar(&a.devMode, "dev-mode", false, "Build at local machine")
+	return a
 }
 
 func (a *RuntimeConfig) readDevVersion() *RuntimeConfig {

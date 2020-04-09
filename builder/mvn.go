@@ -230,6 +230,17 @@ func (c *MVNBuildTool) PostBuild(ctx BuildContext) error {
 			return err
 		}
 		buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Copy %s to %s", jarSrc, jarPublished))
+
+		javaDocName := fmt.Sprintf("%s-%s-javadoc.jar", pom.ArtifactId, removeBuildNumberIfNeed(ctx.BuildPack, ctx.Version))
+		javaDocSrc := ctx.BuildPathOnRoot(ctx.Path, "target", javaDocName)
+		if buildpack.DoesFileExists(javaDocSrc) {
+			javaDocPublished := filepath.Join(moduleInCommon, javaDocName)
+			err := buildpack.CopyFile(javaDocSrc, javaDocPublished)
+			if err != nil {
+				return err
+			}
+			buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Copy %s to %s", javaDocSrc, javaDocPublished))
+		}
 	}
 
 	return nil

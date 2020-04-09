@@ -79,3 +79,10 @@ func CopyFile(src, dst string) error {
 	_, err = io.Copy(destination, source)
 	return err
 }
+
+func DoesFileExists(file string) bool {
+	if _, err := os.Stat(file); os.IsNotExist(err) {
+		return false
+	}
+	return true
+}

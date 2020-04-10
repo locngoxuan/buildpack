@@ -319,3 +319,7 @@ func (a *RuntimeConfig) IsHelp() bool {
 func (a *RuntimeConfig) IsDebug() bool {
 	return a.debug
 }
+
+func (a *RuntimeConfig) IsDevMode() bool {
+	return a.devMode
+}

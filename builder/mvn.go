@@ -137,7 +137,7 @@ func (c *MVNBuildTool) LoadConfig(ctx BuildContext) (err error) {
 		return
 	}
 	_, err = os.Stat(configFile)
-	if err != nil {
+	if err != nil || ctx.IsDevMode() {
 		if os.IsNotExist(err) {
 			c.MVNBuildConfig = MVNBuildConfig{
 				BuildOptions:   make([]string, 0),

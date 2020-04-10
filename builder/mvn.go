@@ -241,6 +241,17 @@ func (c *MVNBuildTool) PostBuild(ctx BuildContext) error {
 			}
 			buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Copy %s to %s", javaDocSrc, javaDocPublished))
 		}
+
+		javaSourceName := fmt.Sprintf("%s-%s-sources.jar", pom.ArtifactId, removeBuildNumberIfNeed(ctx.BuildPack, ctx.Version))
+		javaSourceSrc := ctx.BuildPathOnRoot(ctx.Path, "target", javaSourceName)
+		if buildpack.DoesFileExists(javaDocSrc) {
+			javaSourcePublished := filepath.Join(moduleInCommon, javaSourceName)
+			err := buildpack.CopyFile(javaSourceSrc, javaSourcePublished)
+			if err != nil {
+				return err
+			}
+			buildpack.LogInfo(ctx.BuildPack, fmt.Sprintf("Copy %s to %s", javaSourceSrc, javaSourcePublished))
+		}
 	}
 
 	return nil

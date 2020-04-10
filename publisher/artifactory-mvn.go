@@ -99,6 +99,8 @@ func (c *ArtifactoryMVNTool) PrePublish(ctx PublishContext) error {
 		} else if filepath.Ext(file) == ".jar" {
 			if strings.HasSuffix(file, "-javadoc.jar") {
 				pomFile = strings.ReplaceAll(file, "-javadoc.jar", ".pom")
+			} else if strings.HasSuffix(file, "-sources.jar") {
+				pomFile = strings.ReplaceAll(file, "-sources.jar", ".pom")
 			} else {
 				ext := filepath.Ext(file)
 				pomFile = file[0:len(file)-len(ext)] + ".pom"

@@ -175,7 +175,7 @@ func (c *MVNBuildTool) Name() string {
 func (c *MVNBuildTool) Clean(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "clean")
-	arg = append(arg, c.MVNBuildConfig.BuildOptions...)
+	//arg = append(arg, c.MVNBuildConfig.BuildOptions[len(c.MVNBuildConfig.BuildOptions)-1])
 	return c.Func(ctx, c.MVNBuildConfig, arg...)
 }
 

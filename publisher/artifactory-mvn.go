@@ -86,7 +86,13 @@ func (c *ArtifactoryMVNTool) PrePublish(ctx PublishContext) error {
 		return err
 	}
 
+	//upload pom and jar
 	for _, file := range files {
+		if strings.HasSuffix(file, "-javadoc.jar") ||
+			strings.HasSuffix(file, "-sources.jar") {
+			continue
+		}
+
 		md5, err := buildpack.ChecksumMD5(file)
 		if err != nil {
 			return err
@@ -97,16 +103,49 @@ func (c *ArtifactoryMVNTool) PrePublish(ctx PublishContext) error {
 		if filepath.Ext(file) == ".pom" {
 
 		} else if filepath.Ext(file) == ".jar" {
-			if strings.HasSuffix(file, "-javadoc.jar") {
-				pomFile = strings.ReplaceAll(file, "-javadoc.jar", ".pom")
-			} else if strings.HasSuffix(file, "-sources.jar") {
-				pomFile = strings.ReplaceAll(file, "-sources.jar", ".pom")
-			} else {
-				ext := filepath.Ext(file)
-				pomFile = file[0:len(file)-len(ext)] + ".pom"
-			}
+			ext := filepath.Ext(file)
+			pomFile = file[0:len(file)-len(ext)] + ".pom"
 		} else {
 			return errors.New("known ext of file " + file)
+		}
+
+		pom, err := buildpack.ReadPOM(pomFile)
+		if err != nil {
+			return err
+		}
+		args := strings.Split(pom.GroupId, ".")
+		args = append(args, pom.ArtifactId)
+		args = append(args, pom.Version)
+		modulePath := strings.Join(args, "/")
+
+		c.Packages = append(c.Packages, ArtifactPackage{
+			Source:      file,
+			Destination: fmt.Sprintf("%s/%s/%s", c.Repository, modulePath, fileName),
+			MD5:         md5,
+			Username:    c.Username,
+			Password:    c.Password,
+		})
+	}
+
+	for _, file := range files {
+		if filepath.Ext(file) != ".jar" {
+			continue
+		}
+		if !strings.HasSuffix(file, "-javadoc.jar") ||
+			!strings.HasSuffix(file, "-sources.jar") {
+			continue
+		}
+		md5, err := buildpack.ChecksumMD5(file)
+		if err != nil {
+			return err
+		}
+
+		_, fileName := filepath.Split(file)
+		pomFile := file
+		if strings.HasSuffix(file, "-javadoc.jar") {
+			pomFile = strings.ReplaceAll(file, "-javadoc.jar", ".pom")
+		} else if strings.HasSuffix(file, "-sources.jar") {
+			pomFile = strings.ReplaceAll(file, "-sources.jar", ".pom")
 		}
 
 		pom, err := buildpack.ReadPOM(pomFile)

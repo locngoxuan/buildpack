@@ -476,8 +476,7 @@ func buildAndPublish(bp *buildpack.BuildPack) error {
 	}
 
 	for _, module := range modules {
-		err = os.RemoveAll(filepath.Join(bp.GetCommonDirectory(), module.Name))
-		fmt.Println(err)
+		_ = os.RemoveAll(filepath.Join(bp.GetCommonDirectory(), module.Name))
 	}
 	return nil
 }

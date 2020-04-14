@@ -131,7 +131,7 @@ func (c *ArtifactoryMVNTool) PrePublish(ctx PublishContext) error {
 		if filepath.Ext(file) != ".jar" {
 			continue
 		}
-		if !strings.HasSuffix(file, "-javadoc.jar") ||
+		if !strings.HasSuffix(file, "-javadoc.jar") &&
 			!strings.HasSuffix(file, "-sources.jar") {
 			continue
 		}
@@ -171,6 +171,8 @@ func (c *ArtifactoryMVNTool) Publish(ctx PublishContext) error {
 	for _, upload := range c.Packages {
 		buildpack.LogVerbose(ctx.BuildPack,
 			fmt.Sprintf("uploading %s with md5:%s", upload.Destination, upload.MD5))
+		buildpack.LogInfo(ctx.BuildPack,
+			fmt.Sprintf("uploading %s", upload.Destination))
 		err := uploadFile(upload)
 		if err != nil {
 			return err

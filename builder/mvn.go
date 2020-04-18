@@ -137,8 +137,8 @@ func (c *MVNBuildTool) LoadConfig(ctx BuildContext) (err error) {
 		return
 	}
 	_, err = os.Stat(configFile)
-	if err != nil || ctx.IsDevMode() {
-		if os.IsNotExist(err) {
+	if err != nil || ctx.IsDevMode(){
+		if os.IsNotExist(err) || ctx.IsDevMode() {
 			c.MVNBuildConfig = MVNBuildConfig{
 				BuildOptions:   make([]string, 0),
 				ContainerImage: dockerContainerImage,

@@ -5,6 +5,7 @@ var publishTools map[string]PublishTool
 func init() {
 	publishTools = make(map[string]PublishTool)
 	publishTools[artifactoryMvnTool] = &ArtifactoryMVNTool{}
+	publishTools[artifactoryYARNTool] = &ArtifactoryYARNTool{}
 	publishTools[dockerSqlPublishTool] = &DockerSQLPublishTool{}
 	publishTools[dockerAppPublishTool] = &DockerAPPPublishTool{}
 	publishTools[dockerAutoPublishTool] = &DockerAMPublishTool{}

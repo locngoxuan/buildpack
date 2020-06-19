@@ -7,14 +7,14 @@ import (
 	"io/ioutil"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
 )
 
 const (
-	yarnDockerImage   = "xuanloc0511/yarn"
-	yarnBuildTool     = "yarn"
-	packageJson       = "package.json"
-	packageJsonBackup = "package.json.bck"
+	yarnDockerImage = "xuanloc0511/yarn"
+	yarnBuildTool   = "yarn"
+	packageJson     = "package.json"
 )
 
 type RunYarn func(ctx BuildContext, buildOption YarnBuildConfig, args ...string) error
@@ -36,14 +36,9 @@ func RunYarnContainer(ctx BuildContext, buildOption YarnBuildConfig, args ...str
 	return nil
 }
 
-type YarnPackageJson struct {
-	Name    string `json:"name"`
-	Version string `json:"version"`
-}
-
 type YarnBuildTool struct {
 	Func RunYarn
-	YarnPackageJson
+	buildpack.PackageJson
 	YarnBuildConfig
 }
 
@@ -66,19 +61,9 @@ func (c *YarnBuildTool) LoadConfig(ctx BuildContext) (err error) {
 		return err
 	}
 
-	packageJsonBckFile, err := ctx.GetFile(packageJsonBackup)
-	if err != nil {
-		return err
-	}
-	_ = buildpack.RemoveFile(packageJsonBckFile)
 	_, err = os.Stat(packageJsonFile)
 	if err != nil {
 		return nil
-	}
-
-	err = copy(packageJsonFile, packageJsonBckFile)
-	if err != nil {
-		return err
 	}
 
 	err = c.yarnSetVersion(ctx)
@@ -95,13 +80,7 @@ func (c *YarnBuildTool) LoadConfig(ctx BuildContext) (err error) {
 		return
 	}
 
-	jsonFile, err := ioutil.ReadFile(packageJsonFile)
-	if err != nil {
-		err = errors.New(fmt.Sprintf("read package.json get error %v", err))
-		return
-	}
-
-	err = yaml.Unmarshal(jsonFile, &c.YarnPackageJson)
+	c.PackageJson, err = buildpack.ReadPackageJson(packageJsonFile)
 	if err != nil {
 		err = errors.New(fmt.Sprintf("unmarshal package.json get error %v", err))
 		return
@@ -158,7 +137,7 @@ func (c *YarnBuildTool) Clean(ctx BuildContext) error {
 		return err
 	}
 
-	f, err = ctx.GetFile(fmt.Sprintf("%s-%s.tgz", c.YarnPackageJson.Name, c.YarnPackageJson.Version))
+	f, err = ctx.GetFile(fmt.Sprintf("%s-%s.tgz", c.PackageJson.Name, c.PackageJson.Version))
 	err = buildpack.RemoveFile(f)
 	if err != nil {
 		return err
@@ -178,10 +157,6 @@ func (c *YarnBuildTool) PreBuild(ctx BuildContext) error {
 }
 
 func (c *YarnBuildTool) Build(ctx BuildContext) error {
-	err := c.yarnUpgrade(ctx)
-	if err != nil {
-		return err
-	}
 	return c.yarnBuild(ctx)
 }
 
@@ -197,16 +172,10 @@ func (c *YarnBuildTool) yarnBuild(ctx BuildContext) error {
 	return c.Func(ctx, c.YarnBuildConfig, arg...)
 }
 
-func (c *YarnBuildTool) yarnUpgrade(ctx BuildContext) error {
-	arg := make([]string, 0)
-	arg = append(arg, "upgrade")
-	return c.Func(ctx, c.YarnBuildConfig, arg...)
-}
-
 func (c *YarnBuildTool) yarnPack(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "pack")
-	arg = append(arg, "--filename", fmt.Sprintf("%s-%s.tgz", c.YarnPackageJson.Name, c.YarnPackageJson.Version))
+	arg = append(arg, "--filename", fmt.Sprintf("%s-%s.tgz", c.PackageJson.Name, c.PackageJson.Version))
 	return c.Func(ctx, c.YarnBuildConfig, arg...)
 }
 
@@ -217,19 +186,24 @@ func (c *YarnBuildTool) yarnSetVersion(ctx BuildContext) error {
 }
 
 func (c *YarnBuildTool) PostBuild(ctx BuildContext) error {
-	defer func() {
-		packageJsonFile, err := ctx.GetFile(packageJson)
-		if err != nil {
-			return
-		}
-
-		packageJsonBckFile, err := ctx.GetFile(packageJsonBackup)
-		if err != nil {
-			return
-		}
-		_ = buildpack.RemoveFile(packageJsonFile)
-		_ = copy(packageJsonBckFile, packageJsonFile)
-		_ = buildpack.RemoveFile(packageJsonBckFile)
-	}()
-	return c.yarnPack(ctx)
+	moduleInCommonDir := filepath.Join(ctx.GetCommonDirectory(), ctx.Name)
+	err := os.MkdirAll(moduleInCommonDir, 0777)
+	if err != nil {
+		return err
+	}
+	err = c.yarnPack(ctx)
+	if err != nil {
+		return err
+	}
+	//copy package.json -> ./buildpack/test/package.json
+	packageJsonFile := filepath.Join(ctx.WorkingDir, packageJson)
+	err = copy(packageJsonFile, filepath.Join(moduleInCommonDir, packageJson))
+	if err != nil {
+		return err
+	}
+	//copy {name}-{version}.tgz -> ./buildpack/test/{name}-v{version}.tgz
+	tgzName := fmt.Sprintf("%s-%s.tgz", c.PackageJson.Name, c.PackageJson.Version)
+	tgzDest := fmt.Sprintf("%s-v%s.tgz", c.PackageJson.Name, c.PackageJson.Version)
+	tgzSource := filepath.Join(ctx.WorkingDir, tgzName)
+	return copy(tgzSource, filepath.Join(moduleInCommonDir, tgzDest))
 }

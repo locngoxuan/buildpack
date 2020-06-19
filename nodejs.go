@@ -24,7 +24,7 @@ func ReadPackageJson(file string) (PackageJson, error) {
 		return PackageJson{}, err
 	}
 
-	jsonFile, err := ioutil.ReadFile(packageJson)
+	jsonFile, err := ioutil.ReadFile(file)
 	if err != nil {
 		err = errors.New(fmt.Sprintf("read application config file get error %v", err))
 		return PackageJson{}, err

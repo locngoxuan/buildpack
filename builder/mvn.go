@@ -15,10 +15,10 @@ import (
 )
 
 const (
-	dockerContainerImage = "xuanloc0511/mvn:3.6.3-2"
-	mvnBuildTool         = "mvn"
-	pomFileName          = "pom.xml"
-	labelSnapshot        = "SNAPSHOT"
+	mvnDockerImage = "xuanloc0511/mvn:3.6.3-2"
+	mvnBuildTool   = "mvn"
+	pomFileName    = "pom.xml"
+	labelSnapshot  = "SNAPSHOT"
 )
 
 type RunMVN func(ctx BuildContext, buildOption MVNBuildConfig, args ...string) error
@@ -57,7 +57,7 @@ func RunContainer(ctx BuildContext, buildOption MVNBuildConfig, args ...string) 
 		dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/root/.m2/repository", repositoryDir))
 	}
 
-	image := dockerContainerImage
+	image := mvnDockerImage
 	if len(strings.TrimSpace(buildOption.ContainerImage)) > 0 {
 		image = strings.TrimSpace(buildOption.ContainerImage)
 	}
@@ -113,11 +113,11 @@ func (c *MVNBuildTool) LoadConfig(ctx BuildContext) (err error) {
 		return
 	}
 	_, err = os.Stat(configFile)
-	if err != nil || ctx.IsDevMode(){
+	if err != nil || ctx.IsDevMode() {
 		if os.IsNotExist(err) || ctx.IsDevMode() {
 			c.MVNBuildConfig = MVNBuildConfig{
 				BuildOptions:   make([]string, 0),
-				ContainerImage: dockerContainerImage,
+				ContainerImage: mvnDockerImage,
 				RepoCache:      "",
 			}
 			c.MVNBuildConfig.BuildOptions = append(c.MVNBuildConfig.BuildOptions, fmt.Sprintf("-Drevision=%s", removeBuildNumberIfNeed(ctx.BuildPack, ctx.Version)))

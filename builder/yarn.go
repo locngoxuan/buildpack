@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"gopkg.in/yaml.v2"
@@ -9,17 +10,22 @@ import (
 	"os/exec"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
+	"scm.wcs.fortna.com/lngo/buildpack/docker"
+	"strings"
 )
 
 const (
-	yarnDockerImage = "xuanloc0511/yarn"
+	yarnDockerImage = "node:lts-alpine3.11"
 	yarnBuildTool   = "yarn"
 	packageJson     = "package.json"
+
+	packageJsonBck = ".package.json"
 )
 
 type RunYarn func(ctx BuildContext, buildOption YarnBuildConfig, args ...string) error
 
 func RunYarnOnHost(ctx BuildContext, _ YarnBuildConfig, args ...string) error {
+	args = append(args, "--cwd", ctx.WorkingDir)
 	cmd := exec.Command("yarn", args...)
 	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("working dir %s", ctx.WorkingDir))
 	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("yarn %+v", args))
@@ -33,7 +39,39 @@ func RunYarnOnHost(ctx BuildContext, _ YarnBuildConfig, args ...string) error {
 }
 
 func RunYarnContainer(ctx BuildContext, buildOption YarnBuildConfig, args ...string) error {
-	return nil
+	dockerHost, err := docker.CheckDockerHostConnection(context.Background(), ctx.Config.DockerConfig.Hosts)
+	if err != nil {
+		return errors.New(fmt.Sprintf("can not connect to docker host: %s", err.Error()))
+	}
+	dockerCommandArg := make([]string, 0)
+	dockerCommandArg = append(dockerCommandArg, "-H", dockerHost)
+	dockerCommandArg = append(dockerCommandArg, "run", "--rm")
+
+	image := yarnDockerImage
+	if len(strings.TrimSpace(buildOption.ContainerImage)) > 0 {
+		image = strings.TrimSpace(buildOption.ContainerImage)
+	}
+
+	dockerCommandArg = append(dockerCommandArg, "--workdir", "/working")
+	dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/working", ctx.WorkingDir))
+	dockerCommandArg = append(dockerCommandArg, image)
+	dockerCommandArg = append(dockerCommandArg, "yarn")
+	// because this is inside container then path to pomFile is /working/{module-path}/pom.xml
+	// args = append(args, "--cwd", filepath.Join(ctx.Path, pomFileName))
+	for _, v := range args {
+		dockerCommandArg = append(dockerCommandArg, v)
+	}
+
+	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("working dir %s", ctx.WorkingDir))
+	buildpack.LogVerbose(ctx.BuildPack, fmt.Sprintf("docker %s", strings.Join(dockerCommandArg, " ")))
+	dockerCmd := exec.Command("docker", dockerCommandArg...)
+	if ctx.BuildPack.RuntimeConfig.Verbose() {
+		dockerCmd.Stdout = os.Stdout
+		dockerCmd.Stderr = os.Stderr
+	} else {
+		dockerCmd.Stderr = os.Stderr
+	}
+	return dockerCmd.Run()
 }
 
 type YarnBuildTool struct {
@@ -56,21 +94,6 @@ func (c *YarnBuildTool) LoadConfig(ctx BuildContext) (err error) {
 		c.Func = RunYarnOnHost
 	}
 
-	packageJsonFile, err := ctx.GetFile(packageJson)
-	if err != nil {
-		return err
-	}
-
-	_, err = os.Stat(packageJsonFile)
-	if err != nil {
-		return nil
-	}
-
-	err = c.yarnSetVersion(ctx)
-	if err != nil {
-		return err
-	}
-
 	configFile, err := ctx.GetFile(buildpack.BuildPackFile_Build())
 	if err != nil {
 		return err
@@ -79,13 +102,6 @@ func (c *YarnBuildTool) LoadConfig(ctx BuildContext) (err error) {
 		err = errors.New("can not get path of builder configuration file")
 		return
 	}
-
-	c.PackageJson, err = buildpack.ReadPackageJson(packageJsonFile)
-	if err != nil {
-		err = errors.New(fmt.Sprintf("unmarshal package.json get error %v", err))
-		return
-	}
-
 	_, err = os.Stat(configFile)
 	if err != nil || ctx.IsDevMode() {
 		if os.IsNotExist(err) || ctx.IsDevMode() {
@@ -149,8 +165,26 @@ func (c *YarnBuildTool) Clean(ctx BuildContext) error {
 }
 
 func (c *YarnBuildTool) PreBuild(ctx BuildContext) error {
-	err := c.yarnSetVersion(ctx)
+	packageJsonFile := filepath.Join(ctx.WorkingDir, packageJson)
+	packageJsonBckFile := filepath.Join(ctx.WorkingDir, packageJsonBck)
+	_, err := os.Stat(packageJsonFile)
 	if err != nil {
+		return err
+	}
+	//create backup for package json
+	_ = os.RemoveAll(packageJsonBckFile)
+	err = copy(packageJsonFile, packageJsonBckFile)
+	if err != nil {
+		return err
+	}
+
+	err = c.yarnSetVersion(ctx)
+	if err != nil {
+		return err
+	}
+	c.PackageJson, err = buildpack.ReadPackageJson(packageJsonFile)
+	if err != nil {
+		err = errors.New(fmt.Sprintf("unmarshal package.json get error %v", err))
 		return err
 	}
 	return c.yarnInstall(ctx)
@@ -201,6 +235,16 @@ func (c *YarnBuildTool) PostBuild(ctx BuildContext) error {
 	if err != nil {
 		return err
 	}
+
+	//rollback version of package.json
+	packageJsonBckFile := filepath.Join(ctx.WorkingDir, packageJsonBck)
+	_ = os.RemoveAll(packageJsonFile)
+	err = copy(packageJsonBckFile, packageJsonFile)
+	if err != nil {
+		return err
+	}
+	_ = os.RemoveAll(packageJsonBckFile)
+
 	//copy {name}-{version}.tgz -> ./buildpack/test/{name}-v{version}.tgz
 	tgzName := fmt.Sprintf("%s-%s.tgz", c.PackageJson.Name, c.PackageJson.Version)
 	tgzDest := fmt.Sprintf("%s-v%s.tgz", c.PackageJson.Name, c.PackageJson.Version)

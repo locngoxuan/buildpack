@@ -8,6 +8,7 @@ func init() {
 	buildTools[mvnAppBuildTool] = &MVNAppBuildTool{}
 	buildTools[sqlBundleBuildTool] = &SQLBundleBuildTool{}
 	buildTools[mvnAutoBuildTool] = &MVNAutoBuildTool{}
+	buildTools[yarnBuildTool] = &YarnBuildTool{}
 	buildTools[noBuildTool] = &NoBuild{}
 }
 

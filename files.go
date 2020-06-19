@@ -51,6 +51,10 @@ func (bp *BuildPack) BuildPathOnRoot(args ...string) string {
 	return p
 }
 
+func RemoveFile(p string) error {
+	return os.RemoveAll(p)
+}
+
 func CopyFile(src, dst string) error {
 	sourceFileStat, err := os.Stat(src)
 	if err != nil {

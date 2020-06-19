@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
+	"strings"
 )
 
 type Builder struct {
@@ -171,4 +172,28 @@ func createIfNotExists(dir string, perm os.FileMode) error {
 	}
 
 	return nil
+}
+
+func removeBuildNumberIfNeed(bp buildpack.BuildPack, version string) string {
+	if bp.RuntimeConfig.IsRelease() {
+		return version
+	}
+
+	label := labelSnapshot
+	if len(bp.RuntimeConfig.Label()) > 0 {
+		label = bp.RuntimeConfig.Label()
+	}
+	if label != labelSnapshot {
+		return version
+	}
+	versionStr := strings.TrimSpace(bp.Config.Version)
+	if len(bp.RuntimeConfig.Version()) > 0 {
+		versionStr = bp.RuntimeConfig.Version()
+	}
+
+	v, err := buildpack.FromString(versionStr)
+	if err != nil {
+		return version
+	}
+	return v.WithLabel(labelSnapshot)
 }

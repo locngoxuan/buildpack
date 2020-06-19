@@ -38,30 +38,6 @@ func RunOnHost(ctx BuildContext, _ MVNBuildConfig, args ...string) error {
 	return cmd.Run()
 }
 
-func removeBuildNumberIfNeed(bp buildpack.BuildPack, version string) string {
-	if bp.RuntimeConfig.IsRelease() {
-		return version
-	}
-
-	label := labelSnapshot
-	if len(bp.RuntimeConfig.Label()) > 0 {
-		label = bp.RuntimeConfig.Label()
-	}
-	if label != labelSnapshot {
-		return version
-	}
-	versionStr := strings.TrimSpace(bp.Config.Version)
-	if len(bp.RuntimeConfig.Version()) > 0 {
-		versionStr = bp.RuntimeConfig.Version()
-	}
-
-	v, err := buildpack.FromString(versionStr)
-	if err != nil {
-		return version
-	}
-	return v.WithLabel(labelSnapshot)
-}
-
 func RunContainer(ctx BuildContext, buildOption MVNBuildConfig, args ...string) error {
 	dockerHost, err := docker.CheckDockerHostConnection(context.Background(), ctx.Config.DockerConfig.Hosts)
 	if err != nil {

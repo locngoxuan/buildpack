@@ -1,0 +1,208 @@
+<settings xmlns="http://maven.apache.org/SETTINGS/1.0.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0
+                              http://maven.apache.org/xsd/settings-1.0.0.xsd">
+    <profiles>
+        <profile>
+            <id>PublicRepos</id>
+            <repositories>
+                <repository>
+                    <id>MavenCentral</id>
+                    <name>Maven Central</name>
+                    <url>https://repo.maven.apache.org/maven2/</url>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+
+                <repository>
+                    <id>sonatype</id>
+                    <name>Sonatype Releases</name>
+                    <url>https://repo1.maven.org/maven2/</url>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+
+                <repository>
+                    <id>jcentral</id>
+                    <name>JCentral</name>
+                    <url>https://jcenter.bintray.com/</url>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+
+                <repository>
+                    <id>clojars</id>
+                    <name>Clojars</name>
+                    <url>https://repo.clojars.org/</url>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+
+                <repository>
+                    <id>spring-releases</id>
+                    <name>Spring Releases</name>
+                    <url>https://repo.spring.io/release</url>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+
+                <repository>
+                    <id>spring-snapshots</id>
+                    <name>Spring Snapshots</name>
+                    <url>https://repo.spring.io/snapshot</url>
+                    <releases>
+                        <enabled>false</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                </repository>
+
+                <repository>
+                    <id>atlassian-public</id>
+                    <name>Atlassian Maven</name>
+                    <url>https://packages.atlassian.com/mvn/maven-external/</url>
+                    <snapshots>
+                        <enabled>true</enabled>
+                        <updatePolicy>never</updatePolicy>
+                        <checksumPolicy>warn</checksumPolicy>
+                    </snapshots>
+                    <releases>
+                        <enabled>true</enabled>
+                        <checksumPolicy>warn</checksumPolicy>
+                    </releases>
+                </repository>
+            </repositories>
+        </profile>
+
+        <profile>
+            <id>FortnaLegacy</id>
+            <repositories>
+                <repository>
+                    <id>libs-release</id>
+                    <name>Fortna Libs Release</name>
+                    <url>http://repo.wcs.fortna.net/artifactory/libs-release</url>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+
+                <repository>
+                    <id>libs-snapshot</id>
+                    <name>Fortna Libs Snapshot</name>
+                    <url>http://repo.wcs.fortna.net/artifactory/libs-snapshot</url>
+                    <releases>
+                        <enabled>false</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                </repository>
+            </repositories>
+
+            <pluginRepositories>
+                <pluginRepository>
+                    <id>plugins-release</id>
+                    <url>http://repo.wcs.fortna.net/artifactory/plugins-release</url>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </pluginRepository>
+                <pluginRepository>
+                    <id>plugins-snapshot</id>
+                    <url>http://repo.wcs.fortna.net/artifactory/plugins-snapshot</url>
+                    <releases>
+                        <enabled>false</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                </pluginRepository>
+            </pluginRepositories>
+        </profile>
+
+
+        <profile>
+            <id>FortnaWES</id>
+            <repositories>
+                <repository>
+                    <id>wes-lib-releases</id>
+                    <name>Fortna WES release</name>
+                    <url>https://artifactory.wcs.fortna.com/artifactory/wes-libs-release</url>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+                <repository>
+                    <id>wes-lib-snapshots</id>
+                    <name>Fortna WES snapshot</name>
+                    <url>https://artifactory.wcs.fortna.com/artifactory/wes-libs-snapshot</url>
+                    <releases>
+                        <enabled>false</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                </repository>
+                <repository>
+                    <id>wes-remote</id>
+                    <name>Forta Central</name>
+                    <url>https://artifactory.wcs.fortna.com/artifactory/remote-repos</url>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </repository>
+            </repositories>
+
+            <pluginRepositories>
+                <pluginRepository>
+                    <id>plugin-wes-lib-central</id>
+                    <name>Plugin Fortna Central</name>
+                    <url>https://artifactory.wcs.fortna.com/artifactory/remote-repos</url>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </pluginRepository>
+                <pluginRepository>
+                    <id>plugin-wes-lib-releases</id>
+                    <name>Plugin Fortna WES release</name>
+                    <url>https://artifactory.wcs.fortna.com/artifactory/wes-libs-release</url>
+                    <snapshots>
+                        <enabled>false</enabled>
+                    </snapshots>
+                </pluginRepository>
+                <pluginRepository>
+                    <id>plugin-wes-lib-snapshots</id>
+                    <name>Plugin Fortna WES snapshot</name>
+                    <url>https://artifactory.wcs.fortna.com/artifactory/wes-libs-snapshot</url>
+                    <releases>
+                        <enabled>false</enabled>
+                    </releases>
+                    <snapshots>
+                        <enabled>true</enabled>
+                    </snapshots>
+                </pluginRepository>
+            </pluginRepositories>
+        </profile>
+    </profiles>
+
+    <mirrors>
+        <mirror>
+            <id>google-maven-central</id>
+            <name>GCS Maven Central mirror Asia Pacific</name>
+            <url>https://maven-central-asia.storage-download.googleapis.com/repos/central/data/</url>
+            <mirrorOf>central</mirrorOf>
+        </mirror>
+    </mirrors>
+
+    <activeProfiles>
+        <activeProfile>PublicRepos</activeProfile>
+        <activeProfile>FortnaLegacy</activeProfile>
+        <activeProfile>FortnaWES</activeProfile>
+    </activeProfiles>
+</settings>

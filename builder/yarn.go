@@ -135,26 +135,30 @@ func (c *YarnBuildTool) Name() string {
 }
 
 func (c *YarnBuildTool) Clean(ctx BuildContext) error {
-	f, err := ctx.GetFile("build")
-	err = buildpack.RemoveFile(f)
+	//build, err := ctx.GetFile("build")
+	build := filepath.Join(ctx.WorkingDir, "build")
+	err := buildpack.RemoveFile(build)
 	if err != nil {
 		return err
 	}
 
-	f, err = ctx.GetFile("node_modules")
-	err = buildpack.RemoveFile(f)
+	//f, err = ctx.GetFile("node_modules")
+	nodeModules := filepath.Join(ctx.WorkingDir, "node_modules")
+	err = buildpack.RemoveFile(nodeModules)
 	if err != nil {
 		return err
 	}
 
-	f, err = ctx.GetFile("yarn.lock")
-	err = buildpack.RemoveFile(f)
+	//f, err = ctx.GetFile("yarn.lock")
+	yarnLock := filepath.Join(ctx.WorkingDir, "yarn.lock")
+	err = buildpack.RemoveFile(yarnLock)
 	if err != nil {
 		return err
 	}
 
-	f, err = ctx.GetFile(fmt.Sprintf("%s-%s.tgz", c.PackageJson.Name, c.PackageJson.Version))
-	err = buildpack.RemoveFile(f)
+	//f, err = ctx.GetFile(fmt.Sprintf("%s-%s.tgz", c.PackageJson.Name, c.PackageJson.Version))
+	tgzFile := filepath.Join(ctx.WorkingDir, fmt.Sprintf("%s-%s.tgz", c.PackageJson.Name, c.PackageJson.Version))
+	err = buildpack.RemoveFile(tgzFile)
 	if err != nil {
 		return err
 	}

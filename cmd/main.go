@@ -1,148 +1,36 @@
 package main
 
 import (
-	"flag"
+	"context"
 	"fmt"
 	"os"
-	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
 )
 
-var (
-	usagePrefix = `Usage: buildpack ACTION [OPTIONS]
+func printInfo(msg string, v ...interface{}) {
+	if v != nil && len(v) > 0 {
+		_, _ = fmt.Fprintln(os.Stdout, fmt.Sprintf(msg, v))
+		return
+	}
+	_, _ = fmt.Fprintln(os.Stdout, msg)
+}
 
-ACTION:
-  init         Init a template of configuration file with name buildpack.yml		
-  config       Generate config file for all modules bases on buildpack.yaml
-  version      Show the buildpack version information
-  clean        Clean working directory
-  builder      List all builder supported
-  publisher    List all publisher supported
-  build        Create a build then publish to repository if --release=true is set
-  ver2pic      Generate image of version
+func printError(err error, msg string, v ...interface{}) {
+	if v != nil && len(v) > 0 {
+		_, _ = fmt.Fprintln(os.Stdout, fmt.Sprintf(msg, v), err)
+		return
+	}
+	_, _ = fmt.Fprintln(os.Stdout, msg, err)
+}
 
-Examples:
-  buildpack init --version=0.1.0              
-  buildpack config        
-  buildpack version
-  buildpack build --label=beta         
-  buildpack build --release           
-  buildpack build --release --path     
-
-Options:
-`
-)
-
-func Usage(f *flag.FlagSet) {
-	_, _ = fmt.Fprint(f.Output(), usagePrefix)
-	f.PrintDefaults()
+func printFatal(err error, msg string, v ...interface{}) {
+	printError(err, msg, v)
 	os.Exit(1)
 }
 
 func main() {
-	f := flag.NewFlagSet("buildpack", flag.ContinueOnError)
-	f.Usage = func() {
-		/**
-		Do nothing
-		 */
-	}
-
-	if len(os.Args) < 2 {
-		_, _ = buildpack.ReadForUsage(f)
-		Usage(f)
-		return
-	}
-
-	runtimeConfig, err := buildpack.ReadArgument(f)
-	if err != nil {
-		Usage(f)
-		return
-	}
-
-	if runtimeConfig.IsHelp() {
-		Usage(f)
-		return
-	}
-
-	if runtimeConfig.Verbose() || runtimeConfig.IsDebug() {
-		buildpack.LogOnlyMsg(fmt.Sprintf("Command: %v", os.Args))
-	}
-
-	action := os.Args[1]
-	err = verifyAction(action)
-	if err != nil {
-		Usage(f)
-		return
-	}
-
-	root, err := filepath.Abs(".")
-	if err != nil {
-		buildpack.LogFatal(buildpack.BuildResult{
-			Success: false,
-			Action:  action,
-			Phase:   "init",
-			Err:     err,
-			Message: "",
-		})
-		return
-	}
-
-	configFile := filepath.Join(root, buildpack.BuildPackFile())
-	if len(runtimeConfig.ConfigFile()) > 0 {
-		configFile, err = filepath.Abs(runtimeConfig.ConfigFile())
-		if err != nil {
-			buildpack.LogFatal(buildpack.BuildResult{
-				Success: false,
-				Action:  action,
-				Phase:   "init",
-				Err:     err,
-				Message: "",
-			})
-			return
-		}
-		root, _ = filepath.Split(configFile)
-	}
-	config, err := buildpack.ReadFromConfigFile(configFile)
-	if err != nil && action != actionInit &&
-		action != actionVersion &&
-		action != actionBuilders &&
-		action != actionPublishers &&
-		action != actionClean {
-		buildpack.LogFatal(buildpack.BuildResult{
-			Success: false,
-			Action:  action,
-			Phase:   "init",
-			Err:     err,
-			Message: "",
-		})
-		return
-	}
-
-	buildPack, err := buildpack.NewBuildPack(action, root, config, runtimeConfig)
-	if err != nil {
-		buildpack.LogFatal(buildpack.BuildResult{
-			Success: false,
-			Action:  action,
-			Phase:   "init",
-			Err:     err,
-			Message: "",
-		})
-	}
-
-	result := Handle(buildPack)
-	/**
-	clear BuildPack dir
-	 */
-	if !buildPack.RuntimeConfig.SkipClean() {
-		if len(buildPack.Config.Cleans) > 0 {
-			for _, path := range buildPack.Config.Cleans {
-				_ = os.RemoveAll(filepath.Join(buildPack.RootDir, path))
-			}
-		}
-		_ = os.RemoveAll(buildPack.GetCommonDirectory())
-	}
-	//log error
-	if !result.Success {
-		buildpack.LogFatal(result)
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	bp := buildpack.CreateBuildpack()
+	bp.Run(ctx)
 }

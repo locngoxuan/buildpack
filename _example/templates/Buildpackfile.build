@@ -1,6 +1,0 @@
-# example of maven
-repository: "" # ~/.m2/repository
-container: "" # xuanloc0511/mvn:3.6.3-2
-options:
-  - "option1"
-  - "option2"

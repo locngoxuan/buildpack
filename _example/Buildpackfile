@@ -1,0 +1,17 @@
+version: 1.0.0
+
+repositories:
+  - id: artifactory
+    statble:
+      address: ''
+      username: ''
+      password: ''
+    unstable:
+      address: ''
+      username: ''
+      password: ''
+
+module:
+  - id: 1
+    name: mvnproj
+    path: mvnprojs

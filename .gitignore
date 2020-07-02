@@ -1,5 +1,6 @@
 # Ignore all
 *
+.idea/workspace.xml
 
 # Unignore all with extensions
 !*.*

@@ -1,1 +1,4 @@
 builder: ''
+options:
+  - "option 1"
+  - "option 2"

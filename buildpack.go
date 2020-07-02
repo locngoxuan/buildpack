@@ -2,19 +2,28 @@ package buildpack
 
 import (
 	"context"
-	"sort"
-	"strings"
+	"path/filepath"
+	"scm.wcs.fortna.com/lngo/buildpack/common"
 )
 
 const version = "2.0.0"
 
 type BuildPack struct {
+	WorkDir string
+
 	Arguments
 	Environments
 	BuildConfig
 
 	RepoManager
 	GitManager
+}
+
+func (bp BuildPack) IsSkipContainer() bool {
+	if bp.DevMode {
+		return true
+	}
+	return bp.Arguments.SkipContainer
 }
 
 func CommandWithoutConfig(cmd string) bool {
@@ -30,22 +39,29 @@ func CommandWithoutConfig(cmd string) bool {
 	}
 }
 
-func CreateBuildPack(arg Arguments, env Environments, config BuildConfig) BuildPack {
-	rm := CreateRepoManager()
-	gm := CreateGitManager()
-	return BuildPack{
-		arg,
-		env,
-		config,
-		rm,
-		gm,
+func CreateBuildPack(arg Arguments, env Environments, config BuildConfig) (bp BuildPack, err error) {
+	workDir, err := filepath.Abs(".")
+	if err != nil {
+		return
 	}
+
+	if !common.IsEmptyString(arg.ConfigFile) {
+		workDir, _ = filepath.Split(arg.ConfigFile)
+	}
+
+	bp.WorkDir = workDir
+	bp.Arguments = arg
+	bp.Environments = env
+	bp.BuildConfig = config
+	bp.RepoManager = CreateRepoManager()
+	bp.GitManager = CreateGitManager()
+	return
 }
 
 func (bp *BuildPack) Run(ctx context.Context) error {
 	switch bp.Arguments.Command {
 	case cmdVersion:
-		PrintInfo("version %s", version)
+		common.PrintInfo("version %s", version)
 		return nil
 	case cmdBuild:
 		return bp.build()
@@ -57,41 +73,5 @@ func (bp *BuildPack) Run(ctx context.Context) error {
 	default:
 		f.Usage()
 		return nil
-	}
-}
-
-func (bp *BuildPack) handle(){
-	modules := strings.Split(bp.Arguments.Module, ",")
-	ms := make([]Module, 0)
-	if len(modules) == 0 {
-		for _, module := range bp.BuildConfig.Modules {
-			ms = append(ms, Module{
-				Id:   module.Id,
-				Name: module.Name,
-				Path: module.Path,
-			})
-		}
-	} else {
-		mmap := make(map[string]struct{})
-		for _, module := range modules {
-			mmap[module] = struct{}{}
-		}
-
-		for _, module := range bp.BuildConfig.Modules {
-			if _, ok := mmap[module.Name]; !ok {
-				continue
-			}
-			ms = append(ms, Module{
-				Id:   module.Id,
-				Name: module.Name,
-				Path: module.Path,
-			})
-		}
-	}
-
-	sort.Sort(SortedById(ms))
-
-	for _, module := range ms {
-		module.start()
 	}
 }

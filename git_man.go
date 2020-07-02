@@ -6,3 +6,7 @@ type GitManager struct {
 	Email       string
 	Password    string
 }
+
+func CreateGitManager() GitManager{
+	return GitManager{}
+}

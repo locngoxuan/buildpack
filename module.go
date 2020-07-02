@@ -6,6 +6,12 @@ type Module struct {
 	Path string
 }
 
+type SortedById []Module
+
+func (a SortedById) Len() int           { return len(a) }
+func (a SortedById) Less(i, j int) bool { return a[i].Id < a[j].Id }
+func (a SortedById) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
 func (m *Module) start() {
 	/**
 	1. Read configuration

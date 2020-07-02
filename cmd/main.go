@@ -1,36 +1,46 @@
 package main
 
 import (
-	"context"
-	"fmt"
-	"os"
+	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
 )
 
-func printInfo(msg string, v ...interface{}) {
-	if v != nil && len(v) > 0 {
-		_, _ = fmt.Fprintln(os.Stdout, fmt.Sprintf(msg, v))
-		return
-	}
-	_, _ = fmt.Fprintln(os.Stdout, msg)
-}
-
-func printError(err error, msg string, v ...interface{}) {
-	if v != nil && len(v) > 0 {
-		_, _ = fmt.Fprintln(os.Stdout, fmt.Sprintf(msg, v), err)
-		return
-	}
-	_, _ = fmt.Fprintln(os.Stdout, msg, err)
-}
-
-func printFatal(err error, msg string, v ...interface{}) {
-	printError(err, msg, v)
-	os.Exit(1)
-}
-
 func main() {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	bp := buildpack.CreateBuildpack()
-	bp.Run(ctx)
+	arg, err := buildpack.ReadArguments()
+	if err != nil {
+		buildpack.PrintFatal(err, "can not read arguments")
+	}
+
+	if buildpack.CommandWithoutConfig(arg.Command) {
+		bp := buildpack.CreateBuildPack(arg, buildpack.Environments{}, buildpack.BuildConfig{})
+		_ = bp.Run(nil)
+		return
+	}
+	env, err := buildpack.ReadEnvironment()
+	if err != nil {
+		buildpack.PrintFatal(err, "can not read environment")
+	}
+
+	workDir, err := filepath.Abs(".")
+	if err != nil {
+		buildpack.PrintFatal(err, "can not get current path of working directory")
+	}
+
+	cf := arg.ConfigFile
+	if buildpack.IsEmptyString(cf) {
+		cf = filepath.Join(workDir, buildpack.ConfigFileName)
+	}
+
+	buildpack.PrintInfo("get build configuration from %s", cf)
+	config, err := buildpack.ReadConfig(cf)
+	if err != nil {
+		buildpack.PrintFatal(err, "can not read config")
+	}
+
+	buildpack.PrintInfo("%v %v %v", arg, env, config)
+	bp := buildpack.CreateBuildPack(arg, env, config)
+	err = bp.Run(nil)
+	if err != nil {
+		buildpack.PrintFatal(err, "build fail")
+	}
 }

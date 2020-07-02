@@ -21,8 +21,8 @@ type RepoChannel struct {
 	Password string
 }
 
-func CreateRepoManager() {
-
+func CreateRepoManager() RepoManager {
+	return RepoManager{}
 }
 
 func CreateRepository() (r Repository, err error) {

@@ -26,6 +26,20 @@ func (bp BuildPack) IsSkipContainer() bool {
 	return bp.Arguments.SkipContainer
 }
 
+func (bp BuildPack) GetVersion() string {
+	if common.IsEmptyString(bp.Arguments.Version) {
+		return bp.BuildConfig.Version
+	}
+	return bp.Arguments.Version
+}
+
+func (bp BuildPack) validateDocker() error {
+	if !bp.IsSkipContainer() {
+		return common.ValidateDockerHostConnection()
+	}
+	return nil
+}
+
 func CommandWithoutConfig(cmd string) bool {
 	switch cmd {
 	case cmdVersion,
@@ -55,6 +69,11 @@ func CreateBuildPack(arg Arguments, env Environments, config BuildConfig) (bp Bu
 	bp.BuildConfig = config
 	bp.RepoManager = CreateRepoManager()
 	bp.GitManager = CreateGitManager()
+
+	if bp.BuildConfig.Docker != nil {
+		common.SetDockerHost(bp.BuildConfig.Docker.Hosts)
+	}
+	err = bp.validateDocker()
 	return
 }
 

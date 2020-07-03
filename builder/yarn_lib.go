@@ -3,6 +3,10 @@ package builder
 type YarnLib struct {
 }
 
+func (b YarnLib) Clean(ctx BuildContext) error {
+	return nil
+}
+
 func (b YarnLib) PreBuild(ctx BuildContext) error {
 	return nil
 }

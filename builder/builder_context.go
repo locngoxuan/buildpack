@@ -1,6 +1,12 @@
 package builder
 
 type BuildContext struct {
-	WorkDir string
-	TmpDir  string
+	Name          string
+	Path          string
+	WorkDir       string
+	OutputDir     string
+	ShareDataDir  string
+	Version       string
+	SkipContainer bool
+	SkipClean     bool
 }

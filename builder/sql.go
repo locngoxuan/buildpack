@@ -7,7 +7,7 @@ import (
 type Sql struct {
 }
 
-func (b Sql) PreBuild(ctx BuildContext) error {
+func (b Sql) Clean(ctx BuildContext) error {
 	bundle, err := sqlbundle.NewSQLBundle(sqlbundle.Argument{
 		WorkDir: ctx.WorkDir,
 	})
@@ -15,6 +15,10 @@ func (b Sql) PreBuild(ctx BuildContext) error {
 		return err
 	}
 	return bundle.Clean()
+}
+
+func (b Sql) PreBuild(ctx BuildContext) error {
+	return nil
 }
 
 func (b Sql) Build(ctx BuildContext) error {

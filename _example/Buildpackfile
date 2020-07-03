@@ -1,6 +1,20 @@
 version: 1.0.0
 
+docker:
+  hosts:
+    - unix:///var/run/docker.sock
+    - tcp://127.0.0.1:2375
+
 modules:
   - id: 1
-    name: sqlbundle
+    name: mvn
+    path: mvnproj
+  - id: 2
+    name: module1
+    path: mvnproj/module1
+  - id: 3
+    name: module2
+    path: mvnproj/module2
+  - id: 4
+    name: database
     path: sqlbundle

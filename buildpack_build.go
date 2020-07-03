@@ -48,12 +48,17 @@ func (bp *BuildPack) build() error {
 
 	//create tmp directory
 	tmp := filepath.Join(bp.WorkDir, BuildPackTmpDir)
-	err := common.CreateDir(tmp, bp.IsSkipContainer())
+	err := common.DeleteDir(tmp, true)
+	if err != nil {
+		return err
+	}
+
+	err = common.CreateDir(tmp, true, 0755)
 	if err != nil {
 		return err
 	}
 	for _, module := range ms {
-		err := common.CreateDir(filepath.Join(tmp, module.Name), bp.IsSkipContainer())
+		err := common.CreateDir(filepath.Join(tmp, module.Name), true, 0755)
 		if err != nil {
 			return err
 		}

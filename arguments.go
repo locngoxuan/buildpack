@@ -34,13 +34,15 @@ Options:
 )
 
 type Arguments struct {
-	Command    string
-	Version    string
-	Verbose    bool
-	Module     string
-	ConfigFile string
-	ShareData  string
-	DevMode    bool
+	Command      string
+	Version      string
+	Module       string
+	ConfigFile   string
+	ShareData    string
+	BuildRelease bool
+	BuildPath    bool
+	Verbose      bool
+	DevMode      bool
 	SkipOption
 }
 
@@ -58,6 +60,8 @@ func ReadArguments() (arg Arguments, err error) {
 	f.StringVar(&arg.ShareData, "share-data", "", "sharing directory")
 	f.StringVar(&arg.ConfigFile, "config", "", "specific path to config file")
 	f.BoolVar(&arg.DevMode, "dev-mode", false, "enable local mode to disable container build")
+	f.BoolVar(&arg.BuildRelease, "release", false, "build for releasing")
+	f.BoolVar(&arg.BuildPath, "patch", false, "build for patching")
 
 	f.BoolVar(&arg.SkipClean, "skip-clean", false, "skip clean everything after build complete")
 	f.BoolVar(&arg.SkipContainer, "skip-container", false, "skip container build")

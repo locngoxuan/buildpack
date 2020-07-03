@@ -1,6 +1,7 @@
 package buildpack
 
 import (
+	"fmt"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack/builder"
 )
@@ -52,10 +53,28 @@ func (m *Module) start(bp BuildPack) error {
 	if err != nil {
 		return err
 	}
-	buildContext := builder.BuildContext{
-		WorkDir: m.workDir,
-		TmpDir:  m.tmpDir,
+
+	v := bp.GetVersion()
+	if !bp.BuildRelease && !bp.BuildPath {
+		// it means build with label
+		v = fmt.Sprintf("%s-%s", bp.GetVersion(), bc.Label)
 	}
+
+	buildContext := builder.BuildContext{
+		Name:          m.Name,
+		Path:          m.Path,
+		WorkDir:       m.workDir,
+		OutputDir:     m.tmpDir,
+		SkipContainer: bp.IsSkipContainer(),
+		SkipClean:     bp.SkipClean,
+		ShareDataDir:  bp.ShareData,
+		Version:       v,
+	}
+	err = b.Clean(buildContext)
+	if err != nil {
+		return err
+	}
+
 	err = b.PreBuild(buildContext)
 	if err != nil {
 		return err
@@ -67,6 +86,13 @@ func (m *Module) start(bp BuildPack) error {
 	err = b.PostBuild(buildContext)
 	if err != nil {
 		return err
+	}
+
+	if !bp.SkipClean {
+		err = b.Clean(buildContext)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

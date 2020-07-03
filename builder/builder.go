@@ -9,6 +9,7 @@ var registries = make(map[string]Interface)
 const BuildConfigFileName = "Buildpackfile.build"
 
 type Interface interface {
+	Clean(ctx BuildContext) error
 	PreBuild(ctx BuildContext) error
 	Build(ctx BuildContext) error
 	PostBuild(ctx BuildContext) error

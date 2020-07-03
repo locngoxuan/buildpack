@@ -1,7 +1,7 @@
 # Ignore all
 *
 .idea/workspace.xml
-
+.idea
 # Unignore all with extensions
 !*.*
 !Makefile

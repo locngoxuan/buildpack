@@ -109,11 +109,6 @@ func (b MvnLib) PostBuild(ctx BuildContext) error {
 		return err
 	}
 
-	err = os.MkdirAll(ctx.OutputDir, 0777)
-	if err != nil {
-		return err
-	}
-
 	//copy pom
 	pomSrc := filepath.Join(ctx.WorkDir, "target", pomXml)
 	pomName := fmt.Sprintf("%s-%s.pom", pom.ArtifactId, ctx.Version)

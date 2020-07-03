@@ -13,7 +13,8 @@ import (
 )
 
 const (
-	dockerDefaultHost = "unix:///var/run/docker.sock"
+	defaultUnixSock = "unix:///var/run/docker.sock"
+	defaultTcpSock  = "tcp://127.0.0.1:2375"
 )
 
 type DockerClient struct {
@@ -22,14 +23,15 @@ type DockerClient struct {
 	Host   string
 }
 
-var dockerHosts []string
+var defaultDockerHost = []string{defaultUnixSock, defaultTcpSock}
+var sessionDockerHost []string
 
 func SetDockerHost(hosts []string) {
 	if hosts == nil {
-		dockerHosts = make([]string, 0)
+		sessionDockerHost = make([]string, 0)
 		return
 	}
-	dockerHosts = hosts
+	sessionDockerHost = hosts
 }
 
 func NewClient() (DockerClient, error) {
@@ -51,9 +53,11 @@ func NewClient() (DockerClient, error) {
 }
 
 func CheckDockerHostConnection(ctx context.Context) (string, error) {
-	if len(dockerHosts) == 0 {
-		dockerHosts = append(dockerHosts, dockerDefaultHost)
+	dockerHosts := make([]string, 0)
+	if sessionDockerHost != nil && len(sessionDockerHost) > 0 {
+		dockerHosts = append(dockerHosts, sessionDockerHost...)
 	}
+	dockerHosts = append(dockerHosts, defaultDockerHost...)
 	for _, host := range dockerHosts {
 		err := os.Setenv("DOCKER_HOST", host)
 		if err != nil {

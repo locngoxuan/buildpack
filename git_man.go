@@ -7,6 +7,6 @@ type GitManager struct {
 	Password    string
 }
 
-func CreateGitManager() GitManager{
+func CreateGitManager(c BuildConfig) GitManager {
 	return GitManager{}
 }

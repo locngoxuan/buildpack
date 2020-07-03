@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack/builder"
+	"scm.wcs.fortna.com/lngo/buildpack/publisher"
 )
 
 type Module struct {
@@ -80,21 +81,23 @@ func (m *Module) start(bp BuildPack) error {
 	 */
 	m.workDir = filepath.Join(bp.WorkDir, m.Path)
 	m.tmpDir = filepath.Join(bp.WorkDir, BuildPackOutputDir, m.Name)
+
+	//create version of build
+	v := bp.GetVersion()
+
+	//begin build phase
 	bc, err := builder.ReadConfig(m.workDir)
 	if err != nil {
 		return err
+	}
+	if !bp.BuildRelease && !bp.BuildPath {
+		// it means build with label
+		v = fmt.Sprintf("%s-%s", bp.GetVersion(), bc.Label)
 	}
 	b, err := builder.GetBuilder(bc.Builder)
 	if err != nil {
 		return err
 	}
-
-	v := bp.GetVersion()
-	if !bp.BuildRelease && !bp.BuildPath {
-		// it means build with label
-		v = fmt.Sprintf("%s-%s", bp.GetVersion(), bc.Label)
-	}
-
 	buildContext := builder.BuildContext{
 		Name:          m.Name,
 		Path:          m.Path,
@@ -128,6 +131,42 @@ func (m *Module) start(bp BuildPack) error {
 		if err != nil {
 			return err
 		}
+	}
+	//end build phase
+
+	//begin publish phase
+	if !bp.IsSkipPublish() {
+		return nil
+	}
+	//end publish phase
+	pc, err := publisher.ReadConfig(m.workDir)
+	if err != nil {
+		return err
+	}
+	p, err := publisher.GetPublisher(pc.Publisher)
+	if err != nil {
+		return err
+	}
+	publishCtx := publisher.PublisherContext{
+		Name:      m.Name,
+		Path:      m.Path,
+		WorkDir:   m.workDir,
+		OutputDir: m.tmpDir,
+		Version:   v,
+		RepoName:  pc.Repository,
+		IsStable:  bp.BuildRelease || bp.BuildPath,
+	}
+	err = p.PrePublish(publishCtx)
+	if err != nil {
+		return err
+	}
+	err = p.Publish(publishCtx)
+	if err != nil {
+		return err
+	}
+	err = p.PostPublish(publishCtx)
+	if err != nil {
+		return err
 	}
 	return nil
 }

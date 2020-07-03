@@ -2,8 +2,10 @@ package buildpack
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
+	"scm.wcs.fortna.com/lngo/buildpack/publisher"
 )
 
 const version = "2.0.0"
@@ -15,7 +17,6 @@ type BuildPack struct {
 	Environments
 	BuildConfig
 
-	RepoManager
 	GitManager
 }
 
@@ -31,6 +32,13 @@ func (bp BuildPack) IsSkipContainer() bool {
 		return true
 	}
 	return bp.Arguments.SkipContainer
+}
+
+func (bp BuildPack) IsSkipPublish() bool {
+	if bp.DevMode {
+		return true
+	}
+	return bp.Arguments.SkipPublish
 }
 
 func (bp BuildPack) GetVersion() string {
@@ -60,6 +68,35 @@ func CommandWithoutConfig(cmd string) bool {
 	}
 }
 
+func createRepoManager(c BuildConfig) (rm publisher.RepoManager, err error) {
+	rm.Repos = make(map[string]publisher.Repository)
+	if c.Repos == nil || len(c.Repos) == 0 {
+		err = errors.New("not found any repository configuration")
+		return
+	}
+	for _, repo := range c.Repos {
+		r := publisher.Repository{
+			Name: repo.Name,
+		}
+		if repo.Stable != nil {
+			r.Stable = &publisher.RepoChannel{
+				Address:  repo.Stable.Address,
+				Username: repo.Stable.Username,
+				Password: repo.Stable.Password,
+			}
+		}
+		if repo.Unstable != nil {
+			r.Unstable = &publisher.RepoChannel{
+				Address:  repo.Unstable.Address,
+				Username: repo.Unstable.Username,
+				Password: repo.Unstable.Password,
+			}
+		}
+		rm.Repos[r.Name] = r
+	}
+	return
+}
+
 func CreateBuildPack(arg Arguments, env Environments, config BuildConfig) (bp BuildPack, err error) {
 	workDir, err := filepath.Abs(".")
 	if err != nil {
@@ -74,8 +111,21 @@ func CreateBuildPack(arg Arguments, env Environments, config BuildConfig) (bp Bu
 	bp.Arguments = arg
 	bp.Environments = env
 	bp.BuildConfig = config
-	bp.RepoManager = CreateRepoManager()
-	bp.GitManager = CreateGitManager()
+
+	//if skip publish then no need to create repo manager
+	if !bp.SkipPublish {
+		rm, e := createRepoManager(config)
+		if e != nil {
+			err = e
+			return
+		}
+		publisher.SetRepoManager(rm)
+	}
+
+	//if skip git is true then no need to create git manager
+	if !bp.SkipGit {
+		bp.GitManager = CreateGitManager(config)
+	}
 
 	if bp.BuildConfig.Docker != nil {
 		common.SetDockerHost(bp.BuildConfig.Docker.Hosts)

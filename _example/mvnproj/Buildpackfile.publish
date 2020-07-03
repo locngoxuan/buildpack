@@ -1,2 +1,2 @@
-publisher: ''
+publisher: 'artifactory_mvn'
 repository: artifactory

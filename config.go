@@ -16,7 +16,7 @@ type BuildConfig struct {
 	Version string         `yaml:"version,omitempty"`
 	Git     *GitConfig     `yaml:"git,omitempty"`
 	Docker  *DockerConfig  `yaml:"docker,omitempty"`
-	Repos   []RepoConfig   `yaml:"repos,omitempty"`
+	Repos   []RepoConfig   `yaml:"repositories,omitempty"`
 	Modules []ModuleConfig `yaml:"modules,omitempty"`
 }
 

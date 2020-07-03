@@ -5,6 +5,17 @@ docker:
     - unix:///var/run/docker.sock
     - tcp://127.0.0.1:2375
 
+repositories:
+  - name: artifactory
+    stable:
+      address: http://localhost:8081/artifactory/libs-release
+      username: admin
+      password: 123456a@!
+    unstable:
+      address: http://localhost:8081/artifactory/libs-snapshot
+      username: admin
+      password: 123456a@!
+
 modules:
   - id: 1
     name: mvn

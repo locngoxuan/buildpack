@@ -3,15 +3,15 @@ package publisher
 type DockerSql struct {
 }
 
-func (n DockerSql) PrePublish() error {
+func (n DockerSql) PrePublish(ctx PublisherContext) error {
 	return nil
 }
 
-func (n DockerSql) Publish() error {
+func (n DockerSql) Publish(ctx PublisherContext) error {
 	return nil
 }
 
-func (n DockerSql) PostPublish() error {
+func (n DockerSql) PostPublish(ctx PublisherContext) error {
 	return nil
 }
 

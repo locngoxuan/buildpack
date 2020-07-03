@@ -1,26 +1,36 @@
 package publisher
 
+import "errors"
+
 var registries = make(map[string]Interface)
 
-const PublishConfigFileName = "Buildpackconfig.publish"
+const PublishConfigFileName = "Buildpackfile.publish"
 
 type Interface interface {
-	PrePublish() error
-	Publish() error
-	PostPublish() error
+	PrePublish(ctx PublisherContext) error
+	Publish(ctx PublisherContext) error
+	PostPublish(ctx PublisherContext) error
 }
 
 type DummyPublisher struct {
 }
 
-func (n DummyPublisher) PrePublish() error {
+func (n DummyPublisher) PrePublish(ctx PublisherContext) error {
 	return nil
 }
 
-func (n DummyPublisher) Publish() error {
+func (n DummyPublisher) Publish(ctx PublisherContext) error {
 	return nil
 }
 
-func (n DummyPublisher) PostPublish() error {
+func (n DummyPublisher) PostPublish(ctx PublisherContext) error {
 	return nil
+}
+
+func GetPublisher(name string) (Interface, error) {
+	i, ok := registries[name]
+	if !ok {
+		return nil, errors.New("not found publisher with name " + name)
+	}
+	return i, nil
 }

@@ -4,6 +4,7 @@ import (
 	"errors"
 	"net/http"
 	"os"
+	"scm.wcs.fortna.com/lngo/buildpack/common"
 )
 
 type ArtifactoryPackage struct {
@@ -12,6 +13,17 @@ type ArtifactoryPackage struct {
 	Md5      string
 	Username string
 	Password string
+}
+
+func upload(packages []ArtifactoryPackage) error {
+	for _, upload := range packages {
+		common.PrintInfo("uploading %s with md5:%s", upload.Endpoint, upload.Md5)
+		err := uploadFile(upload)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func uploadFile(param ArtifactoryPackage) error {
@@ -41,5 +53,32 @@ func uploadFile(param ArtifactoryPackage) error {
 	if res.StatusCode != http.StatusCreated {
 		return errors.New(res.Status)
 	}
+	return nil
+}
+
+type Artifactory interface {
+	PreparePackage(ctx PublisherContext) ([]ArtifactoryPackage, error)
+}
+
+type ArtifactoryPublisher struct {
+	Artifactory
+}
+
+func (n ArtifactoryPublisher) PrePublish(ctx PublisherContext) error {
+	return nil
+}
+
+func (n ArtifactoryPublisher) Publish(ctx PublisherContext) error {
+	packages, err := n.PreparePackage(ctx)
+	if err != nil {
+		return err
+	}
+	if packages == nil || len(packages) == 0 {
+		return errors.New("not found any package for publishing")
+	}
+	return upload(packages)
+}
+
+func (n ArtifactoryPublisher) PostPublish(ctx PublisherContext) error {
 	return nil
 }

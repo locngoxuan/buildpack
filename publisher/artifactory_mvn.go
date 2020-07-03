@@ -10,10 +10,10 @@ import (
 )
 
 type ArtifactoryMvn struct {
-	Packages []ArtifactoryPackage
+	ArtifactoryPublisher
 }
 
-func (n ArtifactoryMvn) PrePublish(ctx PublisherContext) error {
+func (n *ArtifactoryMvn) PrePublish(ctx PublisherContext) (error) {
 	repo, err := repoMan.pickChannel(ctx.RepoName, ctx.IsStable)
 	if err != nil {
 		return err
@@ -117,21 +117,6 @@ func (n ArtifactoryMvn) PrePublish(ctx PublisherContext) error {
 		})
 	}
 	n.Packages = packages
-	return nil
-}
-
-func (n ArtifactoryMvn) Publish(ctx PublisherContext) error {
-	for _, upload := range n.Packages {
-		common.PrintInfo("uploading %s with md5:%s", upload.Endpoint, upload.Md5)
-		err := uploadFile(upload)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (n ArtifactoryMvn) PostPublish(ctx PublisherContext) error {
 	return nil
 }
 

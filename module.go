@@ -11,9 +11,6 @@ type Module struct {
 	Id   int
 	Name string
 	Path string
-
-	workDir string
-	tmpDir  string
 }
 
 type SortedById []Module
@@ -23,9 +20,9 @@ func (a SortedById) Less(i, j int) bool { return a[i].Id < a[j].Id }
 func (a SortedById) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func (m *Module) clean(bp BuildPack) error {
-	m.workDir = filepath.Join(bp.WorkDir, m.Path)
-	m.tmpDir = filepath.Join(bp.WorkDir, BuildPackOutputDir, m.Name)
-	bc, err := builder.ReadConfig(m.workDir)
+	workDir := filepath.Join(bp.WorkDir, m.Path)
+	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir, m.Name)
+	bc, err := builder.ReadConfig(workDir)
 	if err != nil {
 		return err
 	}
@@ -43,8 +40,8 @@ func (m *Module) clean(bp BuildPack) error {
 	buildContext := builder.BuildContext{
 		Name:          m.Name,
 		Path:          m.Path,
-		WorkDir:       m.workDir,
-		OutputDir:     m.tmpDir,
+		WorkDir:       workDir,
+		OutputDir:     outputDir,
 		SkipContainer: bp.IsSkipContainer(),
 		SkipClean:     bp.SkipClean,
 		ShareDataDir:  bp.ShareData,
@@ -79,14 +76,14 @@ func (m *Module) start(bp BuildPack) error {
 		- Clean result of publish
 		- Clean .buildpack/{module-name}
 	 */
-	m.workDir = filepath.Join(bp.WorkDir, m.Path)
-	m.tmpDir = filepath.Join(bp.WorkDir, BuildPackOutputDir, m.Name)
+	workDir := filepath.Join(bp.WorkDir, m.Path)
+	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir, m.Name)
 
 	//create version of build
 	v := bp.GetVersion()
 
 	//begin build phase
-	bc, err := builder.ReadConfig(m.workDir)
+	bc, err := builder.ReadConfig(workDir)
 	if err != nil {
 		return err
 	}
@@ -101,8 +98,8 @@ func (m *Module) start(bp BuildPack) error {
 	buildContext := builder.BuildContext{
 		Name:          m.Name,
 		Path:          m.Path,
-		WorkDir:       m.workDir,
-		OutputDir:     m.tmpDir,
+		WorkDir:       workDir,
+		OutputDir:     outputDir,
 		SkipContainer: bp.IsSkipContainer(),
 		SkipClean:     bp.SkipClean,
 		ShareDataDir:  bp.ShareData,
@@ -135,11 +132,11 @@ func (m *Module) start(bp BuildPack) error {
 	//end build phase
 
 	//begin publish phase
-	if !bp.IsSkipPublish() {
+	if bp.IsSkipPublish() {
 		return nil
 	}
 	//end publish phase
-	pc, err := publisher.ReadConfig(m.workDir)
+	pc, err := publisher.ReadConfig(workDir)
 	if err != nil {
 		return err
 	}
@@ -150,8 +147,8 @@ func (m *Module) start(bp BuildPack) error {
 	publishCtx := publisher.PublisherContext{
 		Name:      m.Name,
 		Path:      m.Path,
-		WorkDir:   m.workDir,
-		OutputDir: m.tmpDir,
+		WorkDir:   workDir,
+		OutputDir: outputDir,
 		Version:   v,
 		RepoName:  pc.Repository,
 		IsStable:  bp.BuildRelease || bp.BuildPath,

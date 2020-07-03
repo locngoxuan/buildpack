@@ -57,11 +57,15 @@ func uploadFile(param ArtifactoryPackage) error {
 }
 
 type Artifactory interface {
-	PreparePackage(ctx PublisherContext) ([]ArtifactoryPackage, error)
+	Interface
+	preparePackage(ctx PublisherContext) ([]ArtifactoryPackage, error)
 }
 
 type ArtifactoryPublisher struct {
-	Artifactory
+}
+
+func (n ArtifactoryPublisher) preparePackage(ctx PublisherContext) ([]ArtifactoryPackage, error) {
+	return nil, nil
 }
 
 func (n ArtifactoryPublisher) PrePublish(ctx PublisherContext) error {
@@ -69,7 +73,7 @@ func (n ArtifactoryPublisher) PrePublish(ctx PublisherContext) error {
 }
 
 func (n ArtifactoryPublisher) Publish(ctx PublisherContext) error {
-	packages, err := n.PreparePackage(ctx)
+	packages, err := n.preparePackage(ctx)
 	if err != nil {
 		return err
 	}

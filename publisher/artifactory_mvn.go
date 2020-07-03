@@ -13,10 +13,10 @@ type ArtifactoryMvn struct {
 	ArtifactoryPublisher
 }
 
-func (n *ArtifactoryMvn) PrePublish(ctx PublisherContext) (error) {
+func (n ArtifactoryMvn) preparePackage(ctx PublisherContext) ([]ArtifactoryPackage, error) {
 	repo, err := repoMan.pickChannel(ctx.RepoName, ctx.IsStable)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	packages := make([]ArtifactoryPackage, 0)
 	// list file prepared for uploading
@@ -34,7 +34,7 @@ func (n *ArtifactoryMvn) PrePublish(ctx PublisherContext) (error) {
 		return nil
 	})
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	//upload pom and jar
@@ -46,7 +46,7 @@ func (n *ArtifactoryMvn) PrePublish(ctx PublisherContext) (error) {
 
 		md5, err := common.SumContentMD5(file)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		_, fileName := filepath.Split(file)
@@ -57,12 +57,12 @@ func (n *ArtifactoryMvn) PrePublish(ctx PublisherContext) (error) {
 			ext := filepath.Ext(file)
 			pomFile = file[0:len(file)-len(ext)] + ".pom"
 		} else {
-			return errors.New("known ext of file " + file)
+			return nil, errors.New("known ext of file " + file)
 		}
 
 		pom, err := common.ReadPOM(pomFile)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		args := strings.Split(pom.GroupId, ".")
 		args = append(args, pom.ArtifactId)
@@ -88,7 +88,7 @@ func (n *ArtifactoryMvn) PrePublish(ctx PublisherContext) (error) {
 		}
 		md5, err := common.SumContentMD5(file)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		_, fileName := filepath.Split(file)
@@ -101,7 +101,7 @@ func (n *ArtifactoryMvn) PrePublish(ctx PublisherContext) (error) {
 
 		pom, err := common.ReadPOM(pomFile)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		args := strings.Split(pom.GroupId, ".")
 		args = append(args, pom.ArtifactId)
@@ -116,8 +116,7 @@ func (n *ArtifactoryMvn) PrePublish(ctx PublisherContext) (error) {
 			Password: repo.Password,
 		})
 	}
-	n.Packages = packages
-	return nil
+	return packages, nil
 }
 
 func init() {

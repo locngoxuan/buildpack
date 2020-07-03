@@ -19,6 +19,13 @@ type BuildPack struct {
 	GitManager
 }
 
+func (bp BuildPack) IsSkipClean() bool {
+	if bp.DevMode {
+		return true
+	}
+	return bp.Arguments.SkipClean
+}
+
 func (bp BuildPack) IsSkipContainer() bool {
 	if bp.DevMode {
 		return true

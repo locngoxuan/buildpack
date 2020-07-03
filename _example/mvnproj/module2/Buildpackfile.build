@@ -1,4 +1,4 @@
-builder: 'mvn_lib'
+builder: 'mvn_app'
 label: 'SNAPSHOT'
 options:
   - "javadoc:jar"

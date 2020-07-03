@@ -8,7 +8,7 @@ import (
 	"strings"
 )
 
-const BuildPackTmpDir = ".buildpack"
+const BuildPackOutputDir = ".buildpack"
 
 func (bp *BuildPack) build() error {
 	ms := make([]Module, 0)
@@ -47,18 +47,18 @@ func (bp *BuildPack) build() error {
 	sort.Sort(SortedById(ms))
 
 	//create tmp directory
-	tmp := filepath.Join(bp.WorkDir, BuildPackTmpDir)
-	err := common.DeleteDir(tmp, true)
+	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
+	err := common.DeleteDir(outputDir, true)
 	if err != nil {
 		return err
 	}
 
-	err = common.CreateDir(tmp, true, 0755)
+	err = common.CreateDir(outputDir, true, 0755)
 	if err != nil {
 		return err
 	}
 	for _, module := range ms {
-		err := common.CreateDir(filepath.Join(tmp, module.Name), true, 0755)
+		err := common.CreateDir(filepath.Join(outputDir, module.Name), true, 0755)
 		if err != nil {
 			return err
 		}

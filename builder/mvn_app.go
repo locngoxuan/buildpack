@@ -34,10 +34,12 @@ func (b MvnApp) PostBuild(ctx BuildContext) error {
 
 	// copy Dockerfile to common dir
 	dockerSrc := filepath.Join(ctx.WorkDir, appDockerfile)
-	dockerDst := filepath.Join(ctx.OutputDir, appDockerfile)
-	err = common.CopyFile(dockerSrc, dockerDst)
-	if err != nil {
-		return err
+	if common.Exists(appDockerfile) {
+		dockerDst := filepath.Join(ctx.OutputDir, appDockerfile)
+		err = common.CopyFile(dockerSrc, dockerDst)
+		if err != nil {
+			return err
+		}
 	}
 
 	// copy dist directory to common dir
@@ -53,15 +55,18 @@ func (b MvnApp) PostBuild(ctx BuildContext) error {
 	}
 
 	// copy libs directory to common dir
+
 	libFolderSrc := filepath.Join(ctx.WorkDir, libsFolderName)
-	libFolderDst := filepath.Join(ctx.OutputDir, libsFolderName)
-	err = common.CreateDir(libFolderDst, true, 0755)
-	if err != nil {
-		return err
-	}
-	err = common.CopyDirectory(libFolderSrc, libFolderDst)
-	if err != nil {
-		return err
+	if common.Exists(libFolderSrc) {
+		libFolderDst := filepath.Join(ctx.OutputDir, libsFolderName)
+		err = common.CreateDir(libFolderDst, true, 0755)
+		if err != nil {
+			return err
+		}
+		err = common.CopyDirectory(libFolderSrc, libFolderDst)
+		if err != nil {
+			return err
+		}
 	}
 	return nil
 }

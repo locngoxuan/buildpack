@@ -1,0 +1,6 @@
+version: '1'
+
+java-home: ""
+main-class: ""
+etcd: ""
+name: ""

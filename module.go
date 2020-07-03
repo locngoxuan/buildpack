@@ -21,6 +21,41 @@ func (a SortedById) Len() int           { return len(a) }
 func (a SortedById) Less(i, j int) bool { return a[i].Id < a[j].Id }
 func (a SortedById) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
+func (m *Module) clean(bp BuildPack) error {
+	m.workDir = filepath.Join(bp.WorkDir, m.Path)
+	m.tmpDir = filepath.Join(bp.WorkDir, BuildPackOutputDir, m.Name)
+	bc, err := builder.ReadConfig(m.workDir)
+	if err != nil {
+		return err
+	}
+	b, err := builder.GetBuilder(bc.Builder)
+	if err != nil {
+		return err
+	}
+
+	v := bp.GetVersion()
+	if !bp.BuildRelease && !bp.BuildPath {
+		// it means build with label
+		v = fmt.Sprintf("%s-%s", bp.GetVersion(), bc.Label)
+	}
+
+	buildContext := builder.BuildContext{
+		Name:          m.Name,
+		Path:          m.Path,
+		WorkDir:       m.workDir,
+		OutputDir:     m.tmpDir,
+		SkipContainer: bp.IsSkipContainer(),
+		SkipClean:     bp.SkipClean,
+		ShareDataDir:  bp.ShareData,
+		Version:       v,
+	}
+	err = b.Clean(buildContext)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
 func (m *Module) start(bp BuildPack) error {
 	/**
 	1. Read configuration
@@ -44,7 +79,7 @@ func (m *Module) start(bp BuildPack) error {
 		- Clean .buildpack/{module-name}
 	 */
 	m.workDir = filepath.Join(bp.WorkDir, m.Path)
-	m.tmpDir = filepath.Join(bp.WorkDir, BuildPackTmpDir, m.Name)
+	m.tmpDir = filepath.Join(bp.WorkDir, BuildPackOutputDir, m.Name)
 	bc, err := builder.ReadConfig(m.workDir)
 	if err != nil {
 		return err
@@ -88,7 +123,7 @@ func (m *Module) start(bp BuildPack) error {
 		return err
 	}
 
-	if !bp.SkipClean {
+	if !bp.IsSkipClean() {
 		err = b.Clean(buildContext)
 		if err != nil {
 			return err

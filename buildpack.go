@@ -3,6 +3,7 @@ package buildpack
 import (
 	"context"
 	"errors"
+	"io/ioutil"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
 	"scm.wcs.fortna.com/lngo/buildpack/publisher"
@@ -140,6 +141,7 @@ func (bp *BuildPack) Run(ctx context.Context) error {
 		common.PrintInfo("version %s", version)
 		return nil
 	case cmdBuild:
+		common.SetLogOutput(ioutil.Discard)
 		return bp.build()
 	case cmdClean:
 		return bp.clean()

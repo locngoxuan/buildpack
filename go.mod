@@ -18,7 +18,7 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	golang.org/x/net v0.0.0-20200625001655-4c5254603344 // indirect
 	gopkg.in/yaml.v2 v2.3.0
-	scm.wcs.fortna.com/lngo/sqlbundle v0.0.0-20200702155340-b31077d1a262
+	scm.wcs.fortna.com/lngo/sqlbundle v0.0.0-20200704154604-f26f123ca6eb
 )
 
 replace github.com/Sirupsen/logrus v1.4.2 => github.com/sirupsen/logrus v1.4.2

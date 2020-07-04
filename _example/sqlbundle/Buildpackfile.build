@@ -1,2 +1,2 @@
-builder: 'sql'
+builder: 'sql_lib'
 label: 'SNAPSHOT'

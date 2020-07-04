@@ -92,3 +92,7 @@ gopkg.in/yaml.v2 v2.3.0 h1:clyUAQHOM3G0M3f5vQj7LuJrETvjVot3Z5el9nffUtU=
 gopkg.in/yaml.v2 v2.3.0/go.mod h1:hI93XBmqTisBFMUTm0b8Fm+jr3Dg1NNxqwp+5A1VGuI=
 scm.wcs.fortna.com/lngo/sqlbundle v0.0.0-20200702155340-b31077d1a262 h1:vTrAmPAxTJz1u/YQHns7z8Hk/PA0h3mUjVZ+pmN7pT8=
 scm.wcs.fortna.com/lngo/sqlbundle v0.0.0-20200702155340-b31077d1a262/go.mod h1:yUwcp55f+4kEBlWA5SJ0M98n5lfGd0h9gaQHU3z49+Y=
+scm.wcs.fortna.com/lngo/sqlbundle v0.0.0-20200704153925-e5b64de021e0 h1:i/cy/mKvUKm633qXoXb3F6P0QESL0Si2OpGdFX7pzpc=
+scm.wcs.fortna.com/lngo/sqlbundle v0.0.0-20200704153925-e5b64de021e0/go.mod h1:yUwcp55f+4kEBlWA5SJ0M98n5lfGd0h9gaQHU3z49+Y=
+scm.wcs.fortna.com/lngo/sqlbundle v0.0.0-20200704154604-f26f123ca6eb h1:C5ue4w1wV+pGSBXpkXCSPbVMCmaklh4EcURV8SRsDck=
+scm.wcs.fortna.com/lngo/sqlbundle v0.0.0-20200704154604-f26f123ca6eb/go.mod h1:yUwcp55f+4kEBlWA5SJ0M98n5lfGd0h9gaQHU3z49+Y=

@@ -56,3 +56,30 @@ func (rm RepoManager) pickChannel(name string, stable bool) (rc RepoChannel, err
 	}
 	return
 }
+
+func (rm RepoManager) pickChannelByAddress(address string, stable bool) (rc RepoChannel, err error) {
+	err = nil
+	for _, v := range rm.Repos {
+		if stable {
+			if v.Stable == nil {
+				continue
+			}
+
+			if v.Stable.Address == address {
+				rc = *v.Stable
+				return
+			}
+		} else {
+			if v.Unstable == nil {
+				continue
+			}
+
+			if v.Unstable.Address == address {
+				rc = *v.Unstable
+				return
+			}
+		}
+	}
+	err = fmt.Errorf("not found any channel by address %s", address)
+	return
+}

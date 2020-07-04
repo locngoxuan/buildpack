@@ -7,23 +7,23 @@ var registries = make(map[string]Interface)
 const PublishConfigFileName = "Buildpackfile.publish"
 
 type Interface interface {
-	PrePublish(ctx PublisherContext) error
-	Publish(ctx PublisherContext) error
-	PostPublish(ctx PublisherContext) error
+	PrePublish(ctx PublishContext) error
+	Publish(ctx PublishContext) error
+	PostPublish(ctx PublishContext) error
 }
 
 type DummyPublisher struct {
 }
 
-func (n DummyPublisher) PrePublish(ctx PublisherContext) error {
+func (n DummyPublisher) PrePublish(ctx PublishContext) error {
 	return nil
 }
 
-func (n DummyPublisher) Publish(ctx PublisherContext) error {
+func (n DummyPublisher) Publish(ctx PublishContext) error {
 	return nil
 }
 
-func (n DummyPublisher) PostPublish(ctx PublisherContext) error {
+func (n DummyPublisher) PostPublish(ctx PublishContext) error {
 	return nil
 }
 

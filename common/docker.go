@@ -18,9 +18,14 @@ const (
 )
 
 type DockerClient struct {
-	Ctx    context.Context
 	Client *client.Client
 	Host   string
+}
+
+type DockerAuth struct {
+	Registry string
+	Username string
+	Password string
 }
 
 var defaultDockerHost = []string{defaultUnixSock, defaultTcpSock}
@@ -35,11 +40,9 @@ func SetDockerHost(hosts []string) {
 }
 
 func NewClient() (DockerClient, error) {
-	dockerCli := DockerClient{
-		Ctx: context.Background(),
-	}
+	dockerCli := DockerClient{}
 	var err error
-	dockerCli.Host, err = CheckDockerHostConnection(dockerCli.Ctx)
+	dockerCli.Host, err = CheckDockerHostConnection()
 	if err != nil {
 		return dockerCli, err
 	}
@@ -52,7 +55,7 @@ func NewClient() (DockerClient, error) {
 	return dockerCli, nil
 }
 
-func CheckDockerHostConnection(ctx context.Context) (string, error) {
+func CheckDockerHostConnection() (string, error) {
 	dockerHosts := make([]string, 0)
 	if sessionDockerHost != nil && len(sessionDockerHost) > 0 {
 		dockerHosts = append(dockerHosts, sessionDockerHost...)
@@ -69,7 +72,7 @@ func CheckDockerHostConnection(ctx context.Context) (string, error) {
 			fmt.Println(err)
 			continue
 		}
-		_, err = cli.Info(ctx)
+		_, err = cli.Info(context.Background())
 		if err != nil {
 			fmt.Println(err)
 			_ = cli.Close()
@@ -87,13 +90,21 @@ func (c *DockerClient) PullImage(username, password, image string) (io.ReadClose
 		RegistryAuth: auth(username, password),
 		All:          false,
 	}
-	return c.Client.ImagePull(c.Ctx, image, opt)
+	return c.Client.ImagePull(context.Background(), image, opt)
 }
 
-func (c *DockerClient) BuildImage(file string, tags []string) (types.ImageBuildResponse, error) {
+func (c *DockerClient) BuildImage(file string, tags []string, auths []DockerAuth) (types.ImageBuildResponse, error) {
 	dockerBuildContext, err := os.Open(file)
 	if err != nil {
 		return types.ImageBuildResponse{}, err
+	}
+
+	authConfigs := make(map[string]types.AuthConfig)
+	for _, auth := range auths {
+		authConfigs[auth.Registry] = types.AuthConfig{
+			Username: auth.Username,
+			Password: auth.Password,
+		}
 	}
 
 	opt := types.ImageBuildOptions{
@@ -101,11 +112,12 @@ func (c *DockerClient) BuildImage(file string, tags []string) (types.ImageBuildR
 		Remove:      true,
 		ForceRemove: true,
 		Tags:        tags,
-		PullParent:  false,
+		PullParent:  true,
+		AuthConfigs: authConfigs,
 		Dockerfile:  "Dockerfile",
 	}
 
-	return c.Client.ImageBuild(c.Ctx, dockerBuildContext, opt)
+	return c.Client.ImageBuild(context.Background(), dockerBuildContext, opt)
 }
 
 func (c *DockerClient) BuildImageWithSpecificDockerFile(tarFile, dockerFile string, tags []string) (types.ImageBuildResponse, error) {
@@ -123,7 +135,7 @@ func (c *DockerClient) BuildImageWithSpecificDockerFile(tarFile, dockerFile stri
 		Dockerfile:  dockerFile,
 	}
 
-	return c.Client.ImageBuild(c.Ctx, dockerBuildContext, opt)
+	return c.Client.ImageBuild(context.Background(), dockerBuildContext, opt)
 }
 
 func auth(usernam, password string) string {
@@ -139,7 +151,7 @@ func auth(usernam, password string) string {
 }
 
 func (c *DockerClient) TagImage(src, dest string) error {
-	return c.Client.ImageTag(c.Ctx, src, dest)
+	return c.Client.ImageTag(context.Background(), src, dest)
 }
 
 func (c *DockerClient) DeployImage(username, password, image string) (io.ReadCloser, error) {
@@ -147,7 +159,7 @@ func (c *DockerClient) DeployImage(username, password, image string) (io.ReadClo
 		RegistryAuth: auth(username, password),
 		All:          true,
 	}
-	return c.Client.ImagePush(c.Ctx, image, opt)
+	return c.Client.ImagePush(context.Background(), image, opt)
 }
 
 func (c *DockerClient) RemoveImage(image string) ([]types.ImageDeleteResponseItem, error) {
@@ -155,11 +167,11 @@ func (c *DockerClient) RemoveImage(image string) ([]types.ImageDeleteResponseIte
 		Force:         true,
 		PruneChildren: true,
 	}
-	return c.Client.ImageRemove(c.Ctx, image, opt)
+	return c.Client.ImageRemove(context.Background(), image, opt)
 }
 
 func ValidateDockerHostConnection() error {
-	_, err := CheckDockerHostConnection(context.Background())
+	_, err := CheckDockerHostConnection()
 	if err != nil {
 		return err
 	}

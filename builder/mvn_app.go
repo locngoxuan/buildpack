@@ -6,7 +6,7 @@ import (
 )
 
 type MvnApp struct {
-	MvnLib
+	Mvn
 }
 
 const (

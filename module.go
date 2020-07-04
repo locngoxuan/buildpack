@@ -144,7 +144,7 @@ func (m *Module) start(bp BuildPack) error {
 	if err != nil {
 		return err
 	}
-	publishCtx := publisher.PublisherContext{
+	publishCtx := publisher.PublishContext{
 		Name:      m.Name,
 		Path:      m.Path,
 		WorkDir:   workDir,

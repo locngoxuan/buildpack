@@ -1,6 +1,6 @@
 package publisher
 
-type PublisherContext struct {
+type PublishContext struct {
 	Name      string
 	Path      string
 	WorkDir   string

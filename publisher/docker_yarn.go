@@ -3,15 +3,15 @@ package publisher
 type DockerYarn struct {
 }
 
-func (n DockerYarn) PrePublish(ctx PublisherContext) error {
+func (n DockerYarn) PrePublish(ctx PublishContext) error {
 	return nil
 }
 
-func (n DockerYarn) Publish(ctx PublisherContext) error {
+func (n DockerYarn) Publish(ctx PublishContext) error {
 	return nil
 }
 
-func (n DockerYarn) PostPublish(ctx PublisherContext) error {
+func (n DockerYarn) PostPublish(ctx PublishContext) error {
 	return nil
 }
 

@@ -1,0 +1,5 @@
+publisher: 'docker_mvn'
+repository: 'localregistry'
+tag: 'buildpack/example-module-mvn'
+registries:
+  - registry.wes.fortna.com:5000

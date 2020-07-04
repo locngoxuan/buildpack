@@ -34,7 +34,7 @@ func (b MvnApp) PostBuild(ctx BuildContext) error {
 
 	// copy Dockerfile to common dir
 	dockerSrc := filepath.Join(ctx.WorkDir, appDockerfile)
-	if common.Exists(appDockerfile) {
+	if common.Exists(dockerSrc) {
 		dockerDst := filepath.Join(ctx.OutputDir, appDockerfile)
 		err = common.CopyFile(dockerSrc, dockerDst)
 		if err != nil {

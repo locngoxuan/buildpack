@@ -48,6 +48,6 @@ func main() {
 	}
 	err = bp.Run(nil)
 	if err != nil {
-		common.PrintFatal(err, "build fail!")
+		common.PrintFatal(err, "fail!")
 	}
 }

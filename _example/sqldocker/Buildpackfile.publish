@@ -1,5 +1,5 @@
-publisher: 'docker_mvn'
+publisher: 'docker_sql'
 repository: 'localregistry'
-tag: 'buildpack/example-module-mvn'
+tag: 'registry.wes.fortna.com:5000/buildpack/example-database'
 registries:
   - registry.wes.fortna.com:5000

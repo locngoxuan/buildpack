@@ -1,2 +1,2 @@
-builder: 'sql'
+builder: 'sql_app'
 label: 'SNAPSHOT'

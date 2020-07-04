@@ -37,5 +37,8 @@ modules:
     name: module2
     path: mvnproj/module2
   - id: 4
-    name: database
+    name: datalib
     path: sqlbundle
+  - id: 5
+    name: dataapp
+    path: sqldocker

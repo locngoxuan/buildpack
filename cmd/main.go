@@ -13,16 +13,12 @@ func main() {
 	}
 
 	if buildpack.CommandWithoutConfig(arg.Command) {
-		bp, err := buildpack.CreateBuildPack(arg, buildpack.Environments{}, buildpack.BuildConfig{})
+		bp, err := buildpack.CreateBuildPack(arg, buildpack.BuildConfig{})
 		if err != nil {
 			common.PrintFatal(err, "can not init buildpack")
 		}
 		_ = bp.Run(nil)
 		return
-	}
-	env, err := buildpack.ReadEnvironment()
-	if err != nil {
-		common.PrintFatal(err, "can not read environment")
 	}
 
 	workDir, err := filepath.Abs(".")
@@ -41,8 +37,8 @@ func main() {
 		common.PrintFatal(err, "can not read config")
 	}
 
-	common.PrintInfo("%v %v %v", arg, env, config)
-	bp, err := buildpack.CreateBuildPack(arg, env, config)
+	common.PrintInfo("%v %v %v", arg, config)
+	bp, err := buildpack.CreateBuildPack(arg, config)
 	if err != nil {
 		common.PrintFatal(err, "can not init buildpack")
 	}

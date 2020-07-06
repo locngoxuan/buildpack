@@ -3,10 +3,13 @@ package buildpack
 import (
 	"context"
 	"errors"
+	"fmt"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
 	"scm.wcs.fortna.com/lngo/buildpack/publisher"
+	"strings"
 )
 
 const version = "2.0.0"
@@ -15,31 +18,49 @@ type BuildPack struct {
 	WorkDir string
 
 	Arguments
-	Environments
 	BuildConfig
-
-	GitManager
 }
 
 func (bp BuildPack) IsSkipClean() bool {
-	if bp.DevMode {
+	if bp.IsDev() {
 		return true
 	}
 	return bp.Arguments.SkipClean
 }
 
 func (bp BuildPack) IsSkipContainer() bool {
-	if bp.DevMode {
+	if bp.IsDev() {
 		return true
 	}
 	return bp.Arguments.SkipContainer
 }
 
 func (bp BuildPack) IsSkipPublish() bool {
-	if bp.DevMode {
+	if bp.IsDev() {
 		return true
 	}
 	return bp.Arguments.SkipPublish
+}
+
+func (bp BuildPack) IsDev() bool {
+	if bp.DevMode {
+		return true
+	}
+	return !bp.BuildRelease && !bp.BuildPath
+}
+
+func (bp BuildPack) IsSkipGit() bool {
+	if bp.IsDev() {
+		return true
+	}
+	return bp.Arguments.SkipGit
+}
+
+func (bp BuildPack) IsSkipGitBraching() bool {
+	if bp.IsSkipGit() || bp.IsDev() || bp.BuildPath {
+		return true
+	}
+	return bp.Arguments.SkipBranching
 }
 
 func (bp BuildPack) GetVersion() string {
@@ -69,6 +90,34 @@ func CommandWithoutConfig(cmd string) bool {
 	}
 }
 
+func createGitManager(root string, c BuildConfig) (cli common.GitClient, err error) {
+	if c.Git == nil {
+		err = errors.New("not found git configuration")
+		return
+	}
+	cli.WorkDir = root
+	if common.IsEmptyString(c.Git.AccessToken) {
+		err = errors.New("access token must not be empty")
+		return
+	}
+	cli.Name = c.Git.Username
+	if common.IsEmptyString(c.Git.Username) {
+		cli.Name = "Build System"
+	}
+
+	cli.Email = c.Git.Email
+	if common.IsEmptyString(c.Git.Email) {
+		cli.Email = "xuanloc0511@gmail.com"
+	}
+
+	token := strings.TrimSpace(c.Git.AccessToken)
+	if strings.HasPrefix(token, "$") {
+		token = os.ExpandEnv(token)
+	}
+	cli.AccessToken = token
+	return
+}
+
 func createRepoManager(c BuildConfig) (rm publisher.RepoManager, err error) {
 	rm.Repos = make(map[string]publisher.Repository)
 	if c.Repos == nil || len(c.Repos) == 0 {
@@ -80,25 +129,61 @@ func createRepoManager(c BuildConfig) (rm publisher.RepoManager, err error) {
 			Name: repo.Name,
 		}
 		if repo.Stable != nil {
+			user := strings.TrimSpace(repo.Stable.Username)
+			if strings.HasPrefix(user, "$") {
+				user = os.ExpandEnv(user)
+			}
+			password := strings.TrimSpace(repo.Stable.Password)
+			if strings.HasPrefix(password, "$") {
+				password = os.ExpandEnv(password)
+			}
+
 			r.Stable = &publisher.RepoChannel{
 				Address:  repo.Stable.Address,
-				Username: repo.Stable.Username,
-				Password: repo.Stable.Password,
+				NoAuth:   repo.Stable.NoAuth,
+				Username: user,
+				Password: password,
 			}
 		}
 		if repo.Unstable != nil {
+			user := strings.TrimSpace(repo.Unstable.Username)
+			if strings.HasPrefix(user, "$") {
+				user = os.ExpandEnv(user)
+			}
+			password := strings.TrimSpace(repo.Unstable.Password)
+			if strings.HasPrefix(password, "$") {
+				password = os.ExpandEnv(password)
+			}
+
 			r.Unstable = &publisher.RepoChannel{
 				Address:  repo.Unstable.Address,
-				Username: repo.Unstable.Username,
-				Password: repo.Unstable.Password,
+				NoAuth:   repo.Stable.NoAuth,
+				Username: user,
+				Password: password,
 			}
 		}
 		rm.Repos[r.Name] = r
 	}
+
+	for _, repo := range rm.Repos {
+		if repo.Stable != nil && !repo.Stable.NoAuth {
+			if common.IsEmptyString(repo.Stable.Username) || common.IsEmptyString(repo.Stable.Password) {
+				err = fmt.Errorf("missing credential of stable channel of repo %s", repo.Name)
+				return
+			}
+		}
+
+		if repo.Unstable != nil && !repo.Unstable.NoAuth {
+			if common.IsEmptyString(repo.Unstable.Username) || common.IsEmptyString(repo.Unstable.Password) {
+				err = fmt.Errorf("missing credential of unstable channel of repo %s", repo.Name)
+				return
+			}
+		}
+	}
 	return
 }
 
-func CreateBuildPack(arg Arguments, env Environments, config BuildConfig) (bp BuildPack, err error) {
+func CreateBuildPack(arg Arguments, config BuildConfig) (bp BuildPack, err error) {
 	workDir, err := filepath.Abs(".")
 	if err != nil {
 		return
@@ -110,7 +195,6 @@ func CreateBuildPack(arg Arguments, env Environments, config BuildConfig) (bp Bu
 
 	bp.WorkDir = workDir
 	bp.Arguments = arg
-	bp.Environments = env
 	bp.BuildConfig = config
 
 	//if skip publish then no need to create repo manager
@@ -124,8 +208,18 @@ func CreateBuildPack(arg Arguments, env Environments, config BuildConfig) (bp Bu
 	}
 
 	//if skip git is true then no need to create git manager
-	if !bp.SkipGit {
-		bp.GitManager = CreateGitManager(config)
+	if !bp.IsSkipGit() {
+		cli, e := createGitManager(workDir, config)
+		if err != nil {
+			err = e
+			return
+		}
+		err = cli.OpenCurrentRepo()
+		if err != nil {
+			err = e
+			return
+		}
+		common.SetGitClient(cli)
 	}
 
 	if bp.BuildConfig.Docker != nil {

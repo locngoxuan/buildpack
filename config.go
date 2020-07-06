@@ -25,10 +25,9 @@ type DockerConfig struct {
 }
 
 type GitConfig struct {
-	DisplayName string `json:"display_name,omitempty"`
-	Username    string `json:"username,omitempty"`
-	Password    string `json:"password,omitempty"`
-	Email       string `json:"email,omitempty"`
+	Username    string `yaml:"name,omitempty"`
+	AccessToken string `yaml:"token,omitempty"`
+	Email       string `yaml:"email,omitempty"`
 }
 
 type ModuleConfig struct {
@@ -44,6 +43,7 @@ type RepoConfig struct {
 }
 
 type RepoChannelConfig struct {
+	NoAuth   bool   `yaml:"no_auth,omitempty"`
 	Address  string `yaml:"address,omitempty"`
 	Username string `yaml:"username,omitempty"`
 	Password string `yaml:"password,omitempty"`
@@ -67,4 +67,17 @@ func ReadConfig(configFile string) (c BuildConfig, err error) {
 		return
 	}
 	return
+}
+
+func rewriteConfig(config BuildConfig, file string) error {
+	bytes, err := yaml.Marshal(config)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(file, bytes, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
 }

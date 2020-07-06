@@ -1,5 +1,10 @@
 version: 1.0.0
 
+git:
+  name: Loc Ngo
+  email: locngo@fortna.com
+  token: ${GIT_TOKEN}
+
 docker:
   hosts:
     - unix:///var/run/docker.sock
@@ -9,22 +14,22 @@ repositories:
   - name: localregistry
     stable:
       address: registry.wes.fortna.com:5000
-      username: admin
-      password: admin
+      username: ${LOCALREGISTRY_USER}
+      password: ${LOCALREGISTRY_PASS}
     unstable:
       address: registry.wes.fortna.com:5000
-      username: admin
-      password: admin
+      username: ${LOCALREGISTRY_USER}
+      password: ${LOCALREGISTRY_PASS}
 
   - name: artifactory
     stable:
       address: http://localhost:8081/artifactory/libs-release
-      username: admin
-      password: 123456a@!
+      username: ${ARTIFACTORY_USER}
+      password: ${ARTIFACTORY_PASS}
     unstable:
       address: http://localhost:8081/artifactory/libs-snapshot
-      username: admin
-      password: 123456a@!
+      username: ${ARTIFACTORY_USER}
+      password: ${ARTIFACTORY_PASS}
 
 modules:
   - id: 1

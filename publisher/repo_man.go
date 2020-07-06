@@ -17,6 +17,7 @@ type Repository struct {
 
 type RepoChannel struct {
 	Address  string
+	NoAuth   bool
 	Username string
 	Password string
 }

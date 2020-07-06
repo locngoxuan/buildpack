@@ -2,6 +2,7 @@ package buildpack
 
 import (
 	"errors"
+	"fmt"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
 	"sort"
@@ -70,6 +71,66 @@ func (bp *BuildPack) build() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	//git operation
+	if bp.IsSkipGit() {
+		return nil
+	}
+
+	cli := common.GetGitClient()
+	defer cli.Close()
+
+	ver, err := common.Parse(bp.GetVersion())
+	if err != nil {
+		return err
+	}
+	ver.NextPatch()
+	if !bp.IsSkipGitBraching() {
+		err = gitUpdateConfig(cli, *bp, ver)
+		if err != nil {
+			return err
+		}
+		//create new branch
+		branch := ver.MinorBranch()
+		err = cli.CreateNewBranch(branch)
+		if err != nil {
+			return err
+		}
+	}
+
+	if bp.BuildRelease {
+		ver.NextMinor()
+	}
+	err = gitUpdateConfig(cli, *bp, ver)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func gitUpdateConfig(cli common.GitClient, bp BuildPack, ver common.Version) (err error) {
+	config := bp.BuildConfig
+	config.Version = ver.String()
+	err = rewriteConfig(config, bp.ConfigFile)
+	if err != nil {
+		return err
+	}
+
+	// push to repo
+	err = cli.Add(ConfigFileName)
+	if err != nil {
+		return err
+	}
+
+	msg := fmt.Sprintf("[BUILDPACK] Pump version from %s to %s", bp.GetVersion(), ver.String())
+	err = cli.Commit(msg)
+	if err != nil {
+		return err
+	}
+	err = cli.Push()
+	if err != nil {
+		return err
 	}
 	return nil
 }

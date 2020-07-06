@@ -7,6 +7,7 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"scm.wcs.fortna.com/lngo/buildpack/builder"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
 	"scm.wcs.fortna.com/lngo/buildpack/publisher"
 	"strings"
@@ -36,7 +37,7 @@ func (bp BuildPack) IsSkipContainer() bool {
 }
 
 func (bp BuildPack) IsSkipPublish() bool {
-	if bp.IsDev() {
+	if bp.IsDev() || bp.Arguments.Command == cmdClean {
 		return true
 	}
 	return bp.Arguments.SkipPublish
@@ -50,7 +51,7 @@ func (bp BuildPack) IsDev() bool {
 }
 
 func (bp BuildPack) IsSkipGit() bool {
-	if bp.IsDev() {
+	if bp.IsDev() || bp.Arguments.Command == cmdClean {
 		return true
 	}
 	return bp.Arguments.SkipGit
@@ -198,7 +199,7 @@ func CreateBuildPack(arg Arguments, config BuildConfig) (bp BuildPack, err error
 	bp.BuildConfig = config
 
 	//if skip publish then no need to create repo manager
-	if !bp.SkipPublish {
+	if !bp.IsSkipPublish() {
 		rm, e := createRepoManager(config)
 		if e != nil {
 			err = e
@@ -236,8 +237,11 @@ func (bp *BuildPack) Run(ctx context.Context) error {
 		return nil
 	case cmdBuild:
 		common.SetLogOutput(ioutil.Discard)
+		builder.SetOutput(ioutil.Discard)
 		return bp.build()
 	case cmdClean:
+		common.SetLogOutput(ioutil.Discard)
+		builder.SetOutput(ioutil.Discard)
 		return bp.clean()
 	case cmdHelp:
 		f.Usage()

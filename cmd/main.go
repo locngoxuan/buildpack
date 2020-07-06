@@ -31,13 +31,13 @@ func main() {
 		cf = filepath.Join(workDir, buildpack.ConfigFileName)
 	}
 
-	common.PrintInfo("get build configuration from %s", cf)
+	//common.PrintInfo("get build configuration from %s", cf)
 	config, err := buildpack.ReadConfig(cf)
 	if err != nil {
 		common.PrintFatal(err, "can not read config")
 	}
 
-	common.PrintInfo("%v %v %v", arg, config)
+	common.PrintInfo("%v %v", arg, config)
 	bp, err := buildpack.CreateBuildPack(arg, config)
 	if err != nil {
 		common.PrintFatal(err, "can not init buildpack")

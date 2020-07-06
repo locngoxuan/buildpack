@@ -3,10 +3,12 @@ package buildpack
 import (
 	"errors"
 	"fmt"
+	"github.com/gosuri/uiprogress"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
 	"sort"
 	"strings"
+	"sync"
 )
 
 const BuildPackOutputDir = ".buildpack"
@@ -66,13 +68,45 @@ func (bp *BuildPack) build() error {
 	}
 
 	//build
-	for _, module := range ms {
-		err = module.start(*bp)
-		if err != nil {
-			return err
-		}
+	var wg sync.WaitGroup
+	uiprogress.Start()
+	var steps = []string{"read build config", "clean", "pre build", "building", "post build", "read publish config", "pre publish", "publishing", "post publish", "completed"}
+	for _, m := range ms {
+		progress := make(chan int)
+		wg.Add(1)
+		go func(module Module) {
+			bar := uiprogress.AddBar(len(steps))
+			bar.AppendCompleted().PrependElapsed()
+			bar.PrependFunc(func(b *uiprogress.Bar) string {
+				if b.Current() == 0 {
+					return fmt.Sprintf("%s: ", module.Name)
+				}
+				return fmt.Sprintf("%s: "+steps[b.Current()-1], module.Name)
+			})
+			go func(b *uiprogress.Bar) {
+				for {
+					i := <-progress
+					if i == 1 {
+						bar.Incr()
+					} else if i == -1 {
+						break
+					} else {
+						for bar.Current() < len(steps) {
+							bar.Incr()
+						}
+						break
+					}
+				}
+				wg.Done()
+			}(bar)
+			err = module.start(*bp, progress)
+			if err != nil {
+				progress <- -1
+			}
+		}(m)
 	}
-
+	wg.Wait()
+	uiprogress.Stop()
 	//git operation
 	if bp.IsSkipGit() {
 		return nil

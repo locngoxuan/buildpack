@@ -54,7 +54,7 @@ func (m *Module) clean(bp BuildPack) error {
 	return nil
 }
 
-func (m *Module) start(bp BuildPack) error {
+func (m *Module) start(bp BuildPack, progress chan<- int) error {
 	/**
 	1. Read configuration
 		- Read Buildpackfile.build
@@ -83,6 +83,7 @@ func (m *Module) start(bp BuildPack) error {
 	v := bp.GetVersion()
 
 	//begin build phase
+	progress <- 1
 	bc, err := builder.ReadConfig(workDir)
 	if err != nil {
 		return err
@@ -105,19 +106,25 @@ func (m *Module) start(bp BuildPack) error {
 		ShareDataDir:  bp.ShareData,
 		Version:       v,
 	}
+	progress <- 1
 	err = b.Clean(buildContext)
 	if err != nil {
 		return err
 	}
 
+	progress <- 1
 	err = b.PreBuild(buildContext)
 	if err != nil {
 		return err
 	}
+
+	progress <- 1
 	err = b.Build(buildContext)
 	if err != nil {
 		return err
 	}
+
+	progress <- 1
 	err = b.PostBuild(buildContext)
 	if err != nil {
 		return err
@@ -133,9 +140,11 @@ func (m *Module) start(bp BuildPack) error {
 
 	//begin publish phase
 	if bp.IsSkipPublish() {
+		progress <- 0
 		return nil
 	}
 	//end publish phase
+	progress <- 1
 	pc, err := publisher.ReadConfig(workDir)
 	if err != nil {
 		return err
@@ -153,17 +162,24 @@ func (m *Module) start(bp BuildPack) error {
 		RepoName:  pc.Repository,
 		IsStable:  bp.BuildRelease || bp.BuildPath,
 	}
+	progress <- 1
 	err = p.PrePublish(publishCtx)
 	if err != nil {
 		return err
 	}
+
+	progress <- 1
 	err = p.Publish(publishCtx)
 	if err != nil {
 		return err
 	}
+
+	progress <- 1
 	err = p.PostPublish(publishCtx)
 	if err != nil {
 		return err
 	}
+
+	progress <- 0
 	return nil
 }

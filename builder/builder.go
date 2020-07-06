@@ -2,6 +2,8 @@ package builder
 
 import (
 	"errors"
+	"io"
+	"os"
 )
 
 var registries = make(map[string]Interface)
@@ -13,6 +15,12 @@ type Interface interface {
 	PreBuild(ctx BuildContext) error
 	Build(ctx BuildContext) error
 	PostBuild(ctx BuildContext) error
+}
+
+var logOutput io.Writer = os.Stdout
+
+func SetOutput(w io.Writer){
+	logOutput = w
 }
 
 func GetBuilder(name string) (Interface, error) {

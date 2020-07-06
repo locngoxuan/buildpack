@@ -3,7 +3,6 @@ package builder
 import (
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
@@ -63,8 +62,8 @@ func runInContainer(ctx BuildContext, args ...string) error {
 	common.PrintInfo("working dir %s", ctx.WorkDir)
 	common.PrintInfo("docker %s", strings.Join(dockerCommandArg, " "))
 	dockerCmd := exec.Command("docker", dockerCommandArg...)
-	dockerCmd.Stdout = os.Stdout
-	dockerCmd.Stderr = os.Stderr
+	dockerCmd.Stdout = logOutput
+	dockerCmd.Stderr = logOutput
 	return dockerCmd.Run()
 }
 
@@ -74,8 +73,8 @@ func runOnHost(ctx BuildContext, args ...string) error {
 	cmd := exec.Command("mvn", args...)
 	common.PrintInfo("working dir %s", ctx.WorkDir)
 	common.PrintInfo("mvn %v", args)
-	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
+	cmd.Stdout = logOutput
+	cmd.Stderr = logOutput
 	return cmd.Run()
 }
 

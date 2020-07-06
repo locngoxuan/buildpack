@@ -59,28 +59,28 @@ func yarnInContainer(ctx BuildContext, args ...string) error {
 
 	image := yarnDockerImage
 
-	yarnCacheDir := ""
-	if !common.IsEmptyString(ctx.ShareDataDir) {
-		yarnCacheDir = filepath.Join(ctx.ShareDataDir, ".yarncache")
-	}
-
-	if len(yarnCacheDir) > 0 {
-		//err = common.CreateDir(repositoryDir, true, 0766)
-		err = common.CreateDir(common.CreateDirOption{
-			SkipContainer: true,
-			Perm:          0766,
-			AbsPath:       yarnCacheDir,
-		})
-		if err != nil {
-			return err
-		}
-		dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/yarncache", yarnCacheDir))
-	}
+	//yarnCacheDir := ""
+	//if !common.IsEmptyString(ctx.ShareDataDir) {
+	//	yarnCacheDir = filepath.Join(ctx.ShareDataDir, ".yarncache")
+	//}
+	//
+	//if len(yarnCacheDir) > 0 {
+	//	//err = common.CreateDir(repositoryDir, true, 0766)
+	//	err = common.CreateDir(common.CreateDirOption{
+	//		SkipContainer: true,
+	//		Perm:          0766,
+	//		AbsPath:       yarnCacheDir,
+	//	})
+	//	if err != nil {
+	//		return err
+	//	}
+	//	dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/tmp/.yarncache", yarnCacheDir))
+	//}
 	dockerCommandArg = append(dockerCommandArg, "--workdir", "/working")
 	dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/working", ctx.WorkDir))
 	dockerCommandArg = append(dockerCommandArg, image)
 	dockerCommandArg = append(dockerCommandArg, "yarn")
-	dockerCommandArg = append(dockerCommandArg, "--cache-folder", "/yarncache")
+	//dockerCommandArg = append(dockerCommandArg, "--cache-folder", "/tmp/.yarncache")
 	// because this is inside container then path to pomFile is /working/{module-path}/pom.xml
 	for _, v := range args {
 		dockerCommandArg = append(dockerCommandArg, v)

@@ -13,6 +13,7 @@ import (
 	"strings"
 	"sync"
 	"sync/atomic"
+	"time"
 )
 
 const BuildPackOutputDir = ".buildpack"
@@ -117,8 +118,9 @@ func (bp *BuildPack) build() error {
 	var errorCount int32 = 0
 	for _, m := range ms {
 		summaries[m.Name] = &ModuleSummary{
-			Name:   m.Name,
-			Result: "STARTED",
+			Name:        m.Name,
+			Result:      "STARTED",
+			TimeElapsed: 0,
 		}
 		go func(module Module) {
 			progress := make(chan int)
@@ -168,9 +170,11 @@ func (bp *BuildPack) build() error {
 					atomic.AddInt32(&errorCount, 1)
 					summaries[module.Name].Result = "ERROR"
 					summaries[module.Name].Message = e.Error()
+					summaries[module.Name].TimeElapsed = time.Since(bar.TimeStarted)
 					progress <- -1
 				} else {
 					summaries[module.Name].Result = "OK"
+					summaries[module.Name].TimeElapsed = time.Since(bar.TimeStarted)
 				}
 			} else {
 				summaries[module.Name].Result = "ABORTED"
@@ -196,11 +200,12 @@ func (bp *BuildPack) build() error {
 	t.SetTitle("Summary")
 	t.Style().Title.Align = text.AlignCenter
 	t.SetOutputMirror(os.Stdout)
-	t.AppendHeader(table.Row{"Module", "Result", "Message"})
+	t.AppendHeader(table.Row{"Module", "Result", "Duration", "Message"})
 	for _, e := range summaries {
 		t.AppendRow(table.Row{
 			e.Name,
 			e.Result,
+			fmt.Sprintf("%d ms", e.TimeElapsed),
 			e.Message,
 		})
 	}

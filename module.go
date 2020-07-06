@@ -5,6 +5,7 @@ import (
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack/builder"
 	"scm.wcs.fortna.com/lngo/buildpack/publisher"
+	"time"
 )
 
 type Module struct {
@@ -14,9 +15,10 @@ type Module struct {
 }
 
 type ModuleSummary struct {
-	Name    string
-	Result  string
-	Message string
+	Name        string
+	Result      string
+	Message     string
+	TimeElapsed time.Duration
 }
 
 type SortedById []Module

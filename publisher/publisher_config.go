@@ -17,18 +17,18 @@ func ReadConfig(moduleDir string) (c Config, err error) {
 	configFile := filepath.Join(moduleDir, PublishConfigFileName)
 	_, err = os.Stat(configFile)
 	if os.IsNotExist(err) {
-		err = fmt.Errorf("build config file %s not found", configFile)
+		err = fmt.Errorf("publish config file %s not found", configFile)
 		return
 	}
 
 	yamlFile, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		err = fmt.Errorf("read build config file get error %v", err)
+		err = fmt.Errorf("read publish config file get error %v", err)
 		return
 	}
 	err = yaml.Unmarshal(yamlFile, &c)
 	if err != nil {
-		err = fmt.Errorf("unmarshal build config file get error %v", err)
+		err = fmt.Errorf("unmarshal publish config file get error %v", err)
 		return
 	}
 	return
@@ -44,18 +44,18 @@ func ReadDockerConfig(moduleDir string) (c DockerConfig, err error) {
 	configFile := filepath.Join(moduleDir, PublishConfigFileName)
 	_, err = os.Stat(configFile)
 	if os.IsNotExist(err) {
-		err = fmt.Errorf("build config file %s not found", configFile)
+		err = fmt.Errorf("publish config file %s not found", configFile)
 		return
 	}
 
 	yamlFile, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		err = fmt.Errorf("read build config file get error %v", err)
+		err = fmt.Errorf("read publish config file get error %v", err)
 		return
 	}
 	err = yaml.Unmarshal(yamlFile, &c)
 	if err != nil {
-		err = fmt.Errorf("unmarshal build config file get error %v", err)
+		err = fmt.Errorf("unmarshal publish config file get error %v", err)
 		return
 	}
 	return

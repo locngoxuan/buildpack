@@ -27,6 +27,10 @@ func (n DummyPublisher) PostPublish(ctx PublishContext) error {
 	return nil
 }
 
+func init() {
+	registries["no_publisher"] = &DummyPublisher{}
+}
+
 func GetPublisher(name string) (Interface, error) {
 	i, ok := registries[name]
 	if !ok {

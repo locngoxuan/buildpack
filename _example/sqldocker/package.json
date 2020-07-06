@@ -1,6 +1,0 @@
-{
-  "group": "com.fortna.buildpack",
-  "artifact": "example-db",
-  "version": "0.1.0",
-  "dependencies": []
-}

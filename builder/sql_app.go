@@ -24,7 +24,11 @@ func (b SqlApp) PostBuild(ctx BuildContext) error {
 	srcFolder := filepath.Join(ctx.WorkDir, "src")
 	if common.Exists(srcFolder) {
 		destination := filepath.Join(ctx.OutputDir, "src")
-		err = common.CreateDir(destination, true, 0755)
+		err = common.CreateDir(common.CreateDirOption{
+			AbsPath:       destination,
+			SkipContainer: true,
+			Perm:          0755,
+		})
 		if err != nil {
 			return err
 		}
@@ -37,7 +41,11 @@ func (b SqlApp) PostBuild(ctx BuildContext) error {
 	depsFolder := filepath.Join(ctx.WorkDir, "deps")
 	if common.Exists(depsFolder) {
 		destination := filepath.Join(ctx.OutputDir, "deps")
-		err = common.CreateDir(destination, true, 0755)
+		err = common.CreateDir(common.CreateDirOption{
+			AbsPath:       destination,
+			SkipContainer: true,
+			Perm:          0755,
+		})
 		if err != nil {
 			return err
 		}

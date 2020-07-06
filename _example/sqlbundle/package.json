@@ -1,8 +1,0 @@
-{
-  "group": "com.fortna.buildpack",
-  "artifact": "example-db",
-  "version": "0.1.0",
-  "dependencies": [
-    "https://artifactory.wcs.fortna.com/artifactory/wes-libs-snapshot-local/com/fortna/athena/database/1.3.0-SNAPSHOT/database.tar"
-  ]
-}

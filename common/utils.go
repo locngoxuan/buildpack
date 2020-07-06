@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"os/exec"
 	"strings"
 )
 
@@ -15,20 +16,77 @@ func IsEmptyString(s string) bool {
 	return strings.TrimSpace(s) == ""
 }
 
-func CreateDir(dir string, skipContainer bool, perm os.FileMode) error {
-	if !skipContainer {
-		return errors.New("not implemented yet")
-	} else {
-		return os.MkdirAll(dir, perm)
-	}
+type CreateDirOption struct {
+	WorkDir       string
+	RelativePath  string
+	AbsPath       string
+	SkipContainer bool
+	Perm          os.FileMode
 }
 
-func DeleteDir(dir string, skipContainer bool) error {
-	if !skipContainer {
-		return errors.New("not implemented yet")
-	} else {
-		return os.RemoveAll(dir)
+type DeleteDirOption struct {
+	WorkDir       string
+	RelativePath  string
+	AbsPath       string
+	SkipContainer bool
+}
+
+func CreateDirInContainer(workDir, folderName string) error {
+	dockerHost, err := CheckDockerHostConnection()
+	if err != nil {
+		return errors.New(fmt.Sprintf("can not connect to docker host: %s", err.Error()))
 	}
+	dockerCommandArg := make([]string, 0)
+	dockerCommandArg = append(dockerCommandArg, "-H", dockerHost)
+	dockerCommandArg = append(dockerCommandArg, "run", "--rm")
+
+	image := AlpineImage
+	dockerCommandArg = append(dockerCommandArg, "--workdir", "/working")
+	dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/working", workDir))
+	dockerCommandArg = append(dockerCommandArg, image)
+	dockerCommandArg = append(dockerCommandArg, "mkdir", "-p", folderName)
+	PrintInfo("working dir %s", workDir)
+	PrintInfo("docker %s", strings.Join(dockerCommandArg, " "))
+	dockerCmd := exec.Command("docker", dockerCommandArg...)
+	dockerCmd.Stdout = logOutput
+	dockerCmd.Stderr = logOutput
+	return dockerCmd.Run()
+}
+
+func DeleteDirOnContainer(workDir, folderName string) error {
+	dockerHost, err := CheckDockerHostConnection()
+	if err != nil {
+		return errors.New(fmt.Sprintf("can not connect to docker host: %s", err.Error()))
+	}
+	dockerCommandArg := make([]string, 0)
+	dockerCommandArg = append(dockerCommandArg, "-H", dockerHost)
+	dockerCommandArg = append(dockerCommandArg, "run", "--rm")
+
+	image := AlpineImage
+	dockerCommandArg = append(dockerCommandArg, "--workdir", "/working")
+	dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/working", workDir))
+	dockerCommandArg = append(dockerCommandArg, image)
+	dockerCommandArg = append(dockerCommandArg, "rm", "-rf", folderName)
+	PrintInfo("working dir %s", workDir)
+	PrintInfo("docker %s", strings.Join(dockerCommandArg, " "))
+	dockerCmd := exec.Command("docker", dockerCommandArg...)
+	dockerCmd.Stdout = logOutput
+	dockerCmd.Stderr = logOutput
+	return dockerCmd.Run()
+}
+
+func CreateDir(opt CreateDirOption) error {
+	if opt.SkipContainer {
+		return os.MkdirAll(opt.AbsPath, opt.Perm)
+	}
+	return CreateDirInContainer(opt.WorkDir, opt.RelativePath)
+}
+
+func DeleteDir(option DeleteDirOption) error {
+	if option.SkipContainer {
+		return os.RemoveAll(option.AbsPath)
+	}
+	return DeleteDirOnContainer(option.WorkDir, option.RelativePath)
 }
 
 func SumContentMD5(file string) (string, error) {

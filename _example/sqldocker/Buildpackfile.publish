@@ -1,5 +1,0 @@
-publisher: 'docker_sql'
-repository: 'localregistry'
-tag: 'registry.wes.fortna.com:5000/buildpack/example-database'
-registries:
-  - registry.wes.fortna.com:5000

@@ -11,7 +11,11 @@ import (
 func (bp *BuildPack) clean() error {
 	//create tmp directory
 	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
-	err := common.DeleteDir(outputDir, true)
+	//err := common.DeleteDir(outputDir, true)
+	err := common.DeleteDir(common.DeleteDirOption{
+		AbsPath:       outputDir,
+		SkipContainer: true,
+	})
 	if err != nil {
 		return err
 	}

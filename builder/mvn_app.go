@@ -45,7 +45,11 @@ func (b MvnApp) PostBuild(ctx BuildContext) error {
 	// copy dist directory to common dir
 	distFolderSrc := filepath.Join(ctx.WorkDir, distFolderName)
 	distFolderDst := filepath.Join(ctx.OutputDir, distFolderName)
-	err = common.CreateDir(distFolderDst, true, 0755)
+	err = common.CreateDir(common.CreateDirOption{
+		SkipContainer: true,
+		Perm:          0755,
+		AbsPath:       distFolderDst,
+	})
 	if err != nil {
 		return err
 	}
@@ -59,7 +63,11 @@ func (b MvnApp) PostBuild(ctx BuildContext) error {
 	libFolderSrc := filepath.Join(ctx.WorkDir, libsFolderName)
 	if common.Exists(libFolderSrc) {
 		libFolderDst := filepath.Join(ctx.OutputDir, libsFolderName)
-		err = common.CreateDir(libFolderDst, true, 0755)
+		err = common.CreateDir(common.CreateDirOption{
+			SkipContainer: true,
+			Perm:          0755,
+			AbsPath:       libFolderDst,
+		})
 		if err != nil {
 			return err
 		}

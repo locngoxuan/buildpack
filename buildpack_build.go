@@ -69,17 +69,31 @@ func (bp *BuildPack) build() error {
 
 	//create tmp directory
 	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
-	err := common.DeleteDir(outputDir, true)
+	//err := common.DeleteDir(outputDir, true)
+	err := common.DeleteDir(common.DeleteDirOption{
+		SkipContainer: true,
+		AbsPath:       outputDir,
+	})
 	if err != nil {
 		return err
 	}
 
-	err = common.CreateDir(outputDir, true, 0755)
+	//err = common.CreateDir(outputDir, true, 0755)
+	err = common.CreateDir(common.CreateDirOption{
+		SkipContainer: true,
+		AbsPath:       outputDir,
+		Perm:          0755,
+	})
 	if err != nil {
 		return err
 	}
 	for _, module := range ms {
-		err := common.CreateDir(filepath.Join(outputDir, module.Name), true, 0755)
+		//err := common.CreateDir(filepath.Join(outputDir, module.Name), true, 0755)
+		err = common.CreateDir(common.CreateDirOption{
+			SkipContainer: true,
+			AbsPath:       filepath.Join(outputDir, module.Name),
+			Perm:          0755,
+		})
 		if err != nil {
 			return err
 		}
@@ -174,7 +188,7 @@ func (bp *BuildPack) build() error {
 					summaries[module.Name].TimeElapsed = time.Since(started)
 					progress <- -1
 				} else {
-					summaries[module.Name].Result = "OK"
+					summaries[module.Name].Result = "DONE"
 					summaries[module.Name].TimeElapsed = time.Since(started)
 				}
 			} else {

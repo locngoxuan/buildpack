@@ -17,8 +17,8 @@ const (
 type Mvn struct {
 }
 
-func run(ctx BuildContext, skipContainer bool, args ...string) error {
-	if skipContainer {
+func runMvn(ctx BuildContext, args ...string) error {
+	if ctx.SkipContainer {
 		return runOnHost(ctx, args...)
 	} else {
 		return runInContainer(ctx, args...)
@@ -40,7 +40,14 @@ func runInContainer(ctx BuildContext, args ...string) error {
 	}
 
 	if len(repositoryDir) > 0 {
-		err = common.CreateDir(repositoryDir, true, 0766)
+		//err = common.CreateDir(repositoryDir, true, 0766)
+		err = common.CreateDir(common.CreateDirOption{
+			SkipContainer: true,
+			Perm:          0766,
+			AbsPath:       repositoryDir,
+			WorkDir:       ctx.ShareDataDir,
+			RelativePath:  filepath.Join(".m2", "repository"),
+		})
 		if err != nil {
 			return err
 		}
@@ -81,7 +88,7 @@ func runOnHost(ctx BuildContext, args ...string) error {
 func (b Mvn) Clean(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "clean")
-	return run(ctx, ctx.SkipContainer, arg...)
+	return runMvn(ctx, arg...)
 }
 
 func (b Mvn) PreBuild(ctx BuildContext) error {
@@ -97,7 +104,7 @@ func (b Mvn) Build(ctx BuildContext) error {
 	arg = append(arg, "install")
 	arg = append(arg, c.Options...)
 	arg = append(arg, fmt.Sprintf("-Drevision=%s", ctx.Version))
-	return run(ctx, ctx.SkipContainer, arg...)
+	return runMvn(ctx, arg...)
 }
 
 func (b Mvn) PostBuild(ctx BuildContext) error {

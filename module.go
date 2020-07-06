@@ -8,14 +8,15 @@ import (
 )
 
 type Module struct {
-	Id    int
-	Name  string
-	Path  string
+	Id   int
+	Name string
+	Path string
 }
 
 type ModuleSummary struct {
-	Name   string
-	Result string
+	Name    string
+	Result  string
+	Message string
 }
 
 type SortedById []Module

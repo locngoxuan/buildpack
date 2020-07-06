@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gosuri/uiprogress"
+	"github.com/jedib0t/go-pretty/v6/table"
+	"github.com/jedib0t/go-pretty/v6/text"
 	"os"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
@@ -164,7 +166,8 @@ func (bp *BuildPack) build() error {
 				e := module.start(*bp, progress)
 				if e != nil {
 					atomic.AddInt32(&errorCount, 1)
-					summaries[module.Name].Result = fmt.Sprintf("ERROR (%s)", e.Error())
+					summaries[module.Name].Result = "ERROR"
+					summaries[module.Name].Message = e.Error()
 					progress <- -1
 				} else {
 					summaries[module.Name].Result = "OK"
@@ -185,11 +188,24 @@ func (bp *BuildPack) build() error {
 	uiprogress.Stop()
 
 	common.SetLogOutput(os.Stdout)
-	common.PrintInfo("==================== SUMMARY ====================")
+	common.PrintInfo("")
+	common.PrintInfo("")
+
+	t := table.NewWriter()
+	t.SetStyle(table.StyleColoredGreenWhiteOnBlack)
+	t.SetTitle("Summary")
+	t.Style().Title.Align = text.AlignCenter
+	t.SetOutputMirror(os.Stdout)
+	t.AppendHeader(table.Row{"Module", "Result", "Message"})
 	for _, e := range summaries {
-		common.PrintInfo("%s: %s", e.Name, e.Result)
+		t.AppendRow(table.Row{
+			e.Name,
+			e.Result,
+			e.Message,
+		})
 	}
-	common.PrintInfo("=================================================")
+	t.Render()
+
 	//git operation
 	if bp.IsSkipGit() {
 		return nil

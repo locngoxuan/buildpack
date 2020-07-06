@@ -11,9 +11,11 @@ require (
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
+	github.com/go-openapi/strfmt v0.19.5 // indirect
 	github.com/gogo/protobuf v1.3.1 // indirect
 	github.com/gosuri/uilive v0.0.4 // indirect
 	github.com/gosuri/uiprogress v0.0.1
+	github.com/jedib0t/go-pretty/v6 v6.0.4
 	github.com/jhoonb/archivex v0.0.0-20180718040744-0488e4ce1681
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
@@ -22,7 +24,7 @@ require (
 	golang.org/x/net v0.0.0-20200625001655-4c5254603344 // indirect
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/yaml.v2 v2.3.0
-	scm.wcs.fortna.com/lngo/sqlbundle v0.0.0-20200704154604-f26f123ca6eb
+	scm.wcs.fortna.com/lngo/sqlbundle v0.0.0-20200706083451-00861804532e
 )
 
 replace github.com/Sirupsen/logrus v1.4.2 => github.com/sirupsen/logrus v1.4.2

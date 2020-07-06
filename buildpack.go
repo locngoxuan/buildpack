@@ -23,42 +23,35 @@ type BuildPack struct {
 }
 
 func (bp BuildPack) IsSkipClean() bool {
-	if bp.IsDev() {
+	if bp.DevMode {
 		return true
 	}
 	return bp.Arguments.SkipClean
 }
 
 func (bp BuildPack) IsSkipContainer() bool {
-	if bp.IsDev() {
+	if bp.DevMode {
 		return true
 	}
 	return bp.Arguments.SkipContainer
 }
 
 func (bp BuildPack) IsSkipPublish() bool {
-	if bp.IsDev() || bp.Arguments.Command == cmdClean {
+	if bp.DevMode || bp.Arguments.Command == cmdClean {
 		return true
 	}
 	return bp.Arguments.SkipPublish
 }
 
-func (bp BuildPack) IsDev() bool {
-	if bp.DevMode {
-		return true
-	}
-	return !bp.BuildRelease && !bp.BuildPath
-}
-
 func (bp BuildPack) IsSkipGit() bool {
-	if bp.IsDev() || bp.Arguments.Command == cmdClean {
+	if bp.DevMode || (!bp.BuildRelease && !bp.BuildPath) || bp.Arguments.Command == cmdClean {
 		return true
 	}
 	return bp.Arguments.SkipGit
 }
 
 func (bp BuildPack) IsSkipGitBraching() bool {
-	if bp.IsSkipGit() || bp.IsDev() || bp.BuildPath {
+	if bp.IsSkipGit() || bp.DevMode || bp.BuildPath {
 		return true
 	}
 	return bp.Arguments.SkipBranching

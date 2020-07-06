@@ -8,9 +8,14 @@ import (
 )
 
 type Module struct {
-	Id   int
-	Name string
-	Path string
+	Id    int
+	Name  string
+	Path  string
+}
+
+type ModuleSummary struct {
+	Name   string
+	Result string
 }
 
 type SortedById []Module
@@ -19,7 +24,7 @@ func (a SortedById) Len() int           { return len(a) }
 func (a SortedById) Less(i, j int) bool { return a[i].Id < a[j].Id }
 func (a SortedById) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
-func (m *Module) clean(bp BuildPack) error {
+func (m Module) clean(bp BuildPack) error {
 	workDir := filepath.Join(bp.WorkDir, m.Path)
 	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir, m.Name)
 	bc, err := builder.ReadConfig(workDir)
@@ -54,28 +59,7 @@ func (m *Module) clean(bp BuildPack) error {
 	return nil
 }
 
-func (m *Module) start(bp BuildPack, progress chan<- int) error {
-	/**
-	1. Read configuration
-		- Read Buildpackfile.build
-		- Read Buildoackfile.publish
-	2. Clean
-		- Clean result of build
-		- Clean result of publish
-		- Clean .buildpack/{module-name}
-	3. Build
-		- Pre build
-		- Build
-		- Post build
-	4. Publish
-		- Pre publish
-		- Publish
-		- Post publish
-	5. Clean (Allow skip)
-		- Clean result of build
-		- Clean result of publish
-		- Clean .buildpack/{module-name}
-	 */
+func (m Module) start(bp BuildPack, progress chan<- int) error {
 	workDir := filepath.Join(bp.WorkDir, m.Path)
 	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir, m.Name)
 

@@ -32,18 +32,18 @@ repositories:
       password: ${ARTIFACTORY_PASS}
 
 modules:
-  - id: 1
+  - id: 0
     name: mvn
     path: mvnproj
-  - id: 2
+  - id: 1
     name: module1
     path: mvnproj/module1
-  - id: 3
+  - id: 1
     name: module2
     path: mvnproj/module2
-  - id: 4
+  - id: 0
     name: datalib
     path: sqlbundle
-  - id: 5
+  - id: 1
     name: dataapp
     path: sqldocker

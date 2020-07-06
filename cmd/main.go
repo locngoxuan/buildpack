@@ -37,7 +37,7 @@ func main() {
 		common.PrintFatal(err, "can not read config")
 	}
 
-	common.PrintInfo("%v %v", arg, config)
+	//common.PrintInfo("%v %v", arg, config)
 	bp, err := buildpack.CreateBuildPack(arg, config)
 	if err != nil {
 		common.PrintFatal(err, "can not init buildpack")

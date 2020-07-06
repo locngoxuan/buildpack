@@ -4,14 +4,29 @@ import (
 	"errors"
 	"fmt"
 	"github.com/gosuri/uiprogress"
+	"os"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
 	"sort"
 	"strings"
 	"sync"
+	"sync/atomic"
 )
 
 const BuildPackOutputDir = ".buildpack"
+
+var steps = []string{
+	"read config ",
+	"clean       ",
+	"pre build   ",
+	"building    ",
+	"post build  ",
+	"read config ",
+	"pre publish ",
+	"publishing  ",
+	"post publish",
+	"completed   ",
+}
 
 func (bp *BuildPack) build() error {
 	ms := make([]Module, 0)
@@ -68,20 +83,56 @@ func (bp *BuildPack) build() error {
 	}
 
 	//build
-	var wg sync.WaitGroup
-	uiprogress.Start()
-	var steps = []string{"read build config", "clean", "pre build", "building", "post build", "read publish config", "pre publish", "publishing", "post publish", "completed"}
+	//normalize index table
+	reverseIndexTable := make(map[int]int)
+	currentLevel := ms[0].Id
+	currentIndex := 0
 	for _, m := range ms {
-		progress := make(chan int)
+		if currentLevel < m.Id {
+			//change level
+			currentLevel = m.Id
+			currentIndex += 1
+		}
+		reverseIndexTable[m.Id] = currentIndex
+	}
+
+	tree := make(map[int]*sync.WaitGroup)
+	var wg sync.WaitGroup
+
+	for _, m := range ms {
+		curIndex := reverseIndexTable[m.Id]
+		w, ok := tree[curIndex]
+		if !ok {
+			w = new(sync.WaitGroup)
+			tree[curIndex] = w
+		}
+		w.Add(1)
 		wg.Add(1)
+	}
+
+	uiprogress.Start()
+	summaries := make(map[string]*ModuleSummary)
+	var errorCount int32 = 0
+	for _, m := range ms {
+		summaries[m.Name] = &ModuleSummary{
+			Name:   m.Name,
+			Result: "STARTED",
+		}
 		go func(module Module) {
+			progress := make(chan int)
+			name := module.Name
+			if len(name) <= 10 {
+				name = fmt.Sprintf("%-10v", name)
+			} else {
+				name = fmt.Sprintf("%-10v", name[0:10])
+			}
 			bar := uiprogress.AddBar(len(steps))
-			bar.AppendCompleted().PrependElapsed()
+			bar.AppendCompleted()
 			bar.PrependFunc(func(b *uiprogress.Bar) string {
 				if b.Current() == 0 {
-					return fmt.Sprintf("%s: ", module.Name)
+					return fmt.Sprintf("[%s] waiting     ", name)
 				}
-				return fmt.Sprintf("%s: "+steps[b.Current()-1], module.Name)
+				return fmt.Sprintf("[%s] "+steps[b.Current()-1], name)
 			})
 			go func(b *uiprogress.Bar) {
 				for {
@@ -99,14 +150,46 @@ func (bp *BuildPack) build() error {
 				}
 				wg.Done()
 			}(bar)
-			err = module.start(*bp, progress)
-			if err != nil {
+
+			//progress <- 1
+			moduleIndex := reverseIndexTable[module.Id]
+			//get prev wait group
+			w, ok := tree[moduleIndex-1]
+			if ok {
+				w.Wait()
+			}
+
+			//continue to build if not found any error
+			if atomic.LoadInt32(&errorCount) == 0 {
+				e := module.start(*bp, progress)
+				if e != nil {
+					atomic.AddInt32(&errorCount, 1)
+					summaries[module.Name].Result = fmt.Sprintf("ERROR (%s)", e.Error())
+					progress <- -1
+				} else {
+					summaries[module.Name].Result = "OK"
+				}
+			} else {
+				summaries[module.Name].Result = "ABORTED"
 				progress <- -1
+			}
+
+			//get current wait group
+			w, ok = tree[moduleIndex]
+			if ok {
+				w.Done()
 			}
 		}(m)
 	}
 	wg.Wait()
 	uiprogress.Stop()
+
+	common.SetLogOutput(os.Stdout)
+	common.PrintInfo("==================== SUMMARY ====================")
+	for _, e := range summaries {
+		common.PrintInfo("%s: %s", e.Name, e.Result)
+	}
+	common.PrintInfo("=================================================")
 	//git operation
 	if bp.IsSkipGit() {
 		return nil

@@ -165,16 +165,17 @@ func (bp *BuildPack) build() error {
 
 			//continue to build if not found any error
 			if atomic.LoadInt32(&errorCount) == 0 {
+				started := time.Now()
 				e := module.start(*bp, progress)
 				if e != nil {
 					atomic.AddInt32(&errorCount, 1)
 					summaries[module.Name].Result = "ERROR"
 					summaries[module.Name].Message = e.Error()
-					summaries[module.Name].TimeElapsed = time.Since(bar.TimeStarted)
+					summaries[module.Name].TimeElapsed = time.Since(started)
 					progress <- -1
 				} else {
 					summaries[module.Name].Result = "OK"
-					summaries[module.Name].TimeElapsed = time.Since(bar.TimeStarted)
+					summaries[module.Name].TimeElapsed = time.Since(started)
 				}
 			} else {
 				summaries[module.Name].Result = "ABORTED"
@@ -205,7 +206,7 @@ func (bp *BuildPack) build() error {
 		t.AppendRow(table.Row{
 			e.Name,
 			e.Result,
-			fmt.Sprintf("%d ms", e.TimeElapsed),
+			fmt.Sprintf("%d ms", e.TimeElapsed.Milliseconds()),
 			e.Message,
 		})
 	}

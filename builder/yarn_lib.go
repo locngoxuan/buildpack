@@ -15,7 +15,7 @@ func (b YarnLib) PostBuild(ctx BuildContext) error {
 	if err != nil {
 		return err
 	}
-	//copy package.json -> ./buildpack/test/package.json
+	//copy package.json -> ./buildpack/{module}/package.json
 	jsonFile := filepath.Join(ctx.WorkDir, packageJson)
 	err = common.CopyFile(jsonFile, filepath.Join(ctx.OutputDir, packageJson))
 	if err != nil {
@@ -43,7 +43,7 @@ func (b YarnLib) PostBuild(ctx BuildContext) error {
 	if err != nil {
 		return err
 	}
-	//copy {name}-{version}.tgz -> ./buildpack/test/{name}-v{version}.tgz
+	//copy {name}.tgz -> ./buildpack/{module}/{name}.tgz
 	tgzName := fmt.Sprintf("%s.tgz", config.Name)
 	tgzSource := filepath.Join(ctx.WorkDir, tgzName)
 	return common.CopyFile(tgzSource, filepath.Join(ctx.OutputDir, tgzName))

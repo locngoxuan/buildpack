@@ -97,152 +97,50 @@ func (bp *BuildPack) build() error {
 		}
 	}
 
-	//build
+	//+phase: build
 	//normalize index table
-	reverseIndexTable := make(map[int]int)
-	currentLevel := ms[0].Id
-	currentIndex := 0
-	for _, m := range ms {
-		if currentLevel < m.Id {
-			//change level
-			currentLevel = m.Id
-			currentIndex += 1
-		}
-		reverseIndexTable[m.Id] = currentIndex
-	}
+	reverseIndexTable := createReverseIndexTable(ms)
 
-	tree := make(map[int]*sync.WaitGroup)
-	var wg sync.WaitGroup
+	//create tree of wait group
+	tree := createTreeWaitGroup(reverseIndexTable, ms)
 
-	for _, m := range ms {
-		curIndex := reverseIndexTable[m.Id]
-		w, ok := tree[curIndex]
-		if !ok {
-			w = new(sync.WaitGroup)
-			tree[curIndex] = w
-		}
-		w.Add(1)
-		wg.Add(1)
-	}
-
-	started := time.Now()
+	//create summary of result
 	summaries := make(map[string]*ModuleSummary)
 	var errorCount int32 = 0
-	getLogFile := func(name string) string {
-		file := filepath.Join(bp.WorkDir, BuildPackOutputDir, fmt.Sprintf("%s.log", name))
-		if !common.IsEmptyString(bp.LogDir) {
-			file = filepath.Join(bp.LogDir, fmt.Sprintf("%s.log", name))
-		}
-		return file
-	}
 
 	if !bp.SkipProgressBar {
 		uiprogress.Start()
 	}
+	wg := new(sync.WaitGroup)
+	started := time.Now()
 	for _, m := range ms {
-		summaries[m.Name] = &ModuleSummary{
+		modSum := &ModuleSummary{
 			Name:        m.Name,
 			Result:      "STARTED",
 			TimeElapsed: 0,
+			LogFile:     getLogFile(*bp, m.Name),
 		}
-		go func(module Module) {
-			progress := make(chan int)
-			name := module.Name
-			if len(name) <= 10 {
-				name = fmt.Sprintf("%-10v", name)
-			} else {
-				name = fmt.Sprintf("%-10v", name[0:10])
-			}
-			if !bp.SkipProgressBar {
-				bar := uiprogress.AddBar(len(steps))
-				bar.AppendCompleted()
-				bar.PrependFunc(func(b *uiprogress.Bar) string {
-					if b.Current() == 0 {
-						return fmt.Sprintf("[%s] waiting     ", name)
-					}
-					return fmt.Sprintf("[%s] "+steps[b.Current()-1], name)
-				})
-				go func(b *uiprogress.Bar) {
-					for {
-						i := <-progress
-						if i == 1 {
-							b.Incr()
-						} else if i == -1 || i == -2 {
-							break
-						} else {
-							for b.Current() < len(steps) {
-								b.Incr()
-							}
-							break
-						}
-					}
-					wg.Done()
-				}(bar)
-			} else {
-				currentStep := 0
-				go func() {
-					for {
-						i := <-progress
-						if i == 1 {
-							currentStep++
-							common.PrintLog("module [%s] change to step [%s]", module.Name, steps[currentStep])
-						} else if i == - 1 {
-							common.PrintLog("module [%s] is [error]", module.Name)
-							break
-						} else if i == - 2 {
-							common.PrintLog("module [%s] is [aborted]", module.Name)
-							break
-						} else {
-							common.PrintLog("module [%s] is [completed]", module.Name)
-							break
-						}
-					}
-					wg.Done()
-				}()
-			}
-			//progress <- 1
-			moduleIndex := reverseIndexTable[module.Id]
-			//get prev wait group
-			w, ok := tree[moduleIndex-1]
-			if ok {
-				w.Wait()
-			}
-
-			//continue to build if not found any error
-			if atomic.LoadInt32(&errorCount) == 0 {
-				s := time.Now()
-				e := module.start(*bp, progress)
-				if e != nil {
-					atomic.AddInt32(&errorCount, 1)
-					summaries[module.Name].Result = "ERROR"
-					summaries[module.Name].Message = fmt.Sprintf("%v. Detail at %s", e, getLogFile(module.Name))
-					summaries[module.Name].TimeElapsed = time.Since(s)
-					progress <- -1
-				} else {
-					summaries[module.Name].Result = "DONE"
-					summaries[module.Name].TimeElapsed = time.Since(s)
-					progress <- 0
-				}
-			} else {
-				summaries[module.Name].Result = "ABORTED"
-				progress <- -2
-			}
-
-			//get current wait group
-			w, ok = tree[moduleIndex]
-			if ok {
-				w.Done()
-			}
-		}(m)
+		summaries[m.Name] = modSum
+		wg.Add(1)
+		go runModule(*bp, RunModuleOption{
+			treeWait:        tree,
+			reverseIndex:    reverseIndexTable,
+			globalWait:      wg,
+			Module:          m,
+			ModuleSummary:   modSum,
+			errorCount:      errorCount,
+			skipProgressBar: bp.SkipProgressBar,
+		})
 	}
 	wg.Wait()
 	if !bp.SkipProgressBar {
 		uiprogress.Stop()
 	}
-	common.PrintLog("")
+	//+phase: end build
+	common.PrintLog("") //break line
 
+	//render table of result
 	t := table.NewWriter()
-	//t.SetStyle(table.StyleColoredGreenWhiteOnBlack)
 	t.SetTitle("Summary")
 	t.Style().Title.Align = text.AlignCenter
 	t.SetOutputMirror(os.Stdout)
@@ -265,18 +163,17 @@ func (bp *BuildPack) build() error {
 		"",
 	})
 	t.Render()
-
+	//end table render
 	if atomic.LoadInt32(&errorCount) > 0 {
 		return errors.New("")
 	}
 
-	//git operation
+	//+phase: git operation
 	if bp.IsSkipGit() {
 		return nil
 	}
 
-	//break line
-	common.PrintLog("")
+	common.PrintLog("") //break line
 
 	cli := common.GetGitClient()
 	defer cli.Close()
@@ -307,6 +204,160 @@ func (bp *BuildPack) build() error {
 		return err
 	}
 	return nil
+}
+
+type RunModuleOption struct {
+	Module
+	reverseIndex    map[int]int
+	treeWait        map[int]*sync.WaitGroup
+	globalWait      *sync.WaitGroup
+	skipProgressBar bool
+	errorCount      int32
+	*ModuleSummary
+}
+
+func progressBar(progress chan int, b *uiprogress.Bar, wg *sync.WaitGroup) {
+	for {
+		i := <-progress
+		if i == 1 {
+			b.Incr()
+		} else if i == -1 || i == -2 {
+			break
+		} else {
+			for b.Current() < len(steps) {
+				b.Incr()
+			}
+			break
+		}
+	}
+	wg.Done()
+}
+
+func progressText(name string, progress chan int, wg *sync.WaitGroup) {
+	currentStep := 0
+	for {
+		i := <-progress
+		if i == 1 {
+			currentStep++
+			common.PrintLog("module [%s] change to step [%s]", name, steps[currentStep])
+		} else if i == - 1 {
+			common.PrintLog("module [%s] is [error]", name)
+			break
+		} else if i == - 2 {
+			common.PrintLog("module [%s] is [aborted]", name)
+			break
+		} else {
+			common.PrintLog("module [%s] is [completed]", name)
+			break
+		}
+	}
+	wg.Done()
+}
+
+func runModule(bp BuildPack, option RunModuleOption) {
+	module := option.Module
+	skipProgress := option.skipProgressBar
+	wg := option.globalWait
+	reverseIndexTable := option.reverseIndex
+	tree := option.treeWait
+
+	progress := make(chan int)
+	name := module.Name
+	if len(name) <= 10 {
+		name = fmt.Sprintf("%-10v", name)
+	} else {
+		name = fmt.Sprintf("%-10v", name[0:10])
+	}
+	if !skipProgress {
+		bar := uiprogress.AddBar(len(steps))
+		bar.AppendCompleted()
+		bar.PrependFunc(func(b *uiprogress.Bar) string {
+			if b.Current() == 0 {
+				return fmt.Sprintf("[%s] waiting     ", name)
+			}
+			return fmt.Sprintf("[%s] "+steps[b.Current()-1], name)
+		})
+		go progressBar(progress, bar, wg)
+	} else {
+		go progressText(module.Name, progress, wg)
+	}
+	//progress <- 1
+	moduleIndex := reverseIndexTable[module.Id]
+	//get prev wait group
+	w, ok := tree[moduleIndex-1]
+	if ok {
+		w.Wait()
+	}
+
+	//continue to build if not found any error
+	if atomic.LoadInt32(&option.errorCount) == 0 {
+		s := time.Now()
+		e := module.start(bp, progress)
+		if e != nil {
+			atomic.AddInt32(&option.errorCount, 1)
+			//summaries[module.Name].Result = "ERROR"
+			//summaries[module.Name].Message = fmt.Sprintf("%v. Detail at %s", e, summaries[module.Name].LogFile)
+			//summaries[module.Name].TimeElapsed = time.Since(s)
+
+			option.ModuleSummary.Result = "ERROR"
+			option.ModuleSummary.Message = fmt.Sprintf("%v. Detail at %s", e, option.ModuleSummary.LogFile)
+			option.ModuleSummary.TimeElapsed = time.Since(s)
+			progress <- -1
+		} else {
+			//summaries[module.Name].Result = "DONE"
+			//summaries[module.Name].TimeElapsed = time.Since(s)
+			option.ModuleSummary.Result = "DONE"
+			option.ModuleSummary.TimeElapsed = time.Since(s)
+			progress <- 0
+		}
+	} else {
+		//summaries[module.Name].Result = "ABORTED"
+		option.ModuleSummary.Result = "ABORTED"
+		progress <- -2
+	}
+
+	//get current wait group
+	w, ok = tree[moduleIndex]
+	if ok {
+		w.Done()
+	}
+}
+
+func getLogFile(bp BuildPack, name string) string {
+	file := filepath.Join(bp.WorkDir, BuildPackOutputDir, fmt.Sprintf("%s.log", name))
+	if !common.IsEmptyString(bp.LogDir) {
+		file = filepath.Join(bp.LogDir, fmt.Sprintf("%s.log", name))
+	}
+	return file
+}
+
+func createReverseIndexTable(ms []Module) map[int]int {
+	reverseIndexTable := make(map[int]int)
+	currentLevel := ms[0].Id
+	currentIndex := 0
+	for _, m := range ms {
+		if currentLevel < m.Id {
+			//change level
+			currentLevel = m.Id
+			currentIndex += 1
+		}
+		reverseIndexTable[m.Id] = currentIndex
+	}
+	return reverseIndexTable
+}
+
+func createTreeWaitGroup(reverseIndexTable map[int]int, ms []Module) map[int]*sync.WaitGroup {
+	tree := make(map[int]*sync.WaitGroup)
+	for _, m := range ms {
+		curIndex := reverseIndexTable[m.Id]
+		w, ok := tree[curIndex]
+		if !ok {
+			w = new(sync.WaitGroup)
+			tree[curIndex] = w
+		}
+		w.Add(1)
+	}
+	return tree
 }
 
 func gitUpdateConfig(cli common.GitClient, bp BuildPack, ver common.Version) (err error) {

@@ -21,6 +21,7 @@ type ModuleSummary struct {
 	Result      string
 	Message     string
 	TimeElapsed time.Duration
+	LogFile     string
 }
 
 type SortedById []Module

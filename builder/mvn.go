@@ -107,6 +107,10 @@ func (b Mvn) Build(ctx BuildContext) error {
 	return runMvn(ctx, arg...)
 }
 
+func (b Mvn) PostFail(ctx BuildContext) error {
+	return b.Clean(ctx)
+}
+
 func (b Mvn) PostBuild(ctx BuildContext) error {
 	pomFile := filepath.Join(ctx.WorkDir, "target", pomXml)
 	pom, err := common.ReadPOM(pomFile)

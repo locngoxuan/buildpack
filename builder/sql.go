@@ -22,6 +22,10 @@ func (b Sql) PreBuild(ctx BuildContext) error {
 	return nil
 }
 
+func (b Sql) PostFail(ctx BuildContext) error {
+	return b.Clean(ctx)
+}
+
 func (b Sql) Build(ctx BuildContext) error {
 	bundle, err := sqlbundle.NewSQLBundle(sqlbundle.Argument{
 		Version: ctx.Version,

@@ -15,6 +15,7 @@ type Interface interface {
 	PreBuild(ctx BuildContext) error
 	Build(ctx BuildContext) error
 	PostBuild(ctx BuildContext) error
+	PostFail(ctx BuildContext) error
 }
 
 var logOutput io.Writer = os.Stdout

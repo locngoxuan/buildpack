@@ -97,6 +97,28 @@ func yarnInContainer(ctx BuildContext, args ...string) error {
 type Yarn struct {
 }
 
+func (b Yarn) PostFail(ctx BuildContext) error {
+	//rollback version of package.json
+	jsonFile := filepath.Join(ctx.WorkDir, packageJson)
+	jsonFileBackup := filepath.Join(ctx.WorkDir, packageJsonBackup)
+	err := common.DeleteDir(common.DeleteDirOption{
+		SkipContainer: true,
+		AbsPath:       jsonFile,
+	})
+	err = common.CopyFile(jsonFileBackup, jsonFile)
+	if err != nil {
+		return err
+	}
+	err = common.DeleteDir(common.DeleteDirOption{
+		SkipContainer: true,
+		AbsPath:       jsonFileBackup,
+	})
+	if err != nil {
+		return err
+	}
+	return b.Clean(ctx)
+}
+
 func (b Yarn) Clean(ctx BuildContext) error {
 	config, err := common.ReadNodeJSPackageJson(filepath.Join(ctx.WorkDir, packageJson))
 	if err != nil {

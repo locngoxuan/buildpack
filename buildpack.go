@@ -29,6 +29,13 @@ func (bp BuildPack) IsSkipClean() bool {
 	return bp.Arguments.SkipClean
 }
 
+func (bp BuildPack) GetConfigFile() string {
+	if !common.IsEmptyString(bp.Arguments.ConfigFile) {
+		return bp.Arguments.ConfigFile
+	}
+	return filepath.Join(bp.WorkDir, ConfigFileName)
+}
+
 func (bp BuildPack) IsSkipContainer() bool {
 	if bp.DevMode {
 		return true

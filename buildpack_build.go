@@ -231,6 +231,10 @@ func (bp *BuildPack) build() error {
 		return nil
 	}
 
+	//break line
+	common.PrintInfo("")
+	common.PrintInfo("")
+
 	cli := common.GetGitClient()
 	defer cli.Close()
 
@@ -265,9 +269,9 @@ func (bp *BuildPack) build() error {
 func gitUpdateConfig(cli common.GitClient, bp BuildPack, ver common.Version) (err error) {
 	config := bp.BuildConfig
 	config.Version = ver.String()
-	err = rewriteConfig(config, bp.ConfigFile)
+	err = rewriteConfig(config, bp.GetConfigFile())
 	if err != nil {
-		return err
+		return fmt.Errorf("rewrite version before do git operation fail %s", err.Error())
 	}
 
 	// push to repo
@@ -283,7 +287,7 @@ func gitUpdateConfig(cli common.GitClient, bp BuildPack, ver common.Version) (er
 	}
 	err = cli.Push()
 	if err != nil {
-		return err
+		return fmt.Errorf("push change of version to git server fail %s", err.Error())
 	}
 	return nil
 }

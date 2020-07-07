@@ -2,7 +2,6 @@ package builder
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
 )
@@ -25,16 +24,17 @@ func (b YarnLib) PostBuild(ctx BuildContext) error {
 
 	//rollback version of package.json
 	jsonFileBackup := filepath.Join(ctx.WorkDir, packageJsonBackup)
-	_ = os.RemoveAll(jsonFile)
+	err = common.DeleteDir(common.DeleteDirOption{
+		SkipContainer: true,
+		AbsPath:       jsonFile,
+	})
 	err = common.CopyFile(jsonFileBackup, jsonFile)
 	if err != nil {
 		return err
 	}
 	err = common.DeleteDir(common.DeleteDirOption{
-		SkipContainer: ctx.SkipContainer,
-		AbsPath: filepath.Join(ctx.WorkDir, jsonFileBackup),
-		WorkDir: ctx.WorkDir,
-		RelativePath: jsonFileBackup,
+		SkipContainer: true,
+		AbsPath:       jsonFileBackup,
 	})
 	if err != nil {
 		return err

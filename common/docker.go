@@ -6,7 +6,6 @@ import (
 	"docker.io/go-docker/api/types"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"io"
 	"os"
@@ -61,20 +60,18 @@ func CheckDockerHostConnection() (string, error) {
 		dockerHosts = append(dockerHosts, sessionDockerHost...)
 	}
 	dockerHosts = append(dockerHosts, defaultDockerHost...)
+	var err error
 	for _, host := range dockerHosts {
-		err := os.Setenv("DOCKER_HOST", host)
+		err = os.Setenv("DOCKER_HOST", host)
 		if err != nil {
-			fmt.Println(err)
 			continue
 		}
 		cli, err := client.NewEnvClient()
 		if err != nil || cli == nil {
-			fmt.Println(err)
 			continue
 		}
 		_, err = cli.Info(context.Background())
 		if err != nil {
-			fmt.Println(err)
 			_ = cli.Close()
 			continue
 		}
@@ -82,12 +79,19 @@ func CheckDockerHostConnection() (string, error) {
 		err = nil
 		return host, nil
 	}
-	return "", errors.New("can not connect to docker host")
+	if err != nil {
+		return "", fmt.Errorf("can not connect to docker host %v", err)
+	}
+	return "", fmt.Errorf("can not connect to docker host")
 }
 
 func (c *DockerClient) PullImage(username, password, image string) (io.ReadCloser, error) {
+	a, err := auth(username, password)
+	if err != nil {
+		return nil, err
+	}
 	opt := types.ImagePullOptions{
-		RegistryAuth: auth(username, password),
+		RegistryAuth: a,
 		All:          false,
 	}
 	return c.Client.ImagePull(context.Background(), image, opt)
@@ -138,16 +142,16 @@ func (c *DockerClient) BuildImageWithSpecificDockerFile(tarFile, dockerFile stri
 	return c.Client.ImageBuild(context.Background(), dockerBuildContext, opt)
 }
 
-func auth(usernam, password string) string {
+func auth(username, password string) (string, error) {
 	authConfig := types.AuthConfig{
-		Username: usernam,
+		Username: username,
 		Password: password,
 	}
 	encodedJSON, err := json.Marshal(authConfig)
 	if err != nil {
-		panic(err)
+		return "", fmt.Errorf("can not read docker log %v", err)
 	}
-	return base64.URLEncoding.EncodeToString(encodedJSON)
+	return base64.URLEncoding.EncodeToString(encodedJSON), nil
 }
 
 func (c *DockerClient) TagImage(src, dest string) error {
@@ -155,8 +159,12 @@ func (c *DockerClient) TagImage(src, dest string) error {
 }
 
 func (c *DockerClient) DeployImage(username, password, image string) (io.ReadCloser, error) {
+	a, err := auth(username, password)
+	if err != nil {
+		return nil, err
+	}
 	opt := types.ImagePushOptions{
-		RegistryAuth: auth(username, password),
+		RegistryAuth: a,
 		All:          true,
 	}
 	return c.Client.ImagePush(context.Background(), image, opt)

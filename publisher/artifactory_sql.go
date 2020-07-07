@@ -38,7 +38,7 @@ func init() {
 		if err != nil {
 			return nil, err
 		}
-		//upload pom and jar
+		//upload tar
 		for _, file := range files {
 			md5, err := common.SumContentMD5(file)
 			if err != nil {

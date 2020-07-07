@@ -69,7 +69,6 @@ func (bp *BuildPack) build() error {
 
 	//create tmp directory
 	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
-	//err := common.DeleteDir(outputDir, true)
 	err := common.DeleteDir(common.DeleteDirOption{
 		SkipContainer: true,
 		AbsPath:       outputDir,
@@ -78,7 +77,6 @@ func (bp *BuildPack) build() error {
 		return err
 	}
 
-	//err = common.CreateDir(outputDir, true, 0755)
 	err = common.CreateDir(common.CreateDirOption{
 		SkipContainer: true,
 		AbsPath:       outputDir,
@@ -128,10 +126,8 @@ func (bp *BuildPack) build() error {
 	}
 
 	started := time.Now()
-	uiprogress.Start()
 	summaries := make(map[string]*ModuleSummary)
 	var errorCount int32 = 0
-
 	getLogFile := func(name string) string {
 		file := filepath.Join(bp.WorkDir, BuildPackOutputDir, fmt.Sprintf("%s.log", name))
 		if !common.IsEmptyString(bp.LogDir) {
@@ -140,6 +136,9 @@ func (bp *BuildPack) build() error {
 		return file
 	}
 
+	if !bp.SkipProgressBar {
+		uiprogress.Start()
+	}
 	for _, m := range ms {
 		summaries[m.Name] = &ModuleSummary{
 			Name:        m.Name,
@@ -154,31 +153,53 @@ func (bp *BuildPack) build() error {
 			} else {
 				name = fmt.Sprintf("%-10v", name[0:10])
 			}
-			bar := uiprogress.AddBar(len(steps))
-			bar.AppendCompleted()
-			bar.PrependFunc(func(b *uiprogress.Bar) string {
-				if b.Current() == 0 {
-					return fmt.Sprintf("[%s] waiting     ", name)
-				}
-				return fmt.Sprintf("[%s] "+steps[b.Current()-1], name)
-			})
-			go func(b *uiprogress.Bar) {
-				for {
-					i := <-progress
-					if i == 1 {
-						bar.Incr()
-					} else if i == -1 {
-						break
-					} else {
-						for bar.Current() < len(steps) {
-							bar.Incr()
-						}
-						break
+			if !bp.SkipProgressBar {
+				bar := uiprogress.AddBar(len(steps))
+				bar.AppendCompleted()
+				bar.PrependFunc(func(b *uiprogress.Bar) string {
+					if b.Current() == 0 {
+						return fmt.Sprintf("[%s] waiting     ", name)
 					}
-				}
-				wg.Done()
-			}(bar)
-
+					return fmt.Sprintf("[%s] "+steps[b.Current()-1], name)
+				})
+				go func(b *uiprogress.Bar) {
+					for {
+						i := <-progress
+						if i == 1 {
+							b.Incr()
+						} else if i == -1 || i == -2 {
+							break
+						} else {
+							for b.Current() < len(steps) {
+								b.Incr()
+							}
+							break
+						}
+					}
+					wg.Done()
+				}(bar)
+			} else {
+				currentStep := 0
+				go func() {
+					for {
+						i := <-progress
+						if i == 1 {
+							currentStep++
+							common.PrintLog("module [%s] change to step [%s]", module.Name, steps[currentStep])
+						} else if i == - 1 {
+							common.PrintLog("module [%s] is [error]", module.Name)
+							break
+						} else if i == - 2 {
+							common.PrintLog("module [%s] is [aborted]", module.Name)
+							break
+						} else {
+							common.PrintLog("module [%s] is [completed]", module.Name)
+							break
+						}
+					}
+					wg.Done()
+				}()
+			}
 			//progress <- 1
 			moduleIndex := reverseIndexTable[module.Id]
 			//get prev wait group
@@ -189,22 +210,22 @@ func (bp *BuildPack) build() error {
 
 			//continue to build if not found any error
 			if atomic.LoadInt32(&errorCount) == 0 {
-				started := time.Now()
+				s := time.Now()
 				e := module.start(*bp, progress)
 				if e != nil {
 					atomic.AddInt32(&errorCount, 1)
 					summaries[module.Name].Result = "ERROR"
-					summaries[module.Name].Message = fmt.Sprintf("%v. Detail at %s", err, getLogFile(module.Name))
-					summaries[module.Name].TimeElapsed = time.Since(started)
+					summaries[module.Name].Message = fmt.Sprintf("%v. Detail at %s", e, getLogFile(module.Name))
+					summaries[module.Name].TimeElapsed = time.Since(s)
 					progress <- -1
 				} else {
 					summaries[module.Name].Result = "DONE"
-					summaries[module.Name].TimeElapsed = time.Since(started)
+					summaries[module.Name].TimeElapsed = time.Since(s)
 					progress <- 0
 				}
 			} else {
 				summaries[module.Name].Result = "ABORTED"
-				progress <- -1
+				progress <- -2
 			}
 
 			//get current wait group
@@ -215,9 +236,9 @@ func (bp *BuildPack) build() error {
 		}(m)
 	}
 	wg.Wait()
-	uiprogress.Stop()
-
-	//common.SetLogOutput(os.Stdout)
+	if !bp.SkipProgressBar {
+		uiprogress.Stop()
+	}
 	common.PrintLog("")
 
 	t := table.NewWriter()
@@ -244,6 +265,10 @@ func (bp *BuildPack) build() error {
 		"",
 	})
 	t.Render()
+
+	if atomic.LoadInt32(&errorCount) > 0 {
+		return errors.New("")
+	}
 
 	//git operation
 	if bp.IsSkipGit() {

@@ -11,10 +11,10 @@ import (
 func (bp *BuildPack) clean() error {
 	//create tmp directory
 	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
-	//err := common.DeleteDir(outputDir, true)
-	err := common.DeleteDir(common.DeleteDirOption{
-		AbsPath:       outputDir,
+	err := common.CreateDir(common.CreateDirOption{
 		SkipContainer: true,
+		AbsPath:       outputDir,
+		Perm:          0755,
 	})
 	if err != nil {
 		return err
@@ -65,6 +65,14 @@ func (bp *BuildPack) clean() error {
 		if err != nil {
 			return err
 		}
+	}
+
+	err = common.DeleteDir(common.DeleteDirOption{
+		AbsPath:       outputDir,
+		SkipContainer: true,
+	})
+	if err != nil {
+		return err
 	}
 	return nil
 }

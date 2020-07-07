@@ -26,7 +26,7 @@ func main() {
 
 	workDir, err := filepath.Abs(".")
 	if err != nil {
-		common.PrintLog("lookup working directry fail: %v", err)
+		common.PrintLog("lookup working directory fail: %v", err)
 		os.Exit(1)
 	}
 

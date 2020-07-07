@@ -41,16 +41,12 @@ func runInContainer(ctx BuildContext, args ...string) error {
 
 	if len(repositoryDir) > 0 {
 		//err = common.CreateDir(repositoryDir, true, 0766)
-		err = common.CreateDir(common.CreateDirOption{
+		_ = common.CreateDir(common.CreateDirOption{
 			SkipContainer: true,
 			Perm:          0766,
 			AbsPath:       repositoryDir,
-			WorkDir:       ctx.ShareDataDir,
-			RelativePath:  filepath.Join(".m2", "repository"),
 		})
-		if err != nil {
-			return err
-		}
+		common.PrintLogW(ctx.LogWriter, "[WARN] create repository folder %s get error: %v", repositoryDir, err)
 		dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/root/.m2/repository", repositoryDir))
 	}
 

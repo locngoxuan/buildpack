@@ -48,11 +48,12 @@ type Arguments struct {
 }
 
 type SkipOption struct {
-	SkipContainer bool
-	SkipPublish   bool
-	SkipGit       bool
-	SkipBranching bool
-	SkipClean     bool
+	SkipContainer   bool
+	SkipPublish     bool
+	SkipGit         bool
+	SkipBranching   bool
+	SkipClean       bool
+	SkipProgressBar bool
 }
 
 func ReadArguments() (arg Arguments, err error) {
@@ -71,6 +72,7 @@ func ReadArguments() (arg Arguments, err error) {
 	f.BoolVar(&arg.SkipGit, "skip-git", false, "skip git operation")
 	f.BoolVar(&arg.SkipBranching, "skip-branching", false, "skip checkout new branch")
 	f.BoolVar(&arg.SkipPublish, "skip-publish", false, "skip publish build to repository")
+	f.BoolVar(&arg.SkipProgressBar, "skip-progress", false, "use text plain instead of progress ui")
 
 	f.BoolVar(&verbose, "verbose", false, "show more detail in console")
 	f.Usage = func() {

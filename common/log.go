@@ -7,7 +7,7 @@ import (
 )
 
 func PrintLog(msg string, v ...interface{}) {
-	PrintLogW(os.Stdout, msg, v)
+	PrintLogW(os.Stdout, msg, v...)
 }
 
 func PrintLogW(w io.Writer, msg string, v ...interface{}) {

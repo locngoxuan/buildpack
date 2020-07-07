@@ -61,6 +61,7 @@ func (bp *BuildPack) clean() error {
 			Name: module.Name,
 			Path: module.Path,
 		}
+		common.PrintLog("clean module %s", module.Name)
 		err = m.clean(*bp)
 		if err != nil {
 			return err

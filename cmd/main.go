@@ -1,7 +1,9 @@
 package main
 
 import (
+	"context"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
@@ -46,7 +48,25 @@ func main() {
 		common.PrintLog("init buildpack fail: %v", err)
 		os.Exit(1)
 	}
-	err = bp.Run(nil)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	signalChannel := make(chan os.Signal, 1)
+	signal.Notify(signalChannel, GetSingal()...)
+	defer func() {
+		signal.Stop(signalChannel)
+		cancel()
+	}()
+	go func(ch chan os.Signal) {
+		for {
+			_ = <-ch
+			signal.Stop(ch)
+			cancel()
+			bp.Exist(ctx)
+			break
+		}
+	}(signalChannel)
+
+	err = bp.Run(ctx)
 	if err != nil {
 		common.PrintLog("ERROR: %v", err)
 		os.Exit(1)

@@ -9,13 +9,13 @@ import (
 	"scm.wcs.fortna.com/lngo/buildpack/common"
 	"scm.wcs.fortna.com/lngo/buildpack/publisher"
 	"strings"
+	"time"
 )
 
 const version = "2.0.0"
 
 type BuildPack struct {
-	WorkDir string
-
+	WorkDir  string
 	Arguments
 	BuildConfig
 }
@@ -234,7 +234,15 @@ func (bp *BuildPack) Run(ctx context.Context) error {
 		common.PrintLog("version %s", version)
 		return nil
 	case cmdBuild:
-		return bp.build()
+		defer func() {
+			outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
+			_ = common.DeleteDir(common.DeleteDirOption{
+				AbsPath:       outputDir,
+				SkipContainer: true,
+			})
+			time.Sleep(500 * time.Millisecond)
+		}()
+		return bp.build(ctx)
 	case cmdClean:
 		return bp.clean()
 	case cmdHelp:
@@ -244,4 +252,7 @@ func (bp *BuildPack) Run(ctx context.Context) error {
 		f.Usage()
 		return nil
 	}
+}
+
+func (bp *BuildPack) Exist(ctx context.Context) {
 }

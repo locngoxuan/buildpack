@@ -1,6 +1,7 @@
 package buildpack
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"github.com/gosuri/uiprogress"
@@ -16,7 +17,13 @@ import (
 	"time"
 )
 
-const BuildPackOutputDir = ".buildpack"
+const (
+	BuildPackOutputDir = ".buildpack"
+	progressCompl      = 0
+	progressIncr       = 1
+	progressError      = 2
+	progressAbort      = 3
+)
 
 var steps = []string{
 	"read config ",
@@ -31,7 +38,7 @@ var steps = []string{
 	"completed   ",
 }
 
-func (bp *BuildPack) build() error {
+func prepareListModule(bp BuildPack) ([]Module, error) {
 	ms := make([]Module, 0)
 	if common.IsEmptyString(bp.Arguments.Module) {
 		for _, module := range bp.BuildConfig.Modules {
@@ -61,85 +68,15 @@ func (bp *BuildPack) build() error {
 	}
 
 	if len(ms) == 0 {
-		return errors.New("not found any module")
+		return nil, errors.New("not found any module")
 	}
 
 	//sorting by id
 	sort.Sort(SortedById(ms))
+	return ms, nil
+}
 
-	//create tmp directory
-	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
-	err := common.DeleteDir(common.DeleteDirOption{
-		SkipContainer: true,
-		AbsPath:       outputDir,
-	})
-	if err != nil {
-		return err
-	}
-
-	err = common.CreateDir(common.CreateDirOption{
-		SkipContainer: true,
-		AbsPath:       outputDir,
-		Perm:          0755,
-	})
-	if err != nil {
-		return err
-	}
-	for _, module := range ms {
-		//err := common.CreateDir(filepath.Join(outputDir, module.Name), true, 0755)
-		err = common.CreateDir(common.CreateDirOption{
-			SkipContainer: true,
-			AbsPath:       filepath.Join(outputDir, module.Name),
-			Perm:          0755,
-		})
-		if err != nil {
-			return err
-		}
-	}
-
-	//+phase: build
-	//normalize index table
-	reverseIndexTable := createReverseIndexTable(ms)
-
-	//create tree of wait group
-	tree := createTreeWaitGroup(reverseIndexTable, ms)
-
-	//create summary of result
-	summaries := make(map[string]*ModuleSummary)
-	var errorCount int32 = 0
-
-	if !bp.SkipProgressBar {
-		uiprogress.Start()
-	}
-	wg := new(sync.WaitGroup)
-	started := time.Now()
-	for _, m := range ms {
-		modSum := &ModuleSummary{
-			Name:        m.Name,
-			Result:      "STARTED",
-			TimeElapsed: 0,
-			LogFile:     getLogFile(*bp, m.Name),
-		}
-		summaries[m.Name] = modSum
-		wg.Add(1)
-		go runModule(*bp, RunModuleOption{
-			treeWait:        tree,
-			reverseIndex:    reverseIndexTable,
-			globalWait:      wg,
-			Module:          m,
-			ModuleSummary:   modSum,
-			errorCount:      errorCount,
-			skipProgressBar: bp.SkipProgressBar,
-		})
-	}
-	wg.Wait()
-	if !bp.SkipProgressBar {
-		uiprogress.Stop()
-	}
-	//+phase: end build
-	common.PrintLog("") //break line
-
-	//render table of result
+func renderSummaryTable(summaries map[string]*ModuleSummary, started time.Time) {
 	t := table.NewWriter()
 	t.SetTitle("Summary")
 	t.Style().Title.Align = text.AlignCenter
@@ -163,7 +100,97 @@ func (bp *BuildPack) build() error {
 		"",
 	})
 	t.Render()
+}
+
+func (bp *BuildPack) build(ctx context.Context) error {
+	ms, err := prepareListModule(*bp)
+	if err != nil {
+		return err
+	}
+	//create tmp directory
+	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
+	err = common.DeleteDir(common.DeleteDirOption{
+		SkipContainer: true,
+		AbsPath:       outputDir,
+	})
+	if err != nil {
+		return err
+	}
+	err = common.CreateDir(common.CreateDirOption{
+		SkipContainer: true,
+		AbsPath:       outputDir,
+		Perm:          0755,
+	})
+	if err != nil {
+		return err
+	}
+	for _, module := range ms {
+		err = common.CreateDir(common.CreateDirOption{
+			SkipContainer: true,
+			AbsPath:       filepath.Join(outputDir, module.Name),
+			Perm:          0755,
+		})
+		if err != nil {
+			return err
+		}
+	}
+
+	//+phase: build
+	//normalize index table
+	reverseIndexTable := createReverseIndexTable(ms)
+
+	//create tree of wait group
+	tree := createTreeWaitGroup(reverseIndexTable, ms)
+
+	//create summary of result
+	summaries := make(map[string]*ModuleSummary)
+
+	//create error counter
+	var errorCount int32 = 0
+
+	if !bp.SkipProgressBar {
+		uiprogress.Start()
+	}
+	wg := new(sync.WaitGroup)
+	started := time.Now()
+
+	var isError int32 = 0
+	for _, m := range ms {
+		modSum := &ModuleSummary{
+			Name:        m.Name,
+			Result:      "STARTED",
+			TimeElapsed: 0,
+			LogFile:     getLogFile(*bp, m.Name),
+		}
+		summaries[m.Name] = modSum
+		wg.Add(1)
+		progress := make(chan int)
+		go runModule(ctx, *bp, RunModuleOption{
+			treeWait:        tree,
+			reverseIndex:    reverseIndexTable,
+			globalWait:      wg,
+			Module:          m,
+			ModuleSummary:   modSum,
+			skipProgressBar: bp.SkipProgressBar,
+			progress:        progress,
+		}, &isError)
+	}
+	wg.Wait()
+	if !bp.SkipProgressBar {
+		uiprogress.Stop()
+	}
+	//+phase: end build
+	common.PrintLog("") //break line
+
+	//render table of result
+	renderSummaryTable(summaries, started)
 	//end table render
+
+	if ctx.Err() != nil {
+		return errors.New("terminated")
+	}
+
+	//return error if error count larger than zero
 	if atomic.LoadInt32(&errorCount) > 0 {
 		return errors.New("")
 	}
@@ -208,20 +235,20 @@ func (bp *BuildPack) build() error {
 
 type RunModuleOption struct {
 	Module
+	*ModuleSummary
+	progress        chan int
 	reverseIndex    map[int]int
 	treeWait        map[int]*sync.WaitGroup
 	globalWait      *sync.WaitGroup
 	skipProgressBar bool
-	errorCount      int32
-	*ModuleSummary
 }
 
 func progressBar(progress chan int, b *uiprogress.Bar, wg *sync.WaitGroup) {
 	for {
 		i := <-progress
-		if i == 1 {
+		if i == progressIncr {
 			b.Incr()
-		} else if i == -1 || i == -2 {
+		} else if i == progressError || i == progressAbort {
 			break
 		} else {
 			for b.Current() < len(steps) {
@@ -237,13 +264,13 @@ func progressText(name string, progress chan int, wg *sync.WaitGroup) {
 	currentStep := 0
 	for {
 		i := <-progress
-		if i == 1 {
+		if i == progressIncr {
 			currentStep++
 			common.PrintLog("module [%s] change to step [%s]", name, steps[currentStep])
-		} else if i == - 1 {
+		} else if i == progressError {
 			common.PrintLog("module [%s] is [error]", name)
 			break
-		} else if i == - 2 {
+		} else if i == progressAbort {
 			common.PrintLog("module [%s] is [aborted]", name)
 			break
 		} else {
@@ -254,14 +281,14 @@ func progressText(name string, progress chan int, wg *sync.WaitGroup) {
 	wg.Done()
 }
 
-func runModule(bp BuildPack, option RunModuleOption) {
+func runModule(ctx context.Context, bp BuildPack, option RunModuleOption, isError *int32) {
 	module := option.Module
 	skipProgress := option.skipProgressBar
 	wg := option.globalWait
 	reverseIndexTable := option.reverseIndex
 	tree := option.treeWait
+	progress := option.progress
 
-	progress := make(chan int)
 	name := module.Name
 	if len(name) <= 10 {
 		name = fmt.Sprintf("%-10v", name)
@@ -290,30 +317,28 @@ func runModule(bp BuildPack, option RunModuleOption) {
 	}
 
 	//continue to build if not found any error
-	if atomic.LoadInt32(&option.errorCount) == 0 {
+	if atomic.LoadInt32(isError) == 0 || ctx.Err() == nil {
 		s := time.Now()
-		e := module.start(bp, progress)
+		e := module.start(ctx, bp, progress)
 		if e != nil {
-			atomic.AddInt32(&option.errorCount, 1)
-			//summaries[module.Name].Result = "ERROR"
-			//summaries[module.Name].Message = fmt.Sprintf("%v. Detail at %s", e, summaries[module.Name].LogFile)
-			//summaries[module.Name].TimeElapsed = time.Since(s)
-
+			atomic.AddInt32(isError, 1)
 			option.ModuleSummary.Result = "ERROR"
 			option.ModuleSummary.Message = fmt.Sprintf("%v. Detail at %s", e, option.ModuleSummary.LogFile)
 			option.ModuleSummary.TimeElapsed = time.Since(s)
-			progress <- -1
+			progress <- progressError
 		} else {
-			//summaries[module.Name].Result = "DONE"
-			//summaries[module.Name].TimeElapsed = time.Since(s)
-			option.ModuleSummary.Result = "DONE"
-			option.ModuleSummary.TimeElapsed = time.Since(s)
-			progress <- 0
+			if ctx.Err() != nil {
+				option.ModuleSummary.Result = "ABORTED"
+				progress <- progressAbort
+			} else {
+				option.ModuleSummary.Result = "DONE"
+				option.ModuleSummary.TimeElapsed = time.Since(s)
+				progress <- progressCompl
+			}
 		}
 	} else {
-		//summaries[module.Name].Result = "ABORTED"
 		option.ModuleSummary.Result = "ABORTED"
-		progress <- -2
+		progress <- progressAbort
 	}
 
 	//get current wait group

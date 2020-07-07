@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 )
 
-func CopyDirectory(scrDir, dest string) error {
+func CopyDirectory(w io.Writer, scrDir, dest string) error {
 	entries, err := ioutil.ReadDir(scrDir)
 	if err != nil {
 		return err
@@ -27,12 +27,12 @@ func CopyDirectory(scrDir, dest string) error {
 			if err := CreateIfNotExists(destPath, 0755); err != nil {
 				return err
 			}
-			if err := CopyDirectory(sourcePath, destPath); err != nil {
+			if err := CopyDirectory(w, sourcePath, destPath); err != nil {
 				return err
 			}
 		default:
 			_, name := filepath.Split(sourcePath)
-			PrintInfo("Copying %s to %s", name, destPath)
+			PrintLogW(w, "Copying %s to %s", name, destPath)
 			if err := CopyFile(sourcePath, destPath); err != nil {
 				return err
 			}

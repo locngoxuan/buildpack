@@ -53,7 +53,7 @@ func (b MvnApp) PostBuild(ctx BuildContext) error {
 	if err != nil {
 		return err
 	}
-	err = common.CopyDirectory(distFolderSrc, distFolderDst)
+	err = common.CopyDirectory(ctx.LogWriter, distFolderSrc, distFolderDst)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (b MvnApp) PostBuild(ctx BuildContext) error {
 		if err != nil {
 			return err
 		}
-		err = common.CopyDirectory(libFolderSrc, libFolderDst)
+		err = common.CopyDirectory(ctx.LogWriter, libFolderSrc, libFolderDst)
 		if err != nil {
 			return err
 		}

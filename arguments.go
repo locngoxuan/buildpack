@@ -39,6 +39,7 @@ type Arguments struct {
 	Module       string
 	ConfigFile   string
 	ShareData    string
+	LogDir       string
 	BuildRelease bool
 	BuildPath    bool
 	Verbose      bool
@@ -59,6 +60,7 @@ func ReadArguments() (arg Arguments, err error) {
 	f.StringVar(&arg.Version, "version", "", "version number")
 	f.StringVar(&arg.Module, "module", "", "list of module")
 	f.StringVar(&arg.ShareData, "share-data", "", "sharing directory")
+	f.StringVar(&arg.LogDir, "log-dir", "", "log directory")
 	f.StringVar(&arg.ConfigFile, "config", "", "specific path to config file")
 	f.BoolVar(&arg.DevMode, "dev-mode", false, "enable local mode to disable container build")
 	f.BoolVar(&arg.BuildRelease, "release", false, "build for releasing")

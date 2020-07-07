@@ -1,5 +1,7 @@
 package builder
 
+import "io"
+
 type BuildContext struct {
 	Name          string
 	Path          string
@@ -9,4 +11,5 @@ type BuildContext struct {
 	Version       string
 	SkipContainer bool
 	SkipClean     bool
+	LogWriter     io.Writer
 }

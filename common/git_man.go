@@ -9,6 +9,7 @@ import (
 	"gopkg.in/src-d/go-git.v4/plumbing/transport"
 	"gopkg.in/src-d/go-git.v4/plumbing/transport/http"
 	"gopkg.in/src-d/go-git.v4/storage/memory"
+	"io/ioutil"
 	"strings"
 	"time"
 )
@@ -191,7 +192,7 @@ func (c *GitClient) Tag(version string) error {
 		RefSpecs: []config.RefSpec{
 			config.RefSpec(tagReferenceName + ":" + tagReferenceName),
 		},
-		Progress: logOutput,
+		Progress: ioutil.Discard,
 		Auth:     auth,
 	})
 	if err != nil {
@@ -227,7 +228,7 @@ func (c *GitClient) CreateNewBranch(branchName string) error {
 		RefSpecs: []config.RefSpec{
 			config.RefSpec(newBranchName + ":" + newBranchName),
 		},
-		Progress: logOutput,
+		Progress: ioutil.Discard,
 		Auth:     auth,
 	})
 	if err != nil {
@@ -290,7 +291,7 @@ func (c *GitClient) Push() error {
 		RefSpecs: []config.RefSpec{
 			config.RefSpec(c.CurrentBranch.Name() + ":" + c.CurrentBranch.Name()),
 		},
-		Progress: logOutput,
+		Progress: ioutil.Discard,
 		Auth:     auth,
 	})
 	if err != nil {

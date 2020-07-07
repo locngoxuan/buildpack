@@ -1,5 +1,7 @@
 package publisher
 
+import "io"
+
 type PublishContext struct {
 	Name      string
 	Path      string
@@ -8,4 +10,5 @@ type PublishContext struct {
 	RepoName  string
 	Version   string
 	IsStable  bool
+	LogWriter io.Writer
 }

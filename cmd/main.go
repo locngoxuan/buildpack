@@ -1,6 +1,7 @@
 package main
 
 import (
+	"os"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
@@ -9,13 +10,15 @@ import (
 func main() {
 	arg, err := buildpack.ReadArguments()
 	if err != nil {
-		common.PrintFatal(err, "can not read arguments")
+		common.PrintLog("read argument fail: %v", err)
+		os.Exit(1)
 	}
 
 	if buildpack.CommandWithoutConfig(arg.Command) {
 		bp, err := buildpack.CreateBuildPack(arg, buildpack.BuildConfig{})
 		if err != nil {
-			common.PrintFatal(err, "can not init buildpack")
+			common.PrintLog("init buildpack fail: %v", err)
+			os.Exit(1)
 		}
 		_ = bp.Run(nil)
 		return
@@ -23,7 +26,8 @@ func main() {
 
 	workDir, err := filepath.Abs(".")
 	if err != nil {
-		common.PrintFatal(err, "can not get current path of working directory")
+		common.PrintLog("lookup working directry fail: %v", err)
+		os.Exit(1)
 	}
 
 	cf := arg.ConfigFile
@@ -31,19 +35,20 @@ func main() {
 		cf = filepath.Join(workDir, buildpack.ConfigFileName)
 	}
 
-	//common.PrintInfo("get build configuration from %s", cf)
 	config, err := buildpack.ReadConfig(cf)
 	if err != nil {
-		common.PrintFatal(err, "can not read config")
+		common.PrintLog("read buildpack config fail: %v", err)
+		os.Exit(1)
 	}
 
-	//common.PrintInfo("%v %v", arg, config)
 	bp, err := buildpack.CreateBuildPack(arg, config)
 	if err != nil {
-		common.PrintFatal(err, "can not init buildpack")
+		common.PrintLog("init buildpack fail: %v", err)
+		os.Exit(1)
 	}
 	err = bp.Run(nil)
 	if err != nil {
-		common.PrintFatal(err, "fail!")
+		common.PrintLog("ERROR: %v", err)
+		os.Exit(1)
 	}
 }

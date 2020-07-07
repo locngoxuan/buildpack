@@ -32,7 +32,7 @@ func (b SqlApp) PostBuild(ctx BuildContext) error {
 		if err != nil {
 			return err
 		}
-		err = common.CopyDirectory(srcFolder, destination)
+		err = common.CopyDirectory(ctx.LogWriter, srcFolder, destination)
 		if err != nil {
 			return err
 		}
@@ -49,7 +49,7 @@ func (b SqlApp) PostBuild(ctx BuildContext) error {
 		if err != nil {
 			return err
 		}
-		err = common.CopyDirectory(depsFolder, destination)
+		err = common.CopyDirectory(ctx.LogWriter, depsFolder, destination)
 		if err != nil {
 			return err
 		}

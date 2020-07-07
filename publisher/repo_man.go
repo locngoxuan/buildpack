@@ -1,7 +1,6 @@
 package publisher
 
 import (
-	"errors"
 	"fmt"
 )
 
@@ -31,7 +30,7 @@ func SetRepoManager(rm RepoManager) {
 func (rm RepoManager) pickOne(name string) (r Repository, err error) {
 	r, ok := rm.Repos[name]
 	if !ok {
-		err = errors.New(fmt.Sprintf("repo %s may be not registered", r))
+		err = fmt.Errorf("repo %s may be not registered", name)
 	}
 	return
 }

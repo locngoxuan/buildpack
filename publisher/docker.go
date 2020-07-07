@@ -42,16 +42,16 @@ func (n DockerPublisher) Publish(ctx PublishContext) error {
 	if images == nil || len(images) == 0 {
 		return errors.New("not found any package for publishing")
 	}
-	return publish(images, registry.Username, registry.Password, cli)
+	return publish(ctx.LogWriter, images, registry.Username, registry.Password, cli)
 }
 
 func (n DockerPublisher) PostPublish(ctx PublishContext) error {
 	return nil
 }
 
-func publish(images []string, username, password string, client common.DockerClient) error {
+func publish(w io.Writer, images []string, username, password string, client common.DockerClient) error {
 	for _, image := range images {
-		err := publishImage(image, username, password, client)
+		err := publishImage(w, image, username, password, client)
 		if err != nil {
 			return err
 		}
@@ -59,7 +59,7 @@ func publish(images []string, username, password string, client common.DockerCli
 	return nil
 }
 
-func publishImage(image, username, password string, client common.DockerClient) error {
+func publishImage(w io.Writer, image, username, password string, client common.DockerClient) error {
 	reader, err := client.DeployImage(username, password, image)
 	if err != nil {
 		return err
@@ -68,10 +68,10 @@ func publishImage(image, username, password string, client common.DockerClient) 
 	defer func() {
 		_ = reader.Close()
 	}()
-	return displayDockerLog(reader)
+	return displayDockerLog(w, reader)
 }
 
-func displayDockerLog(in io.Reader) error {
+func displayDockerLog(w io.Writer, in io.Reader) error {
 	var dec = json.NewDecoder(in)
 	for {
 		var jm jsonmessage.JSONMessage
@@ -87,7 +87,7 @@ func displayDockerLog(in io.Reader) error {
 		if jm.Stream == "" {
 			continue
 		}
-		common.PrintInfo("%s", jm.Stream)
+		common.PrintLogW(w, "%s", jm.Stream)
 	}
 	return nil
 }

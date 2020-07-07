@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"io/ioutil"
 	"os"
 	"os/exec"
 	"strings"
@@ -45,11 +46,11 @@ func CreateDirInContainer(workDir, folderName string) error {
 	dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/working", workDir))
 	dockerCommandArg = append(dockerCommandArg, image)
 	dockerCommandArg = append(dockerCommandArg, "mkdir", "-p", folderName)
-	PrintInfo("working dir %s", workDir)
-	PrintInfo("docker %s", strings.Join(dockerCommandArg, " "))
+	//PrintInfo("working dir %s", workDir)
+	//PrintInfo("docker %s", strings.Join(dockerCommandArg, " "))
 	dockerCmd := exec.Command("docker", dockerCommandArg...)
-	dockerCmd.Stdout = logOutput
-	dockerCmd.Stderr = logOutput
+	dockerCmd.Stdout = ioutil.Discard
+	dockerCmd.Stderr = ioutil.Discard
 	return dockerCmd.Run()
 }
 
@@ -67,11 +68,11 @@ func DeleteDirOnContainer(workDir, folderName string) error {
 	dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/working", workDir))
 	dockerCommandArg = append(dockerCommandArg, image)
 	dockerCommandArg = append(dockerCommandArg, "rm", "-rf", folderName)
-	PrintInfo("working dir %s", workDir)
-	PrintInfo("docker %s", strings.Join(dockerCommandArg, " "))
+	//PrintInfo("working dir %s", workDir)
+	//PrintInfo("docker %s", strings.Join(dockerCommandArg, " "))
 	dockerCmd := exec.Command("docker", dockerCommandArg...)
-	dockerCmd.Stdout = logOutput
-	dockerCmd.Stderr = logOutput
+	dockerCmd.Stdout = ioutil.Discard
+	dockerCmd.Stderr = ioutil.Discard
 	return dockerCmd.Run()
 }
 

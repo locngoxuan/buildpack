@@ -15,9 +15,9 @@ type ArtifactoryPackage struct {
 	Password string
 }
 
-func upload(packages []ArtifactoryPackage) error {
+func upload(ctx PublishContext, packages []ArtifactoryPackage) error {
 	for _, upload := range packages {
-		common.PrintInfo("uploading %s with md5:%s", upload.Endpoint, upload.Md5)
+		common.PrintLogW(ctx.LogWriter, "uploading %s with md5:%s", upload.Endpoint, upload.Md5)
 		err := uploadFile(upload)
 		if err != nil {
 			return err
@@ -74,7 +74,7 @@ func (n ArtifactoryPublisher) Publish(ctx PublishContext) error {
 	if packages == nil || len(packages) == 0 {
 		return errors.New("not found any package for publishing")
 	}
-	return upload(packages)
+	return upload(ctx, packages)
 }
 
 func (n ArtifactoryPublisher) PostPublish(ctx PublishContext) error {

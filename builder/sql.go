@@ -8,6 +8,7 @@ type Sql struct {
 }
 
 func (b Sql) Clean(ctx BuildContext) error {
+	sqlbundle.SetLogWriter(ctx.LogWriter)
 	bundle, err := sqlbundle.NewSQLBundle(sqlbundle.Argument{
 		Version: ctx.Version,
 		WorkDir: ctx.WorkDir,
@@ -27,6 +28,7 @@ func (b Sql) PostFail(ctx BuildContext) error {
 }
 
 func (b Sql) Build(ctx BuildContext) error {
+	sqlbundle.SetLogWriter(ctx.LogWriter)
 	bundle, err := sqlbundle.NewSQLBundle(sqlbundle.Argument{
 		Version: ctx.Version,
 		WorkDir: ctx.WorkDir,

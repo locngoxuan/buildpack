@@ -47,8 +47,8 @@ func init() {
 		defer func() {
 			_ = response.Body.Close()
 		}()
-		common.PrintInfo("Building docker image %s", imageTag)
-		err = displayDockerLog(response.Body)
+		common.PrintLogW(ctx.LogWriter, "Building docker image %s", imageTag)
+		err = displayDockerLog(ctx.LogWriter, response.Body)
 		if err != nil {
 			return nil, err
 		}

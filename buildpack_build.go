@@ -127,9 +127,19 @@ func (bp *BuildPack) build() error {
 		wg.Add(1)
 	}
 
+	started := time.Now()
 	uiprogress.Start()
 	summaries := make(map[string]*ModuleSummary)
 	var errorCount int32 = 0
+
+	getLogFile := func(name string) string {
+		file := filepath.Join(bp.WorkDir, BuildPackOutputDir, fmt.Sprintf("%s.log", name))
+		if !common.IsEmptyString(bp.LogDir) {
+			file = filepath.Join(bp.LogDir, fmt.Sprintf("%s.log", name))
+		}
+		return file
+	}
+
 	for _, m := range ms {
 		summaries[m.Name] = &ModuleSummary{
 			Name:        m.Name,
@@ -184,12 +194,13 @@ func (bp *BuildPack) build() error {
 				if e != nil {
 					atomic.AddInt32(&errorCount, 1)
 					summaries[module.Name].Result = "ERROR"
-					summaries[module.Name].Message = e.Error()
+					summaries[module.Name].Message = fmt.Sprintf("%v. Detail at %s", err, getLogFile(module.Name))
 					summaries[module.Name].TimeElapsed = time.Since(started)
 					progress <- -1
 				} else {
 					summaries[module.Name].Result = "DONE"
 					summaries[module.Name].TimeElapsed = time.Since(started)
+					progress <- 0
 				}
 			} else {
 				summaries[module.Name].Result = "ABORTED"
@@ -206,16 +217,18 @@ func (bp *BuildPack) build() error {
 	wg.Wait()
 	uiprogress.Stop()
 
-	common.SetLogOutput(os.Stdout)
-	common.PrintInfo("")
-	common.PrintInfo("")
+	//common.SetLogOutput(os.Stdout)
+	common.PrintLog("")
 
 	t := table.NewWriter()
-	t.SetStyle(table.StyleColoredGreenWhiteOnBlack)
+	//t.SetStyle(table.StyleColoredGreenWhiteOnBlack)
 	t.SetTitle("Summary")
 	t.Style().Title.Align = text.AlignCenter
 	t.SetOutputMirror(os.Stdout)
 	t.AppendHeader(table.Row{"Module", "Result", "Duration", "Message"})
+	t.SetColumnConfigs([]table.ColumnConfig{
+		{Name: "Duration", Align: text.AlignRight},
+	})
 	for _, e := range summaries {
 		t.AppendRow(table.Row{
 			e.Name,
@@ -224,6 +237,12 @@ func (bp *BuildPack) build() error {
 			e.Message,
 		})
 	}
+	t.AppendFooter(table.Row{
+		"",
+		"Time Elapsed",
+		fmt.Sprintf("%v s", time.Since(started).Seconds()),
+		"",
+	})
 	t.Render()
 
 	//git operation
@@ -232,8 +251,7 @@ func (bp *BuildPack) build() error {
 	}
 
 	//break line
-	common.PrintInfo("")
-	common.PrintInfo("")
+	common.PrintLog("")
 
 	cli := common.GetGitClient()
 	defer cli.Close()

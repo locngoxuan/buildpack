@@ -2,8 +2,8 @@ package common
 
 import (
 	"context"
-	client "docker.io/go-docker"
-	"docker.io/go-docker/api/types"
+	"github.com/docker/docker/client"
+	"github.com/docker/docker/api/types"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
@@ -170,7 +170,7 @@ func (c *DockerClient) DeployImage(username, password, image string) (io.ReadClo
 	return c.Client.ImagePush(context.Background(), image, opt)
 }
 
-func (c *DockerClient) RemoveImage(image string) ([]types.ImageDeleteResponseItem, error) {
+func (c *DockerClient) RemoveImage(image string) ([]types.ImageDelete, error) {
 	opt := types.ImageRemoveOptions{
 		Force:         true,
 		PruneChildren: true,

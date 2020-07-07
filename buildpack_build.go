@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/gosuri/uiprogress"
+	"github.com/cheggaaa/pb"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"os"
@@ -23,19 +23,53 @@ const (
 	progressIncr       = 1
 	progressError      = 2
 	progressAbort      = 3
+
+	progressStarted     = progressIncr
+	progressClean       = progressIncr
+	progressPreBuild    = progressIncr
+	progressBuild       = progressIncr
+	progressPostBuild   = progressIncr
+	progressPrePublish  = progressIncr
+	progressPublish     = progressIncr
+	progressPostPublish = progressIncr
 )
 
-var steps = []string{
-	"read config ",
-	"clean       ",
-	"pre build   ",
-	"building    ",
-	"post build  ",
-	"read config ",
-	"pre publish ",
-	"publishing  ",
-	"post publish",
-	"completed   ",
+var (
+	stepWithoutPublish = []string{
+		"waiting     ",
+		"started     ",
+		"clean       ",
+		"pre build   ",
+		"on build    ",
+		"post build  ",
+		"completed   ",
+	}
+
+	stepWithPublish = []string{
+		"waiting      ",
+		"started      ",
+		"clean        ",
+		"pre build    ",
+		"on build     ",
+		"post build   ",
+		"pre publish  ",
+		"publishing   ",
+		"post publish ",
+		"completed    ",
+	}
+
+	steps = stepWithPublish
+)
+
+type RunModuleOption struct {
+	Module
+	*ModuleSummary
+	*pb.Pool
+	progress        chan int
+	reverseIndex    map[int]int
+	treeWait        map[int]*sync.WaitGroup
+	globalWait      *sync.WaitGroup
+	skipProgressBar bool
 }
 
 func prepareListModule(bp BuildPack) ([]Module, error) {
@@ -89,20 +123,23 @@ func renderSummaryTable(summaries map[string]*ModuleSummary, started time.Time) 
 		t.AppendRow(table.Row{
 			e.Name,
 			e.Result,
-			fmt.Sprintf("%d ms", e.TimeElapsed.Milliseconds()),
+			fmt.Sprintf("%.2f s", e.TimeElapsed.Seconds()),
 			e.Message,
 		})
 	}
 	t.AppendFooter(table.Row{
 		"",
 		"Time Elapsed",
-		fmt.Sprintf("%v s", time.Since(started).Seconds()),
+		fmt.Sprintf("%.2f s", time.Since(started).Seconds()),
 		"",
 	})
 	t.Render()
 }
 
 func (bp *BuildPack) build(ctx context.Context) error {
+	if bp.IsSkipPublish() {
+		steps = stepWithoutPublish
+	}
 	ms, err := prepareListModule(*bp)
 	if err != nil {
 		return err
@@ -148,8 +185,13 @@ func (bp *BuildPack) build(ctx context.Context) error {
 	//create error counter
 	var errorCount int32 = 0
 
+	var pbPool *pb.Pool
 	if !bp.SkipProgressBar {
-		uiprogress.Start()
+		pbPool = pb.NewPool()
+		err = pbPool.Start()
+		if err != nil {
+			return err
+		}
 	}
 	wg := new(sync.WaitGroup)
 	started := time.Now()
@@ -173,11 +215,12 @@ func (bp *BuildPack) build(ctx context.Context) error {
 			ModuleSummary:   modSum,
 			skipProgressBar: bp.SkipProgressBar,
 			progress:        progress,
+			Pool:            pbPool,
 		}, &isError)
 	}
 	wg.Wait()
-	if !bp.SkipProgressBar {
-		uiprogress.Stop()
+	if !bp.SkipProgressBar && pbPool != nil {
+		pbPool.Stop()
 	}
 	//+phase: end build
 	common.PrintLog("") //break line
@@ -233,30 +276,25 @@ func (bp *BuildPack) build(ctx context.Context) error {
 	return nil
 }
 
-type RunModuleOption struct {
-	Module
-	*ModuleSummary
-	progress        chan int
-	reverseIndex    map[int]int
-	treeWait        map[int]*sync.WaitGroup
-	globalWait      *sync.WaitGroup
-	skipProgressBar bool
-}
-
-func progressBar(progress chan int, b *uiprogress.Bar, wg *sync.WaitGroup) {
+func progressBar(progress chan int, b *pb.ProgressBar, wg *sync.WaitGroup) {
 	for {
 		i := <-progress
 		if i == progressIncr {
-			b.Incr()
-		} else if i == progressError || i == progressAbort {
+			b.Increment()
+			b.BarStart = steps[b.Get()]
+		} else if i == progressError {
+			b.BarStart = "error       "
+			break
+		} else if i == progressAbort {
+			b.BarStart = "aborted     "
 			break
 		} else {
-			for b.Current() < len(steps) {
-				b.Incr()
-			}
+			b.Set(len(steps))
+			b.BarStart = steps[len(steps)-1]
 			break
 		}
 	}
+	b.Finish()
 	wg.Done()
 }
 
@@ -281,6 +319,20 @@ func progressText(name string, progress chan int, wg *sync.WaitGroup) {
 	wg.Done()
 }
 
+func createProgressBar(name string, count int) *pb.ProgressBar {
+	bar := pb.New(count).Prefix(name)
+	bar.SetRefreshRate(100 * time.Millisecond)
+	bar.ShowPercent = true
+	bar.ShowBar = true
+	bar.ShowCounters = false
+	bar.ShowElapsedTime = false
+	bar.ShowFinalTime = false
+	bar.ShowTimeLeft = false
+	bar.BarStart = steps[0]
+	bar.ShowSpeed = false
+	return bar
+}
+
 func runModule(ctx context.Context, bp BuildPack, option RunModuleOption, isError *int32) {
 	module := option.Module
 	skipProgress := option.skipProgressBar
@@ -288,22 +340,15 @@ func runModule(ctx context.Context, bp BuildPack, option RunModuleOption, isErro
 	reverseIndexTable := option.reverseIndex
 	tree := option.treeWait
 	progress := option.progress
-
 	name := module.Name
 	if len(name) <= 10 {
-		name = fmt.Sprintf("%-10v", name)
+		name = fmt.Sprintf("%-12v", name)
 	} else {
-		name = fmt.Sprintf("%-10v", name[0:10])
+		name = fmt.Sprintf("%-12v", name[0:10])
 	}
 	if !skipProgress {
-		bar := uiprogress.AddBar(len(steps))
-		bar.AppendCompleted()
-		bar.PrependFunc(func(b *uiprogress.Bar) string {
-			if b.Current() == 0 {
-				return fmt.Sprintf("[%s] waiting     ", name)
-			}
-			return fmt.Sprintf("[%s] "+steps[b.Current()-1], name)
-		})
+		bar := createProgressBar(name, len(steps))
+		option.Pool.Add(bar)
 		go progressBar(progress, bar, wg)
 	} else {
 		go progressText(module.Name, progress, wg)

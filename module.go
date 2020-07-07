@@ -89,6 +89,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if ctx.Err() != nil {
 		return nil
 	}
+	progress <- progressStarted
 	workDir := filepath.Join(bp.WorkDir, m.Path)
 	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir, m.Name)
 
@@ -110,7 +111,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressIncr
+
 	bc, err := builder.ReadConfig(workDir)
 	if err != nil {
 		_, _ = fmt.Fprintln(file, fmt.Sprintf("read build config get error %v", err))
@@ -141,7 +142,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressIncr
+	progress <- progressClean
 	err = b.Clean(buildContext)
 	if err != nil {
 		return err
@@ -150,7 +151,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressIncr
+	progress <- progressPreBuild
 	err = b.PreBuild(buildContext)
 	if err != nil {
 		_, _ = fmt.Fprintf(file, "pre build get error %v\n", err)
@@ -160,7 +161,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressIncr
+	progress <- progressBuild
 	err = b.Build(buildContext)
 	if err != nil {
 		_, _ = fmt.Fprintf(file, "build get error %v\n", err)
@@ -171,7 +172,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressIncr
+	progress <- progressPostBuild
 	err = b.PostBuild(buildContext)
 	if err != nil {
 		_, _ = fmt.Fprintf(file, "post build get error %v\n", err)
@@ -202,10 +203,11 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 		return nil
 	}
 	//end publish phase
+
+	progress <- progressPrePublish
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressIncr
 	pc, err := publisher.ReadConfig(workDir)
 	if err != nil {
 		_, _ = fmt.Fprintf(file, "reaed publish config get error %v\n", err)
@@ -230,7 +232,6 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressIncr
 	err = p.PrePublish(publishCtx)
 	if err != nil {
 		_, _ = fmt.Fprintf(file, "pre publish get error %v\n", err)
@@ -240,7 +241,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressIncr
+	progress <- progressPublish
 	err = p.Publish(publishCtx)
 	if err != nil {
 		_, _ = fmt.Fprintf(file, "publish get error %v\n", err)
@@ -250,7 +251,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressIncr
+	progress <- progressPostPublish
 	err = p.PostPublish(publishCtx)
 	if err != nil {
 		_, _ = fmt.Fprintf(file, "post publish get error %v\n", err)

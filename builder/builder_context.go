@@ -1,6 +1,9 @@
 package builder
 
-import "io"
+import (
+	"context"
+	"io"
+)
 
 type BuildContext struct {
 	Name          string
@@ -12,4 +15,5 @@ type BuildContext struct {
 	SkipContainer bool
 	SkipClean     bool
 	LogWriter     io.Writer
+	Ctx           context.Context
 }

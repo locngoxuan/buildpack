@@ -64,7 +64,7 @@ func runInContainer(ctx BuildContext, args ...string) error {
 
 	common.PrintLogW(ctx.LogWriter, "working dir %s", ctx.WorkDir)
 	common.PrintLogW(ctx.LogWriter, "docker %s", strings.Join(dockerCommandArg, " "))
-	dockerCmd := exec.Command("docker", dockerCommandArg...)
+	dockerCmd := exec.CommandContext(ctx.Ctx, "docker", dockerCommandArg...)
 	dockerCmd.Stdout = ctx.LogWriter
 	dockerCmd.Stderr = ctx.LogWriter
 	return dockerCmd.Run()
@@ -73,7 +73,7 @@ func runInContainer(ctx BuildContext, args ...string) error {
 func runOnHost(ctx BuildContext, args ...string) error {
 	args = append(args, "-f", filepath.Join(ctx.WorkDir, pomXml))
 	args = append(args, "-N")
-	cmd := exec.Command("mvn", args...)
+	cmd := exec.CommandContext(ctx.Ctx, "mvn", args...)
 	common.PrintLogW(ctx.LogWriter, "working dir %s", ctx.WorkDir)
 	common.PrintLogW(ctx.LogWriter, "mvn %v", args)
 	cmd.Stdout = ctx.LogWriter

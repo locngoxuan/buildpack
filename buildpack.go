@@ -244,7 +244,7 @@ func (bp *BuildPack) Run(ctx context.Context) error {
 		}()
 		return bp.build(ctx)
 	case cmdClean:
-		return bp.clean()
+		return bp.clean(ctx)
 	case cmdHelp:
 		f.Usage()
 		return nil

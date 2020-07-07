@@ -31,7 +31,7 @@ func (a SortedById) Len() int           { return len(a) }
 func (a SortedById) Less(i, j int) bool { return a[i].Id < a[j].Id }
 func (a SortedById) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
-func (m Module) clean(bp BuildPack) error {
+func (m Module) clean(ctx context.Context, bp BuildPack) error {
 	workDir := filepath.Join(bp.WorkDir, m.Path)
 	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir, m.Name)
 	//create log writer
@@ -72,6 +72,7 @@ func (m Module) clean(bp BuildPack) error {
 		ShareDataDir:  bp.ShareData,
 		Version:       v,
 		LogWriter:     file,
+		Ctx:           ctx,
 	}
 	err = b.Clean(buildContext)
 	if err != nil {
@@ -137,6 +138,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 		ShareDataDir:  bp.ShareData,
 		Version:       v,
 		LogWriter:     file,
+		Ctx:           ctx,
 	}
 
 	if ctx.Err() != nil {

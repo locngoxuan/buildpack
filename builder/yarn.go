@@ -40,7 +40,7 @@ func yarnOnHost(ctx BuildContext, args ...string) error {
 		_args = append(_args, "--cache-folder", yarnCache)
 	}
 	_args = append(_args, args...)
-	cmd := exec.Command("yarn", _args...)
+	cmd := exec.CommandContext(ctx.Ctx, "yarn", _args...)
 	common.PrintLogW(ctx.LogWriter, "working dir %s", ctx.WorkDir)
 	common.PrintLogW(ctx.LogWriter, "yarn %v", args)
 	cmd.Stdout = ctx.LogWriter
@@ -88,7 +88,7 @@ func yarnInContainer(ctx BuildContext, args ...string) error {
 
 	common.PrintLogW(ctx.LogWriter, "working dir %s", ctx.WorkDir)
 	common.PrintLogW(ctx.LogWriter, "docker %s", strings.Join(dockerCommandArg, " "))
-	dockerCmd := exec.Command("docker", dockerCommandArg...)
+	dockerCmd := exec.CommandContext(ctx.Ctx, "docker", dockerCommandArg...)
 	dockerCmd.Stdout = ctx.LogWriter
 	dockerCmd.Stderr = ctx.LogWriter
 	return dockerCmd.Run()

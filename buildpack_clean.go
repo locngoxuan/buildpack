@@ -1,6 +1,7 @@
 package buildpack
 
 import (
+	"context"
 	"errors"
 	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
@@ -8,7 +9,7 @@ import (
 	"strings"
 )
 
-func (bp *BuildPack) clean() error {
+func (bp *BuildPack) clean(ctx context.Context) error {
 	//create tmp directory
 	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
 	err := common.CreateDir(common.CreateDirOption{
@@ -62,7 +63,7 @@ func (bp *BuildPack) clean() error {
 			Path: module.Path,
 		}
 		common.PrintLog("clean module %s", module.Name)
-		err = m.clean(*bp)
+		err = m.clean(ctx, *bp)
 		if err != nil {
 			return err
 		}

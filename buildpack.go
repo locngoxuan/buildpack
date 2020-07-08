@@ -9,13 +9,12 @@ import (
 	"scm.wcs.fortna.com/lngo/buildpack/common"
 	"scm.wcs.fortna.com/lngo/buildpack/publisher"
 	"strings"
-	"time"
 )
 
 const version = "2.0.0"
 
 type BuildPack struct {
-	WorkDir  string
+	WorkDir string
 	Arguments
 	BuildConfig
 }
@@ -235,15 +234,23 @@ func (bp *BuildPack) Run(ctx context.Context) error {
 		return nil
 	case cmdBuild:
 		defer func() {
+			if ctx.Err() == nil && !bp.IsSkipClean() {
+				outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
+				_ = common.DeleteDir(common.DeleteDirOption{
+					AbsPath:       outputDir,
+					SkipContainer: true,
+				})
+			}
+		}()
+		return bp.build(ctx)
+	case cmdClean:
+		defer func() {
 			outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
 			_ = common.DeleteDir(common.DeleteDirOption{
 				AbsPath:       outputDir,
 				SkipContainer: true,
 			})
-			time.Sleep(500 * time.Millisecond)
 		}()
-		return bp.build(ctx)
-	case cmdClean:
 		return bp.clean(ctx)
 	case cmdHelp:
 		f.Usage()

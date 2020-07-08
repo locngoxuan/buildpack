@@ -8,21 +8,12 @@ import (
 	"scm.wcs.fortna.com/lngo/buildpack/builder"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
 	"scm.wcs.fortna.com/lngo/buildpack/publisher"
-	"time"
 )
 
 type Module struct {
 	Id   int
 	Name string
 	Path string
-}
-
-type ModuleSummary struct {
-	Name        string
-	Result      string
-	Message     string
-	TimeElapsed time.Duration
-	LogFile     string
 }
 
 type SortedById []Module
@@ -35,10 +26,7 @@ func (m Module) clean(ctx context.Context, bp BuildPack) error {
 	workDir := filepath.Join(bp.WorkDir, m.Path)
 	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir, m.Name)
 	//create log writer
-	logFile := filepath.Join(bp.WorkDir, BuildPackOutputDir, fmt.Sprintf("%s.log", m.Name))
-	if !common.IsEmptyString(bp.LogDir) {
-		logFile = filepath.Join(bp.LogDir, fmt.Sprintf("%s.log", m.Name))
-	}
+	logFile := getLogFile(bp, m.Name)
 	file, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		return err
@@ -86,20 +74,17 @@ func (m Module) clean(ctx context.Context, bp BuildPack) error {
 	return nil
 }
 
-func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) error {
+func (m Module) start(ctx context.Context, bp BuildPack, tracker *Tracker) error {
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressStarted
+	tracker.onStart()
+	tracker.Signal <- progressStarted
 	workDir := filepath.Join(bp.WorkDir, m.Path)
 	outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir, m.Name)
 
 	//create log writer
-	logFile := filepath.Join(bp.WorkDir, BuildPackOutputDir, fmt.Sprintf("%s.log", m.Name))
-	if !common.IsEmptyString(bp.LogDir) {
-		logFile = filepath.Join(bp.LogDir, fmt.Sprintf("%s.log", m.Name))
-	}
-	file, err := os.OpenFile(logFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
+	file, err := os.OpenFile(tracker.LogFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0755)
 	if err != nil {
 		return err
 	}
@@ -144,7 +129,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressClean
+	tracker.Signal <- progressClean
 	err = b.Clean(buildContext)
 	if err != nil {
 		return err
@@ -153,7 +138,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressPreBuild
+	tracker.Signal <- progressPreBuild
 	err = b.PreBuild(buildContext)
 	if err != nil {
 		_, _ = fmt.Fprintf(file, "pre build get error %v\n", err)
@@ -163,7 +148,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressBuild
+	tracker.Signal <- progressBuild
 	err = b.Build(buildContext)
 	if err != nil {
 		_, _ = fmt.Fprintf(file, "build get error %v\n", err)
@@ -174,7 +159,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressPostBuild
+	tracker.Signal <- progressPostBuild
 	err = b.PostBuild(buildContext)
 	if err != nil {
 		_, _ = fmt.Fprintf(file, "post build get error %v\n", err)
@@ -200,13 +185,13 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if bp.IsSkipPublish() {
 		_ = common.DeleteDir(common.DeleteDirOption{
 			SkipContainer: true,
-			AbsPath:       logFile,
+			AbsPath:       tracker.LogFile,
 		})
 		return nil
 	}
 	//end publish phase
 
-	progress <- progressPrePublish
+	tracker.Signal <- progressPrePublish
 	if ctx.Err() != nil {
 		return nil
 	}
@@ -243,7 +228,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressPublish
+	tracker.Signal <- progressPublish
 	err = p.Publish(publishCtx)
 	if err != nil {
 		_, _ = fmt.Fprintf(file, "publish get error %v\n", err)
@@ -253,7 +238,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 	if ctx.Err() != nil {
 		return nil
 	}
-	progress <- progressPostPublish
+	tracker.Signal <- progressPostPublish
 	err = p.PostPublish(publishCtx)
 	if err != nil {
 		_, _ = fmt.Fprintf(file, "post publish get error %v\n", err)
@@ -262,7 +247,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, progress chan<- int) er
 
 	_ = common.DeleteDir(common.DeleteDirOption{
 		SkipContainer: true,
-		AbsPath:       logFile,
+		AbsPath:       tracker.LogFile,
 	})
 	return nil
 }

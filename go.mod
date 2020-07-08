@@ -15,7 +15,7 @@ require (
 	github.com/jhoonb/archivex v0.0.0-20180718040744-0488e4ce1681
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
-	github.com/pkg/errors v0.9.1 // indirect
+	github.com/pkg/errors v0.9.1
 	golang.org/x/net v0.0.0-20200625001655-4c5254603344 // indirect
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae
 	gopkg.in/src-d/go-git.v4 v4.13.1

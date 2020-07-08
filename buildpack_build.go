@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/cheggaaa/pb"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
 	"os"
@@ -13,7 +12,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 )
 
@@ -57,19 +55,14 @@ var (
 		"post publish ",
 		"completed    ",
 	}
-
-	steps = stepWithPublish
 )
 
 type RunModuleOption struct {
 	Module
-	*ModuleSummary
-	*pb.Pool
-	progress        chan int
-	reverseIndex    map[int]int
-	treeWait        map[int]*sync.WaitGroup
-	globalWait      *sync.WaitGroup
-	skipProgressBar bool
+	*Tracker
+	*Progress
+	reverseIndex map[int]int
+	treeWait     map[int]*sync.WaitGroup
 }
 
 func prepareListModule(bp BuildPack) ([]Module, error) {
@@ -110,7 +103,7 @@ func prepareListModule(bp BuildPack) ([]Module, error) {
 	return ms, nil
 }
 
-func renderSummaryTable(summaries map[string]*ModuleSummary, started time.Time) {
+func renderSummaryTable(summaries []*Tracker, started time.Time) {
 	t := table.NewWriter()
 	t.SetTitle("Summary")
 	t.Style().Title.Align = text.AlignCenter
@@ -122,7 +115,7 @@ func renderSummaryTable(summaries map[string]*ModuleSummary, started time.Time) 
 	for _, e := range summaries {
 		t.AppendRow(table.Row{
 			e.Name,
-			e.Result,
+			e.Result.Result,
 			fmt.Sprintf("%.2f s", e.TimeElapsed.Seconds()),
 			e.Message,
 		})
@@ -137,9 +130,6 @@ func renderSummaryTable(summaries map[string]*ModuleSummary, started time.Time) 
 }
 
 func (bp *BuildPack) build(ctx context.Context) error {
-	if bp.IsSkipPublish() {
-		steps = stepWithoutPublish
-	}
 	ms, err := prepareListModule(*bp)
 	if err != nil {
 		return err
@@ -179,54 +169,39 @@ func (bp *BuildPack) build(ctx context.Context) error {
 	//create tree of wait group
 	tree := createTreeWaitGroup(reverseIndexTable, ms)
 
-	//create summary of result
-	summaries := make(map[string]*ModuleSummary)
-
-	//create error counter
-	var errorCount int32 = 0
-
-	var pbPool *pb.Pool
-	if !bp.SkipProgressBar {
-		pbPool = pb.NewPool()
-		err = pbPool.Start()
-		if err != nil {
-			return err
-		}
+	//start progress observation
+	pool, f := createPoolOfProgressBar(bp.SkipProgressBar)
+	progress := &Progress{
+		Wait:         new(sync.WaitGroup),
+		errorCount:   0,
+		started:      time.Now(),
+		Pool:         pool,
+		ProgressFunc: f,
+		Steps:        stepWithPublish,
+		Trackers:     make([]*Tracker, 0),
 	}
-	wg := new(sync.WaitGroup)
-	started := time.Now()
-
-	var isError int32 = 0
+	if bp.IsSkipPublish() {
+		progress.Steps = stepWithoutPublish
+	}
+	progress.start()
 	for _, m := range ms {
-		modSum := &ModuleSummary{
-			Name:        m.Name,
-			Result:      "STARTED",
-			TimeElapsed: 0,
-			LogFile:     getLogFile(*bp, m.Name),
-		}
-		summaries[m.Name] = modSum
-		wg.Add(1)
-		progress := make(chan int)
+		tracker := progress.addTracker(m.Name, getLogFile(*bp, m.Name))
+
 		go runModule(ctx, *bp, RunModuleOption{
-			treeWait:        tree,
-			reverseIndex:    reverseIndexTable,
-			globalWait:      wg,
-			Module:          m,
-			ModuleSummary:   modSum,
-			skipProgressBar: bp.SkipProgressBar,
-			progress:        progress,
-			Pool:            pbPool,
-		}, &isError)
+			treeWait:     tree,
+			reverseIndex: reverseIndexTable,
+			Module:       m,
+			Tracker:      tracker,
+			Progress:     progress,
+		})
 	}
-	wg.Wait()
-	if !bp.SkipProgressBar && pbPool != nil {
-		pbPool.Stop()
-	}
+	//wait to complete
+	err = progress.stop()
 	//+phase: end build
 	common.PrintLog("") //break line
 
 	//render table of result
-	renderSummaryTable(summaries, started)
+	renderSummaryTable(progress.Trackers, progress.started)
 	//end table render
 
 	if ctx.Err() != nil {
@@ -234,7 +209,7 @@ func (bp *BuildPack) build(ctx context.Context) error {
 	}
 
 	//return error if error count larger than zero
-	if atomic.LoadInt32(&errorCount) > 0 {
+	if err != nil {
 		return errors.New("")
 	}
 
@@ -244,7 +219,6 @@ func (bp *BuildPack) build(ctx context.Context) error {
 	}
 
 	common.PrintLog("") //break line
-
 	cli := common.GetGitClient()
 	defer cli.Close()
 
@@ -276,114 +250,30 @@ func (bp *BuildPack) build(ctx context.Context) error {
 	return nil
 }
 
-func progressBar(progress chan int, b *pb.ProgressBar, wg *sync.WaitGroup) {
-	for {
-		i := <-progress
-		if i == progressIncr {
-			b.Increment()
-			b.BarStart = steps[b.Get()]
-		} else if i == progressError {
-			b.BarStart = "error       "
-			break
-		} else if i == progressAbort {
-			b.BarStart = "aborted     "
-			break
-		} else {
-			b.Set(len(steps))
-			b.BarStart = steps[len(steps)-1]
-			break
-		}
-	}
-	b.Finish()
-	wg.Done()
-}
-
-func progressText(name string, progress chan int, wg *sync.WaitGroup) {
-	currentStep := 0
-	for {
-		i := <-progress
-		if i == progressIncr {
-			currentStep++
-			common.PrintLog("module [%s] change to step [%s]", name, steps[currentStep])
-		} else if i == progressError {
-			common.PrintLog("module [%s] is [error]", name)
-			break
-		} else if i == progressAbort {
-			common.PrintLog("module [%s] is [aborted]", name)
-			break
-		} else {
-			common.PrintLog("module [%s] is [completed]", name)
-			break
-		}
-	}
-	wg.Done()
-}
-
-func createProgressBar(name string, count int) *pb.ProgressBar {
-	bar := pb.New(count).Prefix(name)
-	bar.SetRefreshRate(100 * time.Millisecond)
-	bar.ShowPercent = true
-	bar.ShowBar = true
-	bar.ShowCounters = false
-	bar.ShowElapsedTime = false
-	bar.ShowFinalTime = false
-	bar.ShowTimeLeft = false
-	bar.BarStart = steps[0]
-	bar.ShowSpeed = false
-	return bar
-}
-
-func runModule(ctx context.Context, bp BuildPack, option RunModuleOption, isError *int32) {
+func runModule(ctx context.Context, bp BuildPack, option RunModuleOption) {
 	module := option.Module
-	skipProgress := option.skipProgressBar
-	wg := option.globalWait
 	reverseIndexTable := option.reverseIndex
 	tree := option.treeWait
-	progress := option.progress
-	name := module.Name
-	if len(name) <= 10 {
-		name = fmt.Sprintf("%-12v", name)
-	} else {
-		name = fmt.Sprintf("%-12v", name[0:10])
-	}
-	if !skipProgress {
-		bar := createProgressBar(name, len(steps))
-		option.Pool.Add(bar)
-		go progressBar(progress, bar, wg)
-	} else {
-		go progressText(module.Name, progress, wg)
-	}
-	//progress <- 1
+	option.Progress.observer(option.Tracker)
 	moduleIndex := reverseIndexTable[module.Id]
 	//get prev wait group
 	w, ok := tree[moduleIndex-1]
 	if ok {
 		w.Wait()
 	}
-
 	//continue to build if not found any error
-	if atomic.LoadInt32(isError) == 0 || ctx.Err() == nil {
-		s := time.Now()
-		e := module.start(ctx, bp, progress)
+	if !option.Progress.isError() || ctx.Err() == nil {
+		e := module.start(ctx, bp, option.Tracker)
 		if e != nil {
-			atomic.AddInt32(isError, 1)
-			option.ModuleSummary.Result = "ERROR"
-			option.ModuleSummary.Message = fmt.Sprintf("%v. Detail at %s", e, option.ModuleSummary.LogFile)
-			option.ModuleSummary.TimeElapsed = time.Since(s)
-			progress <- progressError
+			option.Progress.setErr()
+			option.Tracker.onError(e)
+		} else if ctx.Err() != nil {
+			option.Tracker.onAborted()
 		} else {
-			if ctx.Err() != nil {
-				option.ModuleSummary.Result = "ABORTED"
-				progress <- progressAbort
-			} else {
-				option.ModuleSummary.Result = "DONE"
-				option.ModuleSummary.TimeElapsed = time.Since(s)
-				progress <- progressCompl
-			}
+			option.Tracker.onDone()
 		}
 	} else {
-		option.ModuleSummary.Result = "ABORTED"
-		progress <- progressAbort
+		option.Tracker.onAborted()
 	}
 
 	//get current wait group

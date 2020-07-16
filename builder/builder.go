@@ -19,14 +19,20 @@ type Interface interface {
 }
 
 func GetBuilder(name string) (Interface, error) {
-	if strings.HasPrefix(name, "plugin_") {
-		pluginName := fmt.Sprintf("%s.so", name)
+	if strings.HasPrefix(name, "plugin.") {
+		pluginName := strings.TrimPrefix(name, "plugin.")
+		parts := strings.Split(pluginName, ".")
+		pluginName = fmt.Sprintf("%s.so", parts[0])
 		pluginPath := filepath.Join("/etc/buildpack/plugins/builder", pluginName)
 		p, err := plugin.Open(pluginPath)
 		if err != nil {
 			return nil, fmt.Errorf("open %s get error %s", name, err.Error())
 		}
-		f, err := p.Lookup("GetBuilder")
+		funcName := "GetBuilder"
+		if len(parts) > 1{
+			funcName = parts[1]
+		}
+		f, err := p.Lookup(funcName)
 		if err != nil {
 			return nil, fmt.Errorf("find builder from %s get error %s", name, err.Error())
 		}
@@ -47,13 +53,4 @@ func GetBuilder(name string) (Interface, error) {
 	default:
 		return nil, errors.New("not found builder with name " + name)
 	}
-
-	if name == "mvn"{
-		return &Mvn{}, nil
-	}
-	i, ok := registries[name]
-	if !ok {
-		return nil, errors.New("not found builder with name " + name)
-	}
-	return i, nil
 }

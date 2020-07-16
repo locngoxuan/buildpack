@@ -85,7 +85,7 @@ func CheckDockerHostConnection() (string, error) {
 	return "", fmt.Errorf("can not connect to docker host")
 }
 
-func (c *DockerClient) PullImage(username, password, image string) (io.ReadCloser, error) {
+func (c *DockerClient) PullImage(ctx context.Context, username, password, image string) (io.ReadCloser, error) {
 	a, err := auth(username, password)
 	if err != nil {
 		return nil, err
@@ -94,10 +94,10 @@ func (c *DockerClient) PullImage(username, password, image string) (io.ReadClose
 		RegistryAuth: a,
 		All:          false,
 	}
-	return c.Client.ImagePull(context.Background(), image, opt)
+	return c.Client.ImagePull(ctx, image, opt)
 }
 
-func (c *DockerClient) BuildImage(file string, tags []string, auths []DockerAuth) (types.ImageBuildResponse, error) {
+func (c *DockerClient) BuildImage(ctx context.Context, file string, tags []string, auths []DockerAuth) (types.ImageBuildResponse, error) {
 	dockerBuildContext, err := os.Open(file)
 	if err != nil {
 		return types.ImageBuildResponse{}, err
@@ -121,10 +121,10 @@ func (c *DockerClient) BuildImage(file string, tags []string, auths []DockerAuth
 		Dockerfile:  "Dockerfile",
 	}
 
-	return c.Client.ImageBuild(context.Background(), dockerBuildContext, opt)
+	return c.Client.ImageBuild(ctx, dockerBuildContext, opt)
 }
 
-func (c *DockerClient) BuildImageWithSpecificDockerFile(tarFile, dockerFile string, tags []string) (types.ImageBuildResponse, error) {
+func (c *DockerClient) BuildImageWithSpecificDockerFile(ctx context.Context, tarFile, dockerFile string, tags []string) (types.ImageBuildResponse, error) {
 	dockerBuildContext, err := os.Open(tarFile)
 	if err != nil {
 		return types.ImageBuildResponse{}, err
@@ -139,7 +139,7 @@ func (c *DockerClient) BuildImageWithSpecificDockerFile(tarFile, dockerFile stri
 		Dockerfile:  dockerFile,
 	}
 
-	return c.Client.ImageBuild(context.Background(), dockerBuildContext, opt)
+	return c.Client.ImageBuild(ctx, dockerBuildContext, opt)
 }
 
 func auth(username, password string) (string, error) {
@@ -154,11 +154,11 @@ func auth(username, password string) (string, error) {
 	return base64.URLEncoding.EncodeToString(encodedJSON), nil
 }
 
-func (c *DockerClient) TagImage(src, dest string) error {
-	return c.Client.ImageTag(context.Background(), src, dest)
+func (c *DockerClient) TagImage(ctx context.Context, src, dest string) error {
+	return c.Client.ImageTag(ctx, src, dest)
 }
 
-func (c *DockerClient) DeployImage(username, password, image string) (io.ReadCloser, error) {
+func (c *DockerClient) DeployImage(ctx context.Context, username, password, image string) (io.ReadCloser, error) {
 	a, err := auth(username, password)
 	if err != nil {
 		return nil, err
@@ -167,15 +167,15 @@ func (c *DockerClient) DeployImage(username, password, image string) (io.ReadClo
 		RegistryAuth: a,
 		All:          true,
 	}
-	return c.Client.ImagePush(context.Background(), image, opt)
+	return c.Client.ImagePush(ctx, image, opt)
 }
 
-func (c *DockerClient) RemoveImage(image string) ([]types.ImageDelete, error) {
+func (c *DockerClient) RemoveImage(ctx context.Context, image string) ([]types.ImageDelete, error) {
 	opt := types.ImageRemoveOptions{
 		Force:         true,
 		PruneChildren: true,
 	}
-	return c.Client.ImageRemove(context.Background(), image, opt)
+	return c.Client.ImageRemove(ctx, image, opt)
 }
 
 func ValidateDockerHostConnection() error {

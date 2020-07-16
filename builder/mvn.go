@@ -10,8 +10,8 @@ import (
 )
 
 const (
-	pomXml         = "pom.xml"
-	mvnDockerImage = "xuanloc0511/mvn:3.6.3-2"
+	PomXML         = "pom.xml"
+	MvnDockerImage = "xuanloc0511/mvn:3.6.3-2"
 )
 
 type Mvn struct {
@@ -50,13 +50,13 @@ func runInContainer(ctx BuildContext, args ...string) error {
 		dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/root/.m2/repository", repositoryDir))
 	}
 
-	image := mvnDockerImage
+	image := MvnDockerImage
 	working := strings.ReplaceAll(ctx.WorkDir, ctx.Path, "")
 	dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/working", working))
 	dockerCommandArg = append(dockerCommandArg, image)
 	dockerCommandArg = append(dockerCommandArg, "mvn")
 	// because this is inside container then path to pomFile is /working/{module-path}/pom.xml
-	args = append(args, "-f", filepath.Join(ctx.Path, pomXml))
+	args = append(args, "-f", filepath.Join(ctx.Path, PomXML))
 	args = append(args, "-N")
 	for _, v := range args {
 		dockerCommandArg = append(dockerCommandArg, v)
@@ -71,7 +71,7 @@ func runInContainer(ctx BuildContext, args ...string) error {
 }
 
 func runOnHost(ctx BuildContext, args ...string) error {
-	args = append(args, "-f", filepath.Join(ctx.WorkDir, pomXml))
+	args = append(args, "-f", filepath.Join(ctx.WorkDir, PomXML))
 	args = append(args, "-N")
 	cmd := exec.CommandContext(ctx.Ctx, "mvn", args...)
 	common.PrintLogW(ctx.LogWriter, "working dir %s", ctx.WorkDir)
@@ -108,14 +108,14 @@ func (b Mvn) PostFail(ctx BuildContext) error {
 }
 
 func (b Mvn) PostBuild(ctx BuildContext) error {
-	pomFile := filepath.Join(ctx.WorkDir, "target", pomXml)
+	pomFile := filepath.Join(ctx.WorkDir, "target", PomXML)
 	pom, err := common.ReadPOM(pomFile)
 	if err != nil {
 		return err
 	}
 
 	//copy pom
-	pomSrc := filepath.Join(ctx.WorkDir, "target", pomXml)
+	pomSrc := filepath.Join(ctx.WorkDir, "target", PomXML)
 	pomName := fmt.Sprintf("%s-%s.pom", pom.ArtifactId, ctx.Version)
 	pomPublished := filepath.Join(ctx.OutputDir, pomName)
 	err = common.CopyFile(pomSrc, pomPublished)

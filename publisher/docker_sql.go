@@ -40,7 +40,7 @@ func init() {
 
 		imageTag := fmt.Sprintf("%s:%s", dockerConfig.Tag, ctx.Version)
 		tags := []string{imageTag}
-		response, err := client.BuildImage(tarFile, tags, auths)
+		response, err := client.BuildImage(ctx.Ctx, tarFile, tags, auths)
 		if err != nil {
 			return nil, err
 		}

@@ -34,26 +34,28 @@ Options:
 )
 
 type Arguments struct {
-	Command      string
-	Version      string
-	Module       string
-	ConfigFile   string
-	ShareData    string
-	LogDir       string
-	BuildRelease bool
-	BuildPath    bool
-	Verbose      bool
-	DevMode      bool
+	Command         string
+	Version         string
+	Module          string
+	ConfigFile      string
+	ShareData       string
+	LogDir          string
+	BuildRelease    bool
+	BuildPath       bool
+	Verbose         bool
+	DevMode         bool
+	IncreaseVersion bool
 	SkipOption
 }
 
 type SkipOption struct {
 	SkipContainer   bool
 	SkipPublish     bool
-	SkipGit         bool
-	SkipBranching   bool
 	SkipClean       bool
 	SkipProgressBar bool
+
+	NoGitTag   bool
+	NoBackward bool
 }
 
 func ReadArguments() (arg Arguments, err error) {
@@ -69,10 +71,13 @@ func ReadArguments() (arg Arguments, err error) {
 
 	f.BoolVar(&arg.SkipClean, "skip-clean", false, "skip clean everything after build complete")
 	f.BoolVar(&arg.SkipContainer, "skip-container", false, "skip container build")
-	f.BoolVar(&arg.SkipGit, "skip-git", false, "skip git operation")
-	f.BoolVar(&arg.SkipBranching, "skip-branching", false, "skip checkout new branch")
 	f.BoolVar(&arg.SkipPublish, "skip-publish", false, "skip publish build to repository")
 	f.BoolVar(&arg.SkipProgressBar, "skip-progress", false, "use text plain instead of progress ui")
+
+	//git operation
+	f.BoolVar(&arg.IncreaseVersion, "increase-version", false, "force to increase version after build")
+	f.BoolVar(&arg.NoGitTag, "no-git-tag", false, "skip tagging source code")
+	f.BoolVar(&arg.NoBackward, "no-backward", false, "if true, then major version will be increased")
 
 	f.BoolVar(&verbose, "verbose", false, "show more detail in console")
 	f.Usage = func() {

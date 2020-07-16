@@ -187,7 +187,7 @@ func (bp *BuildPack) build(ctx context.Context) error {
 	for _, m := range ms {
 		tracker := progress.addTracker(m.Name, getLogFile(*bp, m.Name))
 
-		go runModule(ctx, *bp, RunModuleOption{
+		go buildModule(ctx, *bp, RunModuleOption{
 			treeWait:     tree,
 			reverseIndex: reverseIndexTable,
 			Module:       m,
@@ -227,6 +227,7 @@ func (bp *BuildPack) build(ctx context.Context) error {
 		return err
 	}
 	ver.NextPatch()
+
 	if !bp.IsSkipGitBraching() {
 		err = gitUpdateConfig(cli, *bp, ver)
 		if err != nil {
@@ -241,7 +242,11 @@ func (bp *BuildPack) build(ctx context.Context) error {
 	}
 
 	if bp.BuildRelease {
-		ver.NextMinor()
+		if bp.NoBackward{
+			ver.NextMajor()
+		}else{
+			ver.NextMinor()
+		}
 	}
 	err = gitUpdateConfig(cli, *bp, ver)
 	if err != nil {
@@ -250,7 +255,7 @@ func (bp *BuildPack) build(ctx context.Context) error {
 	return nil
 }
 
-func runModule(ctx context.Context, bp BuildPack, option RunModuleOption) {
+func buildModule(ctx context.Context, bp BuildPack, option RunModuleOption) {
 	module := option.Module
 	reverseIndexTable := option.reverseIndex
 	tree := option.treeWait

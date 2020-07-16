@@ -48,17 +48,17 @@ func (bp BuildPack) IsSkipPublish() bool {
 }
 
 func (bp BuildPack) IsSkipGit() bool {
-	if bp.DevMode || (!bp.BuildRelease && !bp.BuildPath) || bp.Arguments.Command == cmdClean {
+	if bp.DevMode || (!bp.IncreaseVersion) || bp.Arguments.Command == cmdClean {
 		return true
 	}
-	return bp.Arguments.SkipGit
+	return false
 }
 
 func (bp BuildPack) IsSkipGitBraching() bool {
-	if bp.IsSkipGit() || bp.DevMode || bp.BuildPath {
+	if bp.IsSkipGit() || bp.BuildPath {
 		return true
 	}
-	return bp.Arguments.SkipBranching
+	return bp.Arguments.NoGitTag
 }
 
 func (bp BuildPack) GetVersion() string {

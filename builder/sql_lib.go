@@ -38,7 +38,3 @@ func (b SqlLib) PostBuild(ctx BuildContext) error {
 	}
 	return nil
 }
-
-func init() {
-	registries["sql_lib"] = &SqlLib{}
-}

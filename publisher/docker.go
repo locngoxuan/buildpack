@@ -1,6 +1,7 @@
 package publisher
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"github.com/docker/docker/pkg/jsonmessage"
@@ -42,16 +43,16 @@ func (n DockerPublisher) Publish(ctx PublishContext) error {
 	if images == nil || len(images) == 0 {
 		return errors.New("not found any package for publishing")
 	}
-	return publish(ctx.LogWriter, images, registry.Username, registry.Password, cli)
+	return publish(ctx.Ctx, ctx.LogWriter, images, registry.Username, registry.Password, cli)
 }
 
 func (n DockerPublisher) PostPublish(ctx PublishContext) error {
 	return nil
 }
 
-func publish(w io.Writer, images []string, username, password string, client common.DockerClient) error {
+func publish(ctx context.Context, w io.Writer, images []string, username, password string, client common.DockerClient) error {
 	for _, image := range images {
-		err := publishImage(w, image, username, password, client)
+		err := publishImage(ctx, w, image, username, password, client)
 		if err != nil {
 			return err
 		}
@@ -59,8 +60,8 @@ func publish(w io.Writer, images []string, username, password string, client com
 	return nil
 }
 
-func publishImage(w io.Writer, image, username, password string, client common.DockerClient) error {
-	reader, err := client.DeployImage(username, password, image)
+func publishImage(ctx context.Context, w io.Writer, image, username, password string, client common.DockerClient) error {
+	reader, err := client.DeployImage(ctx, username, password, image)
 	if err != nil {
 		return err
 	}

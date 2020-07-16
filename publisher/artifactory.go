@@ -2,6 +2,7 @@ package publisher
 
 import (
 	"errors"
+	"golang.org/x/net/context"
 	"net/http"
 	"os"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
@@ -18,7 +19,7 @@ type ArtifactoryPackage struct {
 func upload(ctx PublishContext, packages []ArtifactoryPackage) error {
 	for _, upload := range packages {
 		common.PrintLogW(ctx.LogWriter, "uploading %s with md5:%s", upload.Endpoint, upload.Md5)
-		err := uploadFile(upload)
+		err := uploadFile(ctx.Ctx, upload)
 		if err != nil {
 			return err
 		}
@@ -26,7 +27,7 @@ func upload(ctx PublishContext, packages []ArtifactoryPackage) error {
 	return nil
 }
 
-func uploadFile(param ArtifactoryPackage) error {
+func uploadFile(ctx context.Context, param ArtifactoryPackage) error {
 	data, err := os.Open(param.Source)
 	if err != nil {
 		return err
@@ -34,7 +35,7 @@ func uploadFile(param ArtifactoryPackage) error {
 	defer func() {
 		_ = data.Close()
 	}()
-	req, err := http.NewRequest("PUT", param.Endpoint, data)
+	req, err := http.NewRequestWithContext(ctx, "PUT", param.Endpoint, data)
 	if err != nil {
 		return err
 	}

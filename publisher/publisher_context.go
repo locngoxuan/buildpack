@@ -1,6 +1,9 @@
 package publisher
 
-import "io"
+import (
+	"context"
+	"io"
+)
 
 type PublishContext struct {
 	Name      string
@@ -11,4 +14,5 @@ type PublishContext struct {
 	Version   string
 	IsStable  bool
 	LogWriter io.Writer
+	Ctx       context.Context
 }

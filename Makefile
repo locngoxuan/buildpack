@@ -4,7 +4,7 @@ BUILD=buildpack
 INSTALL_DIR=/usr/local/bin
 
 dev:
-	env CGO_ENABLED=0 go build -ldflags="-s -w" -o ./bin/${BUILD} -a ./cmd
+	env CGO_ENABLED=1 go build -ldflags="-s -w" -o ./bin/${BUILD} -a ./cmd
 
 install:
 	chmod 755 ./bin/${BUILD}

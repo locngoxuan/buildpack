@@ -6,6 +6,10 @@ import (
 	"scm.wcs.fortna.com/lngo/sqlbundle"
 )
 
+const (
+	appDockerfile = "Dockerfile"
+)
+
 type SqlApp struct {
 	Sql
 }
@@ -65,8 +69,4 @@ func (b SqlApp) PostBuild(ctx BuildContext) error {
 		}
 	}
 	return nil
-}
-
-func init() {
-	registries["sql_app"] = &SqlApp{}
 }

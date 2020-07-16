@@ -214,6 +214,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, tracker *Tracker) error
 		RepoName:  pc.Repository,
 		IsStable:  bp.BuildRelease || bp.BuildPath,
 		LogWriter: file,
+		Ctx:       ctx,
 	}
 
 	if ctx.Err() != nil {

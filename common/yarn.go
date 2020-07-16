@@ -10,7 +10,7 @@ import (
 )
 
 type PackageJson struct {
-	Package string `json:"package"`
+	Package string `json:"package,omitempty"`
 	Name    string `json:"name"`
 	Version string `json:"version"`
 }

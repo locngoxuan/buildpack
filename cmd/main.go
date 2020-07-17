@@ -9,7 +9,10 @@ import (
 	"scm.wcs.fortna.com/lngo/buildpack/common"
 )
 
+var version = "2.0.0"
+
 func main() {
+	buildpack.Version = version
 	arg, err := buildpack.ReadArguments()
 	if err != nil {
 		common.PrintLog("read argument fail: %v", err)
@@ -17,10 +20,8 @@ func main() {
 	}
 
 	if buildpack.CommandWithoutConfig(arg.Command) {
-		bp, err := buildpack.CreateBuildPack(arg, buildpack.BuildConfig{})
-		if err != nil {
-			common.PrintLog("init buildpack fail: %v", err)
-			os.Exit(1)
+		bp := buildpack.BuildPack{
+			Arguments: arg,
 		}
 		_ = bp.Run(nil)
 		return

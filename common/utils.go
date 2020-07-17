@@ -85,6 +85,9 @@ func CreateDir(opt CreateDirOption) error {
 
 func DeleteDir(option DeleteDirOption) error {
 	if option.SkipContainer {
+		if !Exists(option.AbsPath) {
+			return nil
+		}
 		return os.RemoveAll(option.AbsPath)
 	}
 	return DeleteDirOnContainer(option.WorkDir, option.RelativePath)

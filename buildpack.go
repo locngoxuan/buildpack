@@ -11,7 +11,7 @@ import (
 	"strings"
 )
 
-const version = "2.0.0"
+var Version = "2.0.0"
 
 type BuildPack struct {
 	WorkDir string
@@ -230,7 +230,7 @@ func CreateBuildPack(arg Arguments, config BuildConfig) (bp BuildPack, err error
 func (bp *BuildPack) Run(ctx context.Context) error {
 	switch bp.Arguments.Command {
 	case cmdVersion:
-		common.PrintLog("version %s", version)
+		common.PrintLog("version %s", Version)
 		return nil
 	case cmdBuild:
 		defer func() {

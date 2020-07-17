@@ -17,7 +17,7 @@ const (
 type Mvn struct {
 }
 
-func runMvn(ctx BuildContext, args ...string) error {
+func RunMVN(ctx BuildContext, args ...string) error {
 	if ctx.SkipContainer {
 		return runOnHost(ctx, args...)
 	} else {
@@ -84,7 +84,7 @@ func runOnHost(ctx BuildContext, args ...string) error {
 func (b Mvn) Clean(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "clean")
-	return runMvn(ctx, arg...)
+	return RunMVN(ctx, arg...)
 }
 
 func (b Mvn) PreBuild(ctx BuildContext) error {
@@ -100,7 +100,7 @@ func (b Mvn) Build(ctx BuildContext) error {
 	arg = append(arg, "install")
 	arg = append(arg, c.Options...)
 	arg = append(arg, fmt.Sprintf("-Drevision=%s", ctx.Version))
-	return runMvn(ctx, arg...)
+	return RunMVN(ctx, arg...)
 }
 
 func (b Mvn) PostFail(ctx BuildContext) error {

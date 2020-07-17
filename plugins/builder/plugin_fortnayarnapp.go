@@ -6,6 +6,6 @@ type YarnApp struct {
 	builder.Yarn
 }
 
-func init() {
-	registries["yarn_app"] = &YarnApp{}
+func YarnAppBuilder() builder.Interface {
+	return &YarnApp{}
 }

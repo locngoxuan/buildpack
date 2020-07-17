@@ -23,13 +23,14 @@ func GetBuilder(name string) (Interface, error) {
 		pluginName := strings.TrimPrefix(name, "plugin.")
 		parts := strings.Split(pluginName, ".")
 		pluginName = fmt.Sprintf("%s.so", parts[0])
+		fmt.Println(pluginName)
 		pluginPath := filepath.Join("/etc/buildpack/plugins/builder", pluginName)
 		p, err := plugin.Open(pluginPath)
 		if err != nil {
 			return nil, fmt.Errorf("open %s get error %s", name, err.Error())
 		}
 		funcName := "GetBuilder"
-		if len(parts) > 1{
+		if len(parts) > 1 {
 			funcName = parts[1]
 		}
 		f, err := p.Lookup(funcName)

@@ -8,11 +8,7 @@ import (
 	"strings"
 )
 
-const (
-	pomXml         = "pom.xml"
-)
-
-func GetBuilder() builder.Interface {
+func MvnLibBuilder() builder.Interface {
 	return &MvnLib{}
 }
 
@@ -21,14 +17,14 @@ type MvnLib struct {
 }
 
 func (b MvnLib) PostBuild(ctx builder.BuildContext) error {
-	pomFile := filepath.Join(ctx.WorkDir, "target", pomXml)
+	pomFile := filepath.Join(ctx.WorkDir, "target", builder.PomXML)
 	pom, err := common.ReadPOM(pomFile)
 	if err != nil {
 		return err
 	}
 
 	//copy pom
-	pomSrc := filepath.Join(ctx.WorkDir, "target", pomXml)
+	pomSrc := filepath.Join(ctx.WorkDir, "target", builder.PomXML)
 	pomName := fmt.Sprintf("%s-%s.pom", pom.ArtifactId, ctx.Version)
 	pomPublished := filepath.Join(ctx.OutputDir, pomName)
 	err = common.CopyFile(pomSrc, pomPublished)

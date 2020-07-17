@@ -12,11 +12,11 @@ import (
 
 const (
 	yarnDockerImage   = "node:lts-alpine3.11"
-	packageJson       = "package.json"
-	packageJsonBackup = ".package.json"
+	PackageJson       = "package.json"
+	PackageJsonBackup = ".package.json"
 )
 
-func runYarn(ctx BuildContext, args ...string) error {
+func RunYarn(ctx BuildContext, args ...string) error {
 	if ctx.SkipContainer {
 		return yarnOnHost(ctx, args...)
 	} else {
@@ -58,24 +58,6 @@ func yarnInContainer(ctx BuildContext, args ...string) error {
 	dockerCommandArg = append(dockerCommandArg, "run", "--rm")
 
 	image := yarnDockerImage
-
-	//yarnCacheDir := ""
-	//if !common.IsEmptyString(ctx.ShareDataDir) {
-	//	yarnCacheDir = filepath.Join(ctx.ShareDataDir, ".yarncache")
-	//}
-	//
-	//if len(yarnCacheDir) > 0 {
-	//	//err = common.CreateDir(repositoryDir, true, 0766)
-	//	err = common.CreateDir(common.CreateDirOption{
-	//		SkipContainer: true,
-	//		Perm:          0766,
-	//		AbsPath:       yarnCacheDir,
-	//	})
-	//	if err != nil {
-	//		return err
-	//	}
-	//	dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/tmp/.yarncache", yarnCacheDir))
-	//}
 	dockerCommandArg = append(dockerCommandArg, "--workdir", "/working")
 	dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/working", ctx.WorkDir))
 	dockerCommandArg = append(dockerCommandArg, image)
@@ -99,8 +81,8 @@ type Yarn struct {
 
 func (b Yarn) PostFail(ctx BuildContext) error {
 	//rollback version of package.json
-	jsonFile := filepath.Join(ctx.WorkDir, packageJson)
-	jsonFileBackup := filepath.Join(ctx.WorkDir, packageJsonBackup)
+	jsonFile := filepath.Join(ctx.WorkDir, PackageJson)
+	jsonFileBackup := filepath.Join(ctx.WorkDir, PackageJsonBackup)
 	err := common.DeleteDir(common.DeleteDirOption{
 		SkipContainer: true,
 		AbsPath:       jsonFile,
@@ -120,7 +102,7 @@ func (b Yarn) PostFail(ctx BuildContext) error {
 }
 
 func (b Yarn) Clean(ctx BuildContext) error {
-	config, err := common.ReadNodeJSPackageJson(filepath.Join(ctx.WorkDir, packageJson))
+	config, err := common.ReadNodeJSPackageJson(filepath.Join(ctx.WorkDir, PackageJson))
 	if err != nil {
 		return err
 	}
@@ -129,6 +111,16 @@ func (b Yarn) Clean(ctx BuildContext) error {
 		AbsPath:       filepath.Join(ctx.WorkDir, "build"),
 		WorkDir:       ctx.WorkDir,
 		RelativePath:  "build",
+	})
+	if err != nil {
+		return err
+	}
+
+	err = common.DeleteDir(common.DeleteDirOption{
+		SkipContainer: ctx.SkipContainer,
+		AbsPath:       filepath.Join(ctx.WorkDir, "dist"),
+		WorkDir:       ctx.WorkDir,
+		RelativePath:  "dist",
 	})
 	if err != nil {
 		return err
@@ -171,12 +163,12 @@ func (b Yarn) Clean(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "cache", "clean")
 	//return c.Func(ctx, c.YarnBuildConfig, arg...)
-	return runYarn(ctx, arg...)
+	return RunYarn(ctx, arg...)
 }
 
 func (b Yarn) PreBuild(ctx BuildContext) error {
-	jsonFile := filepath.Join(ctx.WorkDir, packageJson)
-	jsonFileBackup := filepath.Join(ctx.WorkDir, packageJsonBackup)
+	jsonFile := filepath.Join(ctx.WorkDir, PackageJson)
+	jsonFileBackup := filepath.Join(ctx.WorkDir, PackageJsonBackup)
 	_, err := os.Stat(jsonFile)
 	if err != nil {
 		return err
@@ -196,32 +188,67 @@ func (b Yarn) PreBuild(ctx BuildContext) error {
 		return err
 	}
 
-	err = b.yarnSetVersion(ctx)
+	err = b.YarnSetVersion(ctx)
 	if err != nil {
 		return err
 	}
-	return b.yarnInstall(ctx)
+	return b.YarnInstall(ctx)
 }
 
 func (b Yarn) Build(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "build")
-	return runYarn(ctx, arg...)
+	return RunYarn(ctx, arg...)
 }
 
 func (b Yarn) PostBuild(ctx BuildContext) error {
-	return nil
+	err := b.YarnPack(ctx)
+	if err != nil {
+		return err
+	}
+	//copy package.json -> ./buildpack/{module}/package.json
+	jsonFile := filepath.Join(ctx.WorkDir, PackageJson)
+	err = common.CopyFile(jsonFile, filepath.Join(ctx.OutputDir, PackageJson))
+	if err != nil {
+		return err
+	}
+
+	//rollback version of package.json
+	jsonFileBackup := filepath.Join(ctx.WorkDir, PackageJsonBackup)
+	err = common.DeleteDir(common.DeleteDirOption{
+		SkipContainer: true,
+		AbsPath:       jsonFile,
+	})
+	err = common.CopyFile(jsonFileBackup, jsonFile)
+	if err != nil {
+		return err
+	}
+	err = common.DeleteDir(common.DeleteDirOption{
+		SkipContainer: true,
+		AbsPath:       jsonFileBackup,
+	})
+	if err != nil {
+		return err
+	}
+	config, err := common.ReadNodeJSPackageJson(filepath.Join(ctx.WorkDir, PackageJson))
+	if err != nil {
+		return err
+	}
+	//copy {name}.tgz -> ./buildpack/{module}/{name}.tgz
+	tgzName := fmt.Sprintf("%s.tgz", config.Name)
+	tgzSource := filepath.Join(ctx.WorkDir, tgzName)
+	return common.CopyFile(tgzSource, filepath.Join(ctx.OutputDir, tgzName))
 }
 
 //internal function
-func (c Yarn) yarnInstall(ctx BuildContext) error {
+func (c Yarn) YarnInstall(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "install")
-	return runYarn(ctx, arg...)
+	return RunYarn(ctx, arg...)
 }
 
-func (c Yarn) yarnPack(ctx BuildContext) error {
-	config, err := common.ReadNodeJSPackageJson(filepath.Join(ctx.WorkDir, packageJson))
+func (c Yarn) YarnPack(ctx BuildContext) error {
+	config, err := common.ReadNodeJSPackageJson(filepath.Join(ctx.WorkDir, PackageJson))
 	if err != nil {
 		return err
 	}
@@ -232,11 +259,11 @@ func (c Yarn) yarnPack(ctx BuildContext) error {
 	} else {
 		arg = append(arg, "--filename", fmt.Sprintf("%s.tgz", config.Name))
 	}
-	return runYarn(ctx, arg...)
+	return RunYarn(ctx, arg...)
 }
 
-func (c Yarn) yarnSetVersion(ctx BuildContext) error {
+func (c Yarn) YarnSetVersion(ctx BuildContext) error {
 	arg := make([]string, 0)
 	arg = append(arg, "version", "--no-git-tag-version", "--new-version", ctx.Version)
-	return runYarn(ctx, arg...)
+	return RunYarn(ctx, arg...)
 }

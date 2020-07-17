@@ -17,6 +17,10 @@ const (
 	appDockerfile  = "Dockerfile"
 )
 
+func MvnAppBuilder() builder.Interface {
+	return &MvnApp{}
+}
+
 func (b MvnApp) PostBuild(ctx builder.BuildContext) error {
 	pomSrc := filepath.Join(ctx.WorkDir, "target", builder.PomXML)
 	pomDst := filepath.Join(ctx.OutputDir, builder.PomXML)

@@ -13,7 +13,7 @@ type ArtifactoryMvn struct {
 	ArtifactoryPublisher
 }
 
-func init() {
+func getArtifactoryMvn() Interface {
 	a := &ArtifactoryMvn{}
 	a.PreparePackage = func(ctx PublishContext) (packages []ArtifactoryPackage, err error) {
 		repo, err := repoMan.pickChannel(ctx.RepoName, ctx.IsStable)
@@ -120,5 +120,5 @@ func init() {
 		}
 		return packages, nil
 	}
-	registries["artifactory_mvn"] = a
+	return a
 }

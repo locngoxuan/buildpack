@@ -8,8 +8,6 @@ import (
 	"strings"
 )
 
-var registries = make(map[string]Interface)
-
 const PublishConfigFileName = "Buildpackfile.publish"
 
 type Interface interface {
@@ -33,9 +31,7 @@ func (n DummyPublisher) PostPublish(ctx PublishContext) error {
 	return nil
 }
 
-func init() {
-	registries["no_publisher"] = &DummyPublisher{}
-}
+var noPublisher = &DummyPublisher{}
 
 func GetPublisher(name string) (Interface, error) {
 	if strings.HasPrefix(name, "plugin.") {
@@ -58,9 +54,17 @@ func GetPublisher(name string) (Interface, error) {
 		return f.(func() Interface)(), nil
 	}
 
-	i, ok := registries[name]
-	if !ok {
+	switch name {
+	case "no_publisher",
+		"none":
+		return noPublisher, nil
+	case "artifactory_mvn":
+		return getArtifactoryMvn(), nil
+	case "artifactory_sql":
+		return getArtifactorySql(), nil
+	case "docker_sql":
+		return getDockerSql(), nil
+	default:
 		return nil, errors.New("not found publisher with name " + name)
 	}
-	return i, nil
 }

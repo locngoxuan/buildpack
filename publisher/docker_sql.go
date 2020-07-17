@@ -2,14 +2,75 @@ package publisher
 
 import (
 	"fmt"
+	"github.com/jhoonb/archivex"
+	"os"
+	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
+	"scm.wcs.fortna.com/lngo/sqlbundle"
 )
 
 type DockerSql struct {
 	DockerPublisher
 }
 
-func init() {
+func creatDockerSqlTar(ctx PublishContext) (string, error) {
+	// tar info
+	tarFile := filepath.Join(ctx.OutputDir, "app.tar")
+	//create tar at common directory
+	tar := new(archivex.TarFile)
+	err := tar.Create(tarFile)
+	if err != nil {
+		return "", err
+	}
+
+	if common.Exists(filepath.Join(ctx.OutputDir, "src")) {
+		err = tar.AddAll(filepath.Join(ctx.OutputDir, "src"), true)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	if common.Exists(filepath.Join(ctx.OutputDir, "deps")) {
+		err = tar.AddAll(filepath.Join(ctx.OutputDir, "deps"), true)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	packageJsonFile, err := os.Open(filepath.Join(ctx.OutputDir, sqlbundle.PACKAGE_JSON))
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		_ = packageJsonFile.Close()
+	}()
+	packgeJsonInfo, _ := packageJsonFile.Stat()
+	err = tar.Add(sqlbundle.PACKAGE_JSON, packageJsonFile, packgeJsonInfo)
+	if err != nil {
+		return "", err
+	}
+
+	dockerFile, err := os.Open(filepath.Join(ctx.OutputDir, Dockerfile))
+	if err != nil {
+		return "", err
+	}
+	defer func() {
+		_ = dockerFile.Close()
+	}()
+	dockerFileInfo, _ := dockerFile.Stat()
+	err = tar.Add(Dockerfile, dockerFile, dockerFileInfo)
+	if err != nil {
+		return "", err
+	}
+
+	err = tar.Close()
+	if err != nil {
+		return "", err
+	}
+	return tarFile, nil
+}
+
+func getDockerSql() Interface {
 	docker := &DockerSql{}
 	docker.PrepareImage = func(ctx PublishContext, client common.DockerClient) (images []string, e error) {
 		images = make([]string, 0)
@@ -48,12 +109,12 @@ func init() {
 			_ = response.Body.Close()
 		}()
 		common.PrintLogW(ctx.LogWriter, "Building docker image %s", imageTag)
-		err = displayDockerLog(ctx.LogWriter, response.Body)
+		err = DisplayDockerLog(ctx.LogWriter, response.Body)
 		if err != nil {
 			return nil, err
 		}
 		images = append(images, imageTag)
 		return images, nil
 	}
-	registries["docker_sql"] = docker
+	return docker
 }

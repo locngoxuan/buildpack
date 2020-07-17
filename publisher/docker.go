@@ -5,12 +5,12 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/jhoonb/archivex"
 	"io"
-	"os"
-	"path/filepath"
 	"scm.wcs.fortna.com/lngo/buildpack/common"
-	"scm.wcs.fortna.com/lngo/sqlbundle"
+)
+
+const (
+	Dockerfile = "Dockerfile"
 )
 
 type PrepareImage func(ctx PublishContext, client common.DockerClient) ([]string, error)
@@ -43,16 +43,16 @@ func (n DockerPublisher) Publish(ctx PublishContext) error {
 	if images == nil || len(images) == 0 {
 		return errors.New("not found any package for publishing")
 	}
-	return publish(ctx.Ctx, ctx.LogWriter, images, registry.Username, registry.Password, cli)
+	return Publish(ctx.Ctx, ctx.LogWriter, images, registry.Username, registry.Password, cli)
 }
 
 func (n DockerPublisher) PostPublish(ctx PublishContext) error {
 	return nil
 }
 
-func publish(ctx context.Context, w io.Writer, images []string, username, password string, client common.DockerClient) error {
+func Publish(ctx context.Context, w io.Writer, images []string, username, password string, client common.DockerClient) error {
 	for _, image := range images {
-		err := publishImage(ctx, w, image, username, password, client)
+		err := PublishImage(ctx, w, image, username, password, client)
 		if err != nil {
 			return err
 		}
@@ -60,7 +60,7 @@ func publish(ctx context.Context, w io.Writer, images []string, username, passwo
 	return nil
 }
 
-func publishImage(ctx context.Context, w io.Writer, image, username, password string, client common.DockerClient) error {
+func PublishImage(ctx context.Context, w io.Writer, image, username, password string, client common.DockerClient) error {
 	reader, err := client.DeployImage(ctx, username, password, image)
 	if err != nil {
 		return err
@@ -69,10 +69,10 @@ func publishImage(ctx context.Context, w io.Writer, image, username, password st
 	defer func() {
 		_ = reader.Close()
 	}()
-	return displayDockerLog(w, reader)
+	return DisplayDockerLog(w, reader)
 }
 
-func displayDockerLog(w io.Writer, in io.Reader) error {
+func DisplayDockerLog(w io.Writer, in io.Reader) error {
 	var dec = json.NewDecoder(in)
 	for {
 		var jm jsonmessage.JSONMessage
@@ -91,115 +91,4 @@ func displayDockerLog(w io.Writer, in io.Reader) error {
 		common.PrintLogW(w, "%s", jm.Stream)
 	}
 	return nil
-}
-
-func creatDockerSqlTar(ctx PublishContext) (string, error) {
-	// tar info
-	tarFile := filepath.Join(ctx.OutputDir, "app.tar")
-	//create tar at common directory
-	tar := new(archivex.TarFile)
-	err := tar.Create(tarFile)
-	if err != nil {
-		return "", err
-	}
-
-	if common.Exists(filepath.Join(ctx.OutputDir, "src")) {
-		err = tar.AddAll(filepath.Join(ctx.OutputDir, "src"), true)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	if common.Exists(filepath.Join(ctx.OutputDir, "deps")) {
-		err = tar.AddAll(filepath.Join(ctx.OutputDir, "deps"), true)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	packageJsonFile, err := os.Open(filepath.Join(ctx.OutputDir, sqlbundle.PACKAGE_JSON))
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		_ = packageJsonFile.Close()
-	}()
-	packgeJsonInfo, _ := packageJsonFile.Stat()
-	err = tar.Add(sqlbundle.PACKAGE_JSON, packageJsonFile, packgeJsonInfo)
-	if err != nil {
-		return "", err
-	}
-
-	dockerFile, err := os.Open(filepath.Join(ctx.OutputDir, appDockerfile))
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		_ = dockerFile.Close()
-	}()
-	dockerFileInfo, _ := dockerFile.Stat()
-	err = tar.Add(appDockerfile, dockerFile, dockerFileInfo)
-	if err != nil {
-		return "", err
-	}
-
-	err = tar.Close()
-	if err != nil {
-		return "", err
-	}
-	return tarFile, nil
-}
-
-func creatDockerMvnAppTar(ctx PublishContext) (string, error) {
-	// tar info
-	tarFile := filepath.Join(ctx.OutputDir, "app.tar")
-	//create tar at common directory
-	tar := new(archivex.TarFile)
-	err := tar.Create(tarFile)
-	if err != nil {
-		return "", err
-	}
-
-	if common.Exists(filepath.Join(ctx.OutputDir, libsFolderName)) {
-		err = tar.AddAll(filepath.Join(ctx.OutputDir, libsFolderName), true)
-		if err != nil {
-			return "", err
-		}
-	}
-
-	err = tar.AddAll(filepath.Join(ctx.OutputDir, distFolderName), true)
-	if err != nil {
-		return "", err
-	}
-	wesAppFile, err := os.Open(filepath.Join(ctx.OutputDir, wesAppConfig))
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		_ = wesAppFile.Close()
-	}()
-	wesAppFileInfo, _ := wesAppFile.Stat()
-	err = tar.Add(wesAppConfig, wesAppFile, wesAppFileInfo)
-	if err != nil {
-		return "", err
-	}
-
-	dockerFile, err := os.Open(filepath.Join(ctx.OutputDir, appDockerfile))
-	if err != nil {
-		return "", err
-	}
-	defer func() {
-		_ = dockerFile.Close()
-	}()
-	dockerFileInfo, _ := dockerFile.Stat()
-	err = tar.Add(appDockerfile, dockerFile, dockerFileInfo)
-	if err != nil {
-		return "", err
-	}
-
-	err = tar.Close()
-	if err != nil {
-		return "", err
-	}
-	return tarFile, nil
 }

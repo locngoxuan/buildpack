@@ -13,7 +13,7 @@ type ArtifactorySql struct {
 	ArtifactoryPublisher
 }
 
-func init() {
+func getArtifactorySql() Interface {
 	a := &ArtifactorySql{}
 	a.PreparePackage = func(ctx PublishContext) (packages []ArtifactoryPackage, err error) {
 		repo, err := repoMan.pickChannel(ctx.RepoName, ctx.IsStable)
@@ -65,5 +65,5 @@ func init() {
 		}
 		return packages, nil
 	}
-	registries["artifactory_sql"] = a
+	return a
 }

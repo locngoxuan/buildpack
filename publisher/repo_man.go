@@ -27,12 +27,20 @@ func SetRepoManager(rm RepoManager) {
 	repoMan = rm
 }
 
+func PickOne(name string) (r Repository, err error) {
+	return repoMan.pickOne(name)
+}
+
 func (rm RepoManager) pickOne(name string) (r Repository, err error) {
 	r, ok := rm.Repos[name]
 	if !ok {
 		err = fmt.Errorf("repo %s may be not registered", name)
 	}
 	return
+}
+
+func PickChannel(name string, stable bool) (rc RepoChannel, err error) {
+	return repoMan.pickChannel(name, stable)
 }
 
 func (rm RepoManager) pickChannel(name string, stable bool) (rc RepoChannel, err error) {
@@ -55,6 +63,10 @@ func (rm RepoManager) pickChannel(name string, stable bool) (rc RepoChannel, err
 		rc = *r.Unstable
 	}
 	return
+}
+
+func PickChannelByAddress(address string, stable bool) (rc RepoChannel, err error) {
+	return repoMan.pickChannelByAddress(address, stable)
 }
 
 func (rm RepoManager) pickChannelByAddress(address string, stable bool) (rc RepoChannel, err error) {

@@ -10,7 +10,6 @@ import (
 )
 
 type PackageJson struct {
-	Package string `json:"package,omitempty"`
 	Name    string `json:"name"`
 	Version string `json:"version"`
 }
@@ -31,11 +30,6 @@ func ReadNodeJSPackageJson(file string) (pj PackageJson, err error) {
 	err = json.Unmarshal(jsonFile, &pj)
 	if err != nil {
 		err = errors.New(fmt.Sprintf("unmarshal application config file get error %v", err))
-		return
-	}
-
-	if len(strings.TrimSpace(pj.Package)) == 0 {
-		err = errors.New("missing package information")
 		return
 	}
 

@@ -2,11 +2,11 @@ package common
 
 import (
 	"context"
-	"github.com/docker/docker/client"
-	"github.com/docker/docker/api/types"
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"io"
 	"os"
 )

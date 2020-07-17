@@ -38,19 +38,26 @@ func init() {
 }
 
 func GetPublisher(name string) (Interface, error) {
-	if strings.HasPrefix(name, "plugin_") {
-		pluginName := fmt.Sprintf("%s.so", name)
+	if strings.HasPrefix(name, "plugin.") {
+		pluginName := strings.TrimPrefix(name, "plugin.")
+		parts := strings.Split(pluginName, ".")
+		pluginName = fmt.Sprintf("%s.so", parts[0])
 		pluginPath := filepath.Join("/etc/buildpack/plugins/publisher", pluginName)
 		p, err := plugin.Open(pluginPath)
 		if err != nil {
-			return nil, fmt.Errorf("open %s get error %s", name, err.Error())
+			return nil, err
 		}
-		f, err := p.Lookup("GetPublisher")
+		funcName := "GetPublisher"
+		if len(parts) > 1 {
+			funcName = parts[1]
+		}
+		f, err := p.Lookup(funcName)
 		if err != nil {
-			return nil, fmt.Errorf("find builder from %s get error %s", name, err.Error())
+			return nil, err
 		}
 		return f.(func() Interface)(), nil
 	}
+
 	i, ok := registries[name]
 	if !ok {
 		return nil, errors.New("not found publisher with name " + name)

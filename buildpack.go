@@ -198,7 +198,7 @@ func createRepoManager(workDir string, arg Arguments, c BuildConfig) (rm publish
 
 	for _, m := range ms {
 		c, e := publisher.ReadConfig(filepath.Join(workDir, m.Path))
-		if e != nil{
+		if e != nil {
 			err = e
 			break
 		}
@@ -207,7 +207,7 @@ func createRepoManager(workDir string, arg Arguments, c BuildConfig) (rm publish
 		}
 
 		repo, ok := rm.Repos[c.Repository]
-		if !ok{
+		if !ok {
 			err = fmt.Errorf("repo %s may be not registered", c.Repository)
 			break
 		}

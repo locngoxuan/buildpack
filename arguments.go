@@ -19,7 +19,7 @@ var (
 	usagePrefix = `Usage: buildpack COMMAND [OPTIONS]
 COMMAND:
   clean         Clean build folder		
-  build         Run build phase
+  build         Run build and publish to repository
   version       Show version of buildpack
   help          Show usage
 
@@ -28,6 +28,7 @@ Examples:
   buildpack version
   buildpack build --dev-mode
   buildpack build --release
+  buildpack build --path --skip-progress
 
 Options:
 `

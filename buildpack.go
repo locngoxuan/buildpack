@@ -116,7 +116,7 @@ func createGitManager(root string, c BuildConfig) (cli common.GitClient, err err
 	return
 }
 
-func createRepoManager(c BuildConfig) (rm publisher.RepoManager, err error) {
+func createRepoManager(workDir string, arg Arguments, c BuildConfig) (rm publisher.RepoManager, err error) {
 	rm.Repos = make(map[string]publisher.Repository)
 	if c.Repos == nil || len(c.Repos) == 0 {
 		err = errors.New("not found any repository configuration")
@@ -163,18 +163,66 @@ func createRepoManager(c BuildConfig) (rm publisher.RepoManager, err error) {
 		rm.Repos[r.Name] = r
 	}
 
-	for _, repo := range rm.Repos {
+	//validate credential of repositories
+	ms := make([]Module, 0)
+	if common.IsEmptyString(arg.Module) {
+		for _, module := range c.Modules {
+			ms = append(ms, Module{
+				Id:   module.Id,
+				Name: module.Name,
+				Path: module.Path,
+			})
+		}
+	} else {
+		modules := strings.Split(arg.Module, ",")
+		mmap := make(map[string]struct{})
+		for _, module := range modules {
+			mmap[module] = struct{}{}
+		}
+
+		for _, module := range c.Modules {
+			if _, ok := mmap[module.Name]; !ok {
+				continue
+			}
+			ms = append(ms, Module{
+				Id:   module.Id,
+				Name: module.Name,
+				Path: module.Path,
+			})
+		}
+	}
+
+	if len(ms) == 0 {
+		return
+	}
+
+	for _, m := range ms {
+		c, e := publisher.ReadConfig(filepath.Join(workDir, m.Path))
+		if e != nil{
+			err = e
+			break
+		}
+		if c.Publisher == "none" || c.Publisher == "no_publisher" {
+			continue
+		}
+
+		repo, ok := rm.Repos[c.Repository]
+		if !ok{
+			err = fmt.Errorf("repo %s may be not registered", c.Repository)
+			break
+		}
+
 		if repo.Stable != nil && !repo.Stable.NoAuth {
 			if common.IsEmptyString(repo.Stable.Username) || common.IsEmptyString(repo.Stable.Password) {
 				err = fmt.Errorf("missing credential of stable channel of repo %s", repo.Name)
-				return
+				break
 			}
 		}
 
 		if repo.Unstable != nil && !repo.Unstable.NoAuth {
 			if common.IsEmptyString(repo.Unstable.Username) || common.IsEmptyString(repo.Unstable.Password) {
 				err = fmt.Errorf("missing credential of unstable channel of repo %s", repo.Name)
-				return
+				break
 			}
 		}
 	}
@@ -197,7 +245,7 @@ func CreateBuildPack(arg Arguments, config BuildConfig) (bp BuildPack, err error
 
 	//if skip publish then no need to create repo manager
 	if !bp.IsSkipPublish() {
-		rm, e := createRepoManager(config)
+		rm, e := createRepoManager(workDir, arg, config)
 		if e != nil {
 			err = e
 			return

@@ -197,7 +197,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, tracker *Tracker) error
 	}
 	pc, err := publisher.ReadConfig(workDir)
 	if err != nil {
-		_, _ = fmt.Fprintf(file, "reaed publish config get error %v\n", err)
+		_, _ = fmt.Fprintf(file, "read publish config get error %v\n", err)
 		return err
 	}
 	p, err := publisher.GetPublisher(pc.Publisher)

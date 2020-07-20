@@ -1,7 +1,7 @@
 package builder
 
 import (
-	"scm.wcs.fortna.com/lngo/sqlbundle"
+	"github.com/locngoxuan/sqlbundle"
 )
 
 type Sql struct {

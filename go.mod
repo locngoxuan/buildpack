@@ -13,6 +13,7 @@ require (
 	github.com/docker/go-units v0.4.0 // indirect
 	github.com/jedib0t/go-pretty/v6 v6.0.4
 	github.com/jhoonb/archivex v0.0.0-20180718040744-0488e4ce1681
+	github.com/locngoxuan/sqlbundle v0.0.0-20200720142709-e1ae86c76b0f
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
@@ -20,7 +21,6 @@ require (
 	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/yaml.v2 v2.3.0
-	scm.wcs.fortna.com/lngo/sqlbundle v0.0.0-20200706083451-00861804532e
 )
 
 replace github.com/Sirupsen/logrus v1.4.2 => github.com/sirupsen/logrus v1.4.2

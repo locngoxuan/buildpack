@@ -6,6 +6,9 @@ VERSION=2.0.0
 BUILD_ID=1
 
 dev:
+	@export GOPROXY=direct
+	@export GOSUMDB=off
+	go get -v .
 	env CGO_ENABLED=1 go build -ldflags="-s -w -X main.version=${VERSION}" -o ./bin/${BUILD} -a ./cmd
 	@sleep 1
 

@@ -64,7 +64,7 @@ func displayProgressText(t *Tracker, steps []string) {
 		i := <-t.Signal
 		if i == progressIncr {
 			currentStep++
-			common.PrintLog("module [%s] change to step [%s]", t.Name, steps[currentStep])
+			common.PrintLog("module [%s] change step to [%s]", t.Name, steps[currentStep])
 		} else if i == progressError {
 			common.PrintLog("module [%s] is [error]", t.Name)
 			break

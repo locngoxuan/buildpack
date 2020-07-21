@@ -12,6 +12,11 @@ For install it from source, following these steps:
 $ git clone git@github.com:locngoxuan/buildpack.git
 
 $ make dev && sudo make install
+
+$ mkdir -p /etc/buildpack
+$ mkdir -p /etc/buildpack/plugins
+$ mkdir -p /etc/buildpack/plugins/builder
+$ mkdir -p /etc/buildpack/plugins/publisher
 ```
 
 
@@ -19,9 +24,9 @@ $ make dev && sudo make install
 Or download release then install:
 
 ```shell
-$ wget ''
+$ wget 'https://github.com/locngoxuan/buildpack/releases/download/2.0.0/buildpack-2.0.0-1.el7.x86_64.rpm'
 
-$ rpm -iUvh *.rpm
+$ rpm -iUvh buildpack-2.0.0-1.el7.x86_64.rpm
 ```
 
 

@@ -3,10 +3,10 @@ package publisher
 import (
 	"fmt"
 	"github.com/jhoonb/archivex"
+	"github.com/locngoxuan/buildpack/common"
+	"github.com/locngoxuan/sqlbundle"
 	"os"
 	"path/filepath"
-	"scm.wcs.fortna.com/lngo/buildpack/common"
-	"github.com/locngoxuan/sqlbundle"
 )
 
 type DockerSql struct {

@@ -2,11 +2,11 @@ package main
 
 import (
 	"context"
+	"github.com/locngoxuan/buildpack"
+	"github.com/locngoxuan/buildpack/common"
 	"os"
 	"os/signal"
 	"path/filepath"
-	"scm.wcs.fortna.com/lngo/buildpack"
-	"scm.wcs.fortna.com/lngo/buildpack/common"
 )
 
 var version = "2.0.0"

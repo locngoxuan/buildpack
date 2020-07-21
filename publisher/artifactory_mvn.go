@@ -3,9 +3,9 @@ package publisher
 import (
 	"errors"
 	"fmt"
+	"github.com/locngoxuan/buildpack/common"
 	"os"
 	"path/filepath"
-	"scm.wcs.fortna.com/lngo/buildpack/common"
 	"strings"
 )
 

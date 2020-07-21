@@ -3,8 +3,8 @@ package buildpack
 import (
 	"context"
 	"errors"
+	"github.com/locngoxuan/buildpack/common"
 	"path/filepath"
-	"scm.wcs.fortna.com/lngo/buildpack/common"
 	"sort"
 	"strings"
 )

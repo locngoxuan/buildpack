@@ -3,9 +3,9 @@ package builder
 import (
 	"errors"
 	"fmt"
+	"github.com/locngoxuan/buildpack/common"
 	"os/exec"
 	"path/filepath"
-	"scm.wcs.fortna.com/lngo/buildpack/common"
 	"strings"
 )
 

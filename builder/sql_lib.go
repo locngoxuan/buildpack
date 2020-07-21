@@ -2,9 +2,9 @@ package builder
 
 import (
 	"fmt"
-	"path/filepath"
-	"scm.wcs.fortna.com/lngo/buildpack/common"
+	"github.com/locngoxuan/buildpack/common"
 	"github.com/locngoxuan/sqlbundle"
+	"path/filepath"
 )
 
 type SqlLib struct {

@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
+	"github.com/locngoxuan/buildpack/common"
 	"os"
 	"path/filepath"
-	"scm.wcs.fortna.com/lngo/buildpack/common"
 	"sort"
 	"strings"
 	"sync"
@@ -242,9 +242,9 @@ func (bp *BuildPack) build(ctx context.Context) error {
 	}
 
 	if bp.BuildRelease {
-		if bp.NoBackward{
+		if bp.NoBackward {
 			ver.NextMajor()
-		}else{
+		} else {
 			ver.NextMinor()
 		}
 	}

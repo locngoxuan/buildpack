@@ -3,11 +3,11 @@ package buildpack
 import (
 	"context"
 	"fmt"
+	"github.com/locngoxuan/buildpack/builder"
+	"github.com/locngoxuan/buildpack/common"
+	"github.com/locngoxuan/buildpack/publisher"
 	"os"
 	"path/filepath"
-	"scm.wcs.fortna.com/lngo/buildpack/builder"
-	"scm.wcs.fortna.com/lngo/buildpack/common"
-	"scm.wcs.fortna.com/lngo/buildpack/publisher"
 )
 
 type Module struct {

@@ -1,4 +1,4 @@
-module scm.wcs.fortna.com/lngo/buildpack
+module github.com/locngoxuan/buildpack
 
 go 1.14
 

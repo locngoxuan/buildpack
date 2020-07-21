@@ -2,10 +2,10 @@ package publisher
 
 import (
 	"errors"
+	"github.com/locngoxuan/buildpack/common"
 	"golang.org/x/net/context"
 	"net/http"
 	"os"
-	"scm.wcs.fortna.com/lngo/buildpack/common"
 )
 
 type ArtifactoryPackage struct {

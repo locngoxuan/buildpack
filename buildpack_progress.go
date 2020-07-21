@@ -3,8 +3,8 @@ package buildpack
 import (
 	"fmt"
 	"github.com/cheggaaa/pb"
+	"github.com/locngoxuan/buildpack/common"
 	"github.com/pkg/errors"
-	"scm.wcs.fortna.com/lngo/buildpack/common"
 	"sync"
 	"sync/atomic"
 	"time"

@@ -1,9 +1,9 @@
 package builder
 
 import (
-	"path/filepath"
-	"scm.wcs.fortna.com/lngo/buildpack/common"
+	"github.com/locngoxuan/buildpack/common"
 	"github.com/locngoxuan/sqlbundle"
+	"path/filepath"
 )
 
 const (

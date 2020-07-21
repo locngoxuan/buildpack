@@ -5,8 +5,8 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/docker/docker/pkg/jsonmessage"
+	"github.com/locngoxuan/buildpack/common"
 	"io"
-	"scm.wcs.fortna.com/lngo/buildpack/common"
 )
 
 const (

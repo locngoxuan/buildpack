@@ -1,0 +1,80 @@
+### Introduction
+
+Buildpack is created in order to build up an independent and persistent environment for building and publishing application by using standard containers.
+
+Buildpack executes your build as a series of build steps, where each build step is run in a Docker container. A build step can do anything that can be done from a container irrespective of the environment. To perform your tasks, you can either [use the supported build steps](#) provided by Buildpack or [write your own build steps](#).
+
+### Install
+
+For install it from source, following these steps:
+
+```shell
+$ git clone git@github.com:locngoxuan/buildpack.git
+
+$ make dev && sudo make install
+```
+
+
+
+Or download release then install:
+
+```shell
+$ wget ''
+
+$ rpm -iUvh *.rpm
+```
+
+
+
+### Usage
+
+```shell
+Usage: buildpack COMMAND [OPTIONS]
+COMMAND:
+  clean         Clean build folder		
+  build         Run build and publish to repository
+  version       Show version of buildpack
+  help          Show usage
+
+Examples:
+  buildpack clean
+  buildpack version
+  buildpack build --dev-mode
+  buildpack build --release
+  buildpack build --path --skip-progress
+
+Options:
+  -config string
+    	specific path to config file
+  -dev-mode
+    	enable local mode to disable container build
+  -increase-version
+    	force to increase version after build
+  -log-dir string
+    	log directory
+  -module string
+    	list of module
+  -no-backward
+    	if true, then major version will be increased
+  -no-git-tag
+    	skip tagging source code
+  -patch
+    	build for patching
+  -release
+    	build for releasing
+  -share-data string
+    	sharing directory
+  -skip-clean
+    	skip clean everything after build complete
+  -skip-container
+    	skip container build
+  -skip-progress
+    	use text plain instead of progress ui
+  -skip-publish
+    	skip publish build to repository
+  -verbose
+    	show more detail in console
+  -version string
+    	version number
+```
+

@@ -33,6 +33,57 @@ $ rpm -iUvh buildpack-2.0.0-1.el7.x86_64.rpm
 
 ### Usage
 
+- ##### Structure
+
+At the beginning, `buildpack` loads structure of project from `Buildpackfile`. After understanding how many modules are there and which one is executed, it walk through them one by one for executing the build. If there are any module with same id, they will be executed in parallel. 
+
+For each module, `Buildpackfile.build` and `Buildpackfile.publish` are needed. They include information of builder and publisher tool that will be used for that module.
+
+``` shell
+# mvn example
+application/
+├── module1/
+├── src
+├── pom.xml
+├── Buildpackfile.build
+├── Buildpackfile.publish
+└── Buildpackfile
+
+# mvn with parent pom example
+application/
+├── module1/
+│   ├── src
+│   ├── pom.xml
+│   ├── Buildpackfile.build
+│   └── Buildpackfile.publish
+├── pom.xml
+├── Buildpackfile.build
+├── Buildpackfile.publish
+└── Buildpackfile
+
+# mix project mvn and nodejs
+application/
+├── module1/
+│   ├── src
+│   ├── pom.xml
+│   ├── Buildpackfile.build
+│   └── Buildpackfile.publish
+├── module2/
+│   ├── src
+│   ├── index.js
+│   ├── package.json
+│   ├── Buildpackfile.build
+│   └── Buildpackfile.publish
+├── pom.xml
+├── Buildpackfile.build
+├── Buildpackfile.publish
+└── Buildpackfile
+```
+
+
+
+- ##### Command
+
 ```shell
 Usage: buildpack COMMAND [OPTIONS]
 COMMAND:

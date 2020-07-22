@@ -7,6 +7,12 @@ BUILD_ID=1
 BUILD_OS=linux
 BUILD_ARCH=amd64
 
+dev:
+	@export GOPROXY=direct
+	@export GOSUMDB=off
+	go get -v .
+	env CGO_ENABLED=1 go build -ldflags="-s -w -X main.version=${VERSION}" -o ./bin/${BUILD} -a ./cmd
+
 build:
 	@export GOPROXY=direct
 	@export GOSUMDB=off

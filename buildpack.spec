@@ -1,13 +1,11 @@
 Name:		buildpack
 Version:	%{BUILD_VERSION}
-Release:    %{BUILD_ID}%{?dist}
-Summary:	Independent build tool
+Release:    %{BUILD_ID}.%{BUILD_OS}
 
+Summary:	Independent build tool
 Group:		Development/Tools
 License:	GPLv3+
 Source0:	buildpack-%{version}.tar.gz
-
-Requires:	bash
 
 %description
 Run buildpack --help for more detail.

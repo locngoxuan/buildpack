@@ -2,14 +2,16 @@
 
 BUILD=buildpack
 INSTALL_DIR=/usr/local/bin
-VERSION=2.0.0
+VERSION=1.0.0
 BUILD_ID=1
+BUILD_OS=linux
+BUILD_ARCH=amd64
 
-dev:
+build:
 	@export GOPROXY=direct
 	@export GOSUMDB=off
 	go get -v .
-	env CGO_ENABLED=1 go build -ldflags="-s -w -X main.version=${VERSION}" -o ./bin/${BUILD} -a ./cmd
+	env GOOS=${BUILD_OS} GOARCH=${BUILD_ARCH} CGO_ENABLED=1 go build -ldflags="-s -w -X main.version=${VERSION}" -o ./bin/${BUILD} -a ./cmd
 	@sleep 1
 
 install:
@@ -17,7 +19,9 @@ install:
 	cp -r ./bin/${BUILD} ${INSTALL_DIR}/${BUILD}
 
 ### RPM BUILD
-rpm: rpm_prepare_workspace rpm_prepare_source rpm_build
+rpm: build rpm_prepare_workspace rpm_prepare_source rpm_build
+
+rpm_mac: build rpm_prepare_workspace rpm_prepare_source_mac rpm_build
 
 rpm_prepare_workspace:
 	@echo "Prepare directories for RPM building"
@@ -36,9 +40,21 @@ rpm_prepare_source:
 	mv buildpack-$(VERSION).tar.gz rpmbuild/SOURCES/
 	@sleep 1
 
+rpm_prepare_source_mac:
+	@echo "Prepare sources are needed for RPM building"
+	cp -rf buildpack.spec rpmbuild/SPECS/buildpack.spec
+	@rm -rf rpmbuild/SOURCES/buildpack*.tar.gz
+	tar -czvf buildpack-$(VERSION).tar.gz -s /^bin/buildpack-$(VERSION)/ bin
+	mv buildpack-$(VERSION).tar.gz rpmbuild/SOURCES/
+	@sleep 1
+
 rpm_build:
 	@echo "Building rmp..."
-	rpmbuild --define "_topdir `pwd`/rpmbuild"  --define "BUILD_ID $(BUILD_ID)"  --define "BUILD_VERSION $(VERSION)" -ba rpmbuild/SPECS/buildpack.spec
+	rpmbuild --define "_topdir `pwd`/rpmbuild"  \
+		--define "BUILD_ID $(BUILD_ID)"  \
+		--define "BUILD_VERSION $(VERSION)" \
+		--define "BUILD_OS $(BUILD_OS)" \
+		-ba rpmbuild/SPECS/buildpack.spec
 	@rm -rf rpmbuild/SOURCES/buildpack*.tar.gz
 
 clean:

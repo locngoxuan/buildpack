@@ -1,4 +1,4 @@
-module github.com/locngoxuan/buildpack
+module github.com/locngoxuan/buildpack/v2
 
 go 1.14
 

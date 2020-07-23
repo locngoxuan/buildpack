@@ -24,9 +24,13 @@ $ mkdir -p /etc/buildpack/plugins/publisher
 Or download release then install:
 
 ```shell
-$ wget 'https://github.com/locngoxuan/buildpack/releases/download/2.0.0/buildpack-2.0.0-1.el7.x86_64.rpm'
+# on Linux
+$ wget 'https://github.com/locngoxuan/buildpack/releases/download/v1.0.0/buildpack-1.0.0-1.linux.x86_64.rpm'
+$ rpm -iUvh buildpack-1.0.0-1.linux.x86_64.rpm
 
-$ rpm -iUvh buildpack-2.0.0-1.el7.x86_64.rpm
+# on MacOS
+$ wget 'https://github.com/locngoxuan/buildpack/releases/download/v1.0.0/buildpack-1.0.0-1.darwin.x86_64.rpm'
+$ rpm -iUvh buildpack-1.0.0-1.darwin.x86_64.rpm
 ```
 
 

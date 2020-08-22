@@ -55,7 +55,7 @@ rpm_prepare_source_mac:
 	@sleep 1
 
 rpm_build:
-	@echo "Building rmp..."
+	@echo "Building rpm..."
 	rpmbuild --define "_topdir `pwd`/rpmbuild"  \
 		--define "BUILD_ID $(BUILD_ID)"  \
 		--define "BUILD_VERSION $(VERSION)" \

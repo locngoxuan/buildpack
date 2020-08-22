@@ -267,7 +267,9 @@ func buildModule(ctx context.Context, bp BuildPack, option RunModuleOption) {
 		w.Wait()
 	}
 	//continue to build if not found any error
-	if !option.Progress.isError() || ctx.Err() == nil {
+	if ctx.Err() != nil || !option.Progress.isError(){
+		option.Tracker.onAborted()
+	}else {
 		e := module.start(ctx, bp, option.Tracker)
 		if e != nil {
 			option.Progress.setErr()
@@ -277,8 +279,6 @@ func buildModule(ctx context.Context, bp BuildPack, option RunModuleOption) {
 		} else {
 			option.Tracker.onDone()
 		}
-	} else {
-		option.Tracker.onAborted()
 	}
 
 	//get current wait group

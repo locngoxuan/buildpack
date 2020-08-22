@@ -267,7 +267,7 @@ func buildModule(ctx context.Context, bp BuildPack, option RunModuleOption) {
 		w.Wait()
 	}
 	//continue to build if not found any error
-	if ctx.Err() != nil || !option.Progress.isError(){
+	if ctx.Err() != nil || option.Progress.isError(){
 		option.Tracker.onAborted()
 	}else {
 		e := module.start(ctx, bp, option.Tracker)

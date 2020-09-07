@@ -3,8 +3,11 @@ package builder
 import (
 	"errors"
 	"fmt"
+	"github.com/locngoxuan/buildpack/common"
+	"os"
 	"path/filepath"
 	"plugin"
+	"regexp"
 	"strings"
 )
 
@@ -44,13 +47,49 @@ func GetBuilder(name string) (Interface, error) {
 		return &Mvn{}, nil
 	case "sql":
 		return &Sql{}, nil
-	case "sql_lib":
-		return &SqlLib{}, nil
-	case "sql_app":
-		return &SqlApp{}, nil
 	case "yarn":
 		return &Yarn{}, nil
 	default:
 		return nil, errors.New("not found builder with name " + name)
 	}
+}
+
+func copyUsingFilter(source, dest string, filters []string) error {
+	regExps := make([]*regexp.Regexp, 0)
+	if filters != nil && len(filters) > 0 {
+		for _, v := range filters {
+			r := regexp.MustCompile(v)
+			regExps = append(regExps, r)
+		}
+	}
+
+	if len(regExps) == 0 {
+		return nil
+	}
+
+	return filepath.Walk(source, func(path string, info os.FileInfo, err error) error {
+		if info.IsDir() {
+			return nil
+		}
+		for _, r := range regExps {
+			if r.MatchString(path) {
+				//trim working dir from path
+				tmp := strings.TrimPrefix(path, source)
+				out := filepath.Join(dest, tmp)
+				p, _ := filepath.Split(out)
+				err = common.CreateDir(common.CreateDirOption{
+					SkipContainer: true,
+					Perm:          0755,
+					AbsPath:       p,
+				})
+				if err != nil {
+					return nil
+				}
+				return common.CopyFile(path, out)
+			}
+		}
+
+		return nil
+	})
+
 }

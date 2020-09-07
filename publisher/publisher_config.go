@@ -35,7 +35,7 @@ func ReadConfig(moduleDir string) (c Config, err error) {
 }
 
 type DockerConfig struct {
-	Config
+	Config     Config
 	Tag        string   `yaml:"tag,omitempty"`
 	Registries []string `yaml:"registries,omitempty"`
 }

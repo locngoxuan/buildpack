@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/locngoxuan/buildpack/builder"
-	"github.com/locngoxuan/buildpack/common"
 	"github.com/locngoxuan/buildpack/publisher"
 	"os"
 	"path/filepath"
@@ -67,10 +66,10 @@ func (m Module) clean(ctx context.Context, bp BuildPack) error {
 		return err
 	}
 
-	_ = common.DeleteDir(common.DeleteDirOption{
-		SkipContainer: true,
-		AbsPath:       logFile,
-	})
+	//_ = common.DeleteDir(common.DeleteDirOption{
+	//	SkipContainer: true,
+	//	AbsPath:       logFile,
+	//})
 	return nil
 }
 
@@ -183,10 +182,10 @@ func (m Module) start(ctx context.Context, bp BuildPack, tracker *Tracker) error
 		return nil
 	}
 	if bp.IsSkipPublish() {
-		_ = common.DeleteDir(common.DeleteDirOption{
-			SkipContainer: true,
-			AbsPath:       tracker.LogFile,
-		})
+		//_ = common.DeleteDir(common.DeleteDirOption{
+		//	SkipContainer: true,
+		//	AbsPath:       tracker.LogFile,
+		//})
 		return nil
 	}
 	//end publish phase
@@ -246,9 +245,9 @@ func (m Module) start(ctx context.Context, bp BuildPack, tracker *Tracker) error
 		return err
 	}
 
-	_ = common.DeleteDir(common.DeleteDirOption{
-		SkipContainer: true,
-		AbsPath:       tracker.LogFile,
-	})
+	//_ = common.DeleteDir(common.DeleteDirOption{
+	//	SkipContainer: true,
+	//	AbsPath:       tracker.LogFile,
+	//})
 	return nil
 }

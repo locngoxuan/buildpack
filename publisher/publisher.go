@@ -55,14 +55,15 @@ func GetPublisher(name string) (Interface, error) {
 	}
 
 	switch name {
-	case "no_publisher",
-		"none":
+	case "", "none":
 		return noPublisher, nil
-	case "artifactory_mvn":
+	case "artifactoryMvn":
 		return getArtifactoryMvn(), nil
-	case "artifactory_sql":
+	case "artifactorySql":
 		return getArtifactorySql(), nil
-	case "docker_sql":
+	case "artifactoryYarn":
+		return getArtifactoryYarn(), nil
+	case "dockerSql":
 		return getDockerSql(), nil
 	default:
 		return nil, errors.New("not found publisher with name " + name)

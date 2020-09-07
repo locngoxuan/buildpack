@@ -9,8 +9,10 @@ import (
 )
 
 type Config struct {
-	Builder string `yaml:"builder,omitempty"`
-	Label   string `yaml:"label,omitempty"`
+	Builder string   `yaml:"builder,omitempty"`
+	Image   string   `yaml:"image,omitempty"`
+	Label   string   `yaml:"label,omitempty"`
+	Filters []string `yaml:"filters,omitempty"`
 }
 
 func ReadConfig(moduleDir string) (c Config, err error) {
@@ -35,7 +37,7 @@ func ReadConfig(moduleDir string) (c Config, err error) {
 }
 
 type MvnConfig struct {
-	Config
+	Config  `yaml:",inline"`
 	Options []string `yaml:"options,omitempty"`
 }
 

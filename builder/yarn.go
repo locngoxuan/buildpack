@@ -58,12 +58,14 @@ func yarnInContainer(ctx BuildContext, args ...string) error {
 	dockerCommandArg = append(dockerCommandArg, "run", "--rm")
 
 	image := yarnDockerImage
+	if len(strings.TrimSpace(ctx.ContainerImage)) > 0 {
+		image = ctx.ContainerImage
+	}
 	dockerCommandArg = append(dockerCommandArg, "--workdir", "/working")
 	dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/working", ctx.WorkDir))
 	dockerCommandArg = append(dockerCommandArg, image)
 	dockerCommandArg = append(dockerCommandArg, "yarn")
 	//dockerCommandArg = append(dockerCommandArg, "--cache-folder", "/tmp/.yarncache")
-	// because this is inside container then path to pomFile is /working/{module-path}/pom.xml
 	for _, v := range args {
 		dockerCommandArg = append(dockerCommandArg, v)
 	}
@@ -106,6 +108,8 @@ func (b Yarn) Clean(ctx BuildContext) error {
 	if err != nil {
 		return err
 	}
+
+	//delete build folder
 	err = common.DeleteDir(common.DeleteDirOption{
 		SkipContainer: ctx.SkipContainer,
 		AbsPath:       filepath.Join(ctx.WorkDir, "build"),
@@ -116,6 +120,7 @@ func (b Yarn) Clean(ctx BuildContext) error {
 		return err
 	}
 
+	//delete build dist folder
 	err = common.DeleteDir(common.DeleteDirOption{
 		SkipContainer: ctx.SkipContainer,
 		AbsPath:       filepath.Join(ctx.WorkDir, "dist"),
@@ -126,7 +131,18 @@ func (b Yarn) Clean(ctx BuildContext) error {
 		return err
 	}
 
-	//err = common.DeleteDir(nodeModules, ctx.SkipContainer)
+	//delete target folder
+	err = common.DeleteDir(common.DeleteDirOption{
+		SkipContainer: ctx.SkipContainer,
+		AbsPath:       filepath.Join(ctx.WorkDir, "target"),
+		WorkDir:       ctx.WorkDir,
+		RelativePath:  "target",
+	})
+	if err != nil {
+		return err
+	}
+
+	//delete node_modules folder
 	err = common.DeleteDir(common.DeleteDirOption{
 		SkipContainer: ctx.SkipContainer,
 		AbsPath:       filepath.Join(ctx.WorkDir, "node_modules"),
@@ -137,7 +153,7 @@ func (b Yarn) Clean(ctx BuildContext) error {
 		return err
 	}
 
-	//f, err = ctx.GetFile("yarn.lock")
+	//delete yarn.lock file
 	err = common.DeleteDir(common.DeleteDirOption{
 		SkipContainer: ctx.SkipContainer,
 		AbsPath:       filepath.Join(ctx.WorkDir, "yarn.lock"),
@@ -148,8 +164,8 @@ func (b Yarn) Clean(ctx BuildContext) error {
 		return err
 	}
 
+	//delete package.tgz
 	tgzFileName := fmt.Sprintf("%s.tgz", config.Name)
-	//err = common.DeleteDir(tgzFile, ctx.SkipContainer)
 	err = common.DeleteDir(common.DeleteDirOption{
 		SkipContainer: ctx.SkipContainer,
 		AbsPath:       filepath.Join(ctx.WorkDir, tgzFileName),
@@ -160,9 +176,9 @@ func (b Yarn) Clean(ctx BuildContext) error {
 		return err
 	}
 
+	//run cache clean
 	arg := make([]string, 0)
 	arg = append(arg, "cache", "clean")
-	//return c.Func(ctx, c.YarnBuildConfig, arg...)
 	return RunYarn(ctx, arg...)
 }
 
@@ -230,6 +246,8 @@ func (b Yarn) PostBuild(ctx BuildContext) error {
 	if err != nil {
 		return err
 	}
+
+	//copy tgz file
 	config, err := common.ReadNodeJSPackageJson(filepath.Join(ctx.WorkDir, PackageJson))
 	if err != nil {
 		return err

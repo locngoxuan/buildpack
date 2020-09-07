@@ -94,7 +94,7 @@ func (c *DockerClient) PullImage(ctx context.Context, dockerAuth DockerAuth, ima
 	}
 	opt := types.ImagePullOptions{
 		RegistryAuth: a,
-		All:          true,
+		All:          false,
 	}
 	return c.Client.ImagePull(ctx, image, opt)
 }

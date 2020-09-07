@@ -21,6 +21,14 @@ type Interface interface {
 	PostFail(ctx BuildContext) error
 }
 
+func findFromEnv(str string) string{
+	result := strings.TrimSpace(str)
+	if strings.HasPrefix(result, "$") {
+		result = os.ExpandEnv(result)
+	}
+	return result;
+}
+
 func GetBuilder(name string) (Interface, error) {
 	if strings.HasPrefix(name, "plugin.") {
 		pluginName := strings.TrimPrefix(name, "plugin.")

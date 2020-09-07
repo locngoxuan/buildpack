@@ -76,8 +76,8 @@ func yarnInContainer(ctx BuildContext, args ...string) error {
 	}
 
 	response, err := cli.PullImage(ctx.Ctx, common.DockerAuth{
-		Username: c.Container.Username,
-		Password: c.Container.Password,
+		Username: findFromEnv(c.Container.Username),
+		Password: findFromEnv(c.Container.Password),
 	}, image)
 	if err != nil {
 		return errors.New(fmt.Sprintf("can not pull image %s: %s", image, err.Error()))

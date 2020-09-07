@@ -9,10 +9,16 @@ import (
 )
 
 type Config struct {
-	Builder string   `yaml:"builder,omitempty"`
-	Image   string   `yaml:"image,omitempty"`
-	Label   string   `yaml:"label,omitempty"`
-	Filters []string `yaml:"filters,omitempty"`
+	Builder   string          `yaml:"builder,omitempty"`
+	Container ContainerConfig `yaml:"container,omitempty"`
+	Label     string          `yaml:"label,omitempty"`
+	Filters   []string        `yaml:"filters,omitempty"`
+}
+
+type ContainerConfig struct {
+	Image    string `yaml:"image,omitempty"`
+	Username string `yaml:"username,omitempty"`
+	Password string `yaml:"password,omitempty"`
 }
 
 func ReadConfig(moduleDir string) (c Config, err error) {

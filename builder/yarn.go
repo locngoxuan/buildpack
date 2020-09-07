@@ -1,8 +1,13 @@
 package builder
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/container"
+	"github.com/docker/docker/api/types/mount"
+	"github.com/docker/docker/client"
 	"github.com/locngoxuan/buildpack/common"
 	"os"
 	"os/exec"
@@ -11,7 +16,7 @@ import (
 )
 
 const (
-	yarnDockerImage   = "node:lts-alpine3.11"
+	yarnDockerImage   = "docker.io/library/node:lts-alpine3.11"
 	PackageJson       = "package.json"
 	PackageJsonBackup = ".package.json"
 )
@@ -49,33 +54,87 @@ func yarnOnHost(ctx BuildContext, args ...string) error {
 }
 
 func yarnInContainer(ctx BuildContext, args ...string) error {
-	dockerHost, err := common.CheckDockerHostConnection()
+	_, err := common.CheckDockerHostConnection()
 	if err != nil {
 		return errors.New(fmt.Sprintf("can not connect to docker host: %s", err.Error()))
 	}
-	dockerCommandArg := make([]string, 0)
-	dockerCommandArg = append(dockerCommandArg, "-H", dockerHost)
-	dockerCommandArg = append(dockerCommandArg, "run", "--rm")
 
-	image := yarnDockerImage
-	if len(strings.TrimSpace(ctx.ContainerImage)) > 0 {
-		image = ctx.ContainerImage
+	cli, err := common.NewClient()
+	if err != nil {
+		return err
 	}
-	dockerCommandArg = append(dockerCommandArg, "--workdir", "/working")
-	dockerCommandArg = append(dockerCommandArg, "-v", fmt.Sprintf("%s:/working", ctx.WorkDir))
-	dockerCommandArg = append(dockerCommandArg, image)
+
+	c, err := ReadConfig(ctx.WorkDir)
+	if err != nil {
+		return err
+	}
+	ctx.Container = c.Container
+	//image name
+	image := yarnDockerImage
+	if len(strings.TrimSpace(c.Container.Image)) > 0 {
+		image = c.Container.Image
+	}
+
+	response, err := cli.PullImage(ctx.Ctx, common.DockerAuth{
+		Username: c.Container.Username,
+		Password: c.Container.Password,
+	}, image)
+	if err != nil {
+		return errors.New(fmt.Sprintf("can not pull image %s: %s", image, err.Error()))
+	}
+	defer func() {
+		_ = response.Close()
+	}()
+	common.PrintLogW(ctx.LogWriter, "Pulling docker image %s", image)
+	err = common.DisplayDockerLog(ctx.LogWriter, response)
+	if err != nil {
+		return errors.New(fmt.Sprintf("display docker log error: %s", err.Error()))
+	}
+
+	//repository
+	dockerCommandArg := make([]string, 0)
 	dockerCommandArg = append(dockerCommandArg, "yarn")
-	//dockerCommandArg = append(dockerCommandArg, "--cache-folder", "/tmp/.yarncache")
 	for _, v := range args {
 		dockerCommandArg = append(dockerCommandArg, v)
 	}
-
 	common.PrintLogW(ctx.LogWriter, "working dir %s", ctx.WorkDir)
-	common.PrintLogW(ctx.LogWriter, "docker %s", strings.Join(dockerCommandArg, " "))
-	dockerCmd := exec.CommandContext(ctx.Ctx, "docker", dockerCommandArg...)
-	dockerCmd.Stdout = ctx.LogWriter
-	dockerCmd.Stderr = ctx.LogWriter
-	return dockerCmd.Run()
+	common.PrintLogW(ctx.LogWriter, "docker command %s", strings.Join(dockerCommandArg, " "))
+	containerConfig := &container.Config{
+		Image: image,
+		Cmd:   dockerCommandArg,
+		WorkingDir: "/working",
+	}
+	hostConfig := &container.HostConfig{
+		Mounts: []mount.Mount{
+			{
+				Type:   mount.TypeBind,
+				Source: ctx.WorkDir,
+				Target: "/working",
+			},
+		},
+	}
+	cont, err := cli.Client.ContainerCreate(ctx.Ctx, containerConfig, hostConfig, nil, "")
+	if err != nil{
+		return errors.New(fmt.Sprintf("can not create container: %s", err.Error()))
+	}
+
+	defer func(ctx context.Context, cli *client.Client, id string) {
+		_ = cli.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
+			Force:true,
+		})
+	}(ctx.Ctx, cli.Client, cont.ID)
+
+	err = cli.Client.ContainerStart(ctx.Ctx, cont.ID, types.ContainerStartOptions{})
+	if err != nil{
+		return errors.New(fmt.Sprintf("can not start container: %s", err.Error()))
+	}
+
+	statusCh, err := cli.Client.ContainerWait(ctx.Ctx, cont.ID)
+	common.PrintLogW(ctx.LogWriter, "container status %+v", statusCh)
+	if err != nil{
+		return errors.New(fmt.Sprintf("run container build get error: %s", err.Error()))
+	}
+	return nil
 }
 
 type Yarn struct {

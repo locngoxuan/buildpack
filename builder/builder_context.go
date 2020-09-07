@@ -13,9 +13,9 @@ type BuildContext struct {
 	ShareDataDir string
 	Version      string
 
-	SkipContainer  bool
-	ContainerImage string
-	SkipClean      bool
-	LogWriter      io.Writer
-	Ctx            context.Context
+	SkipContainer bool
+	Container     ContainerConfig
+	SkipClean     bool
+	LogWriter     io.Writer
+	Ctx           context.Context
 }

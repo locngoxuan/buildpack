@@ -4,9 +4,11 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
+	"github.com/docker/docker/pkg/jsonmessage"
 	"io"
 	"os"
 )
@@ -85,14 +87,14 @@ func CheckDockerHostConnection() (string, error) {
 	return "", fmt.Errorf("can not connect to docker host")
 }
 
-func (c *DockerClient) PullImage(ctx context.Context, username, password, image string) (io.ReadCloser, error) {
-	a, err := auth(username, password)
+func (c *DockerClient) PullImage(ctx context.Context, dockerAuth DockerAuth, image string) (io.ReadCloser, error) {
+	a, err := auth(dockerAuth.Username, dockerAuth.Password)
 	if err != nil {
 		return nil, err
 	}
 	opt := types.ImagePullOptions{
 		RegistryAuth: a,
-		All:          false,
+		All:          true,
 	}
 	return c.Client.ImagePull(ctx, image, opt)
 }
@@ -182,6 +184,27 @@ func ValidateDockerHostConnection() error {
 	_, err := CheckDockerHostConnection()
 	if err != nil {
 		return err
+	}
+	return nil
+}
+
+func DisplayDockerLog(w io.Writer, in io.Reader) error {
+	var dec = json.NewDecoder(in)
+	for {
+		var jm jsonmessage.JSONMessage
+		if err := dec.Decode(&jm); err != nil {
+			if err == io.EOF {
+				break
+			}
+			return err
+		}
+		if jm.Error != nil {
+			return errors.New(jm.Error.Message)
+		}
+		if jm.Stream == "" {
+			continue
+		}
+		PrintLogW(w, "%s", jm.Stream)
 	}
 	return nil
 }

@@ -56,8 +56,7 @@ func getArtifactoryMvn() Interface {
 			if filepath.Ext(file) == ".pom" {
 
 			} else if filepath.Ext(file) == ".jar" {
-				ext := filepath.Ext(file)
-				pomFile = file[0:len(file)-len(ext)] + ".pom"
+				pomFile = "pom.xml"
 			} else {
 				return nil, errors.New("known ext of file " + file)
 			}
@@ -94,13 +93,7 @@ func getArtifactoryMvn() Interface {
 			}
 
 			_, fileName := filepath.Split(file)
-			pomFile := file
-			if strings.HasSuffix(file, "-javadoc.jar") {
-				pomFile = strings.ReplaceAll(file, "-javadoc.jar", ".pom")
-			} else if strings.HasSuffix(file, "-sources.jar") {
-				pomFile = strings.ReplaceAll(file, "-sources.jar", ".pom")
-			}
-
+			pomFile := "pom.xml"
 			pom, err := common.ReadPOM(pomFile)
 			if err != nil {
 				return nil, err

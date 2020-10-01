@@ -267,9 +267,9 @@ func buildModule(ctx context.Context, bp BuildPack, option RunModuleOption) {
 		w.Wait()
 	}
 	//continue to build if not found any error
-	if ctx.Err() != nil || option.Progress.isError(){
+	if ctx.Err() != nil || option.Progress.isError() {
 		option.Tracker.onAborted()
-	}else {
+	} else {
 		e := module.start(ctx, bp, option.Tracker)
 		if e != nil {
 			option.Progress.setErr()
@@ -291,6 +291,14 @@ func buildModule(ctx context.Context, bp BuildPack, option RunModuleOption) {
 func getLogFile(bp BuildPack, name string) string {
 	file := filepath.Join(bp.WorkDir, BuildPackOutputDir, fmt.Sprintf("%s.log", name))
 	if !common.IsEmptyString(bp.LogDir) {
+		err := common.CreateDir(common.CreateDirOption{
+			SkipContainer: true,
+			AbsPath:       bp.LogDir,
+			Perm:          0777,
+		})
+		if err != nil {
+			return file
+		}
 		file = filepath.Join(bp.LogDir, fmt.Sprintf("%s.log", name))
 	}
 	return file

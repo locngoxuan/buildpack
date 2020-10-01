@@ -82,7 +82,7 @@ func runInContainer(ctx BuildContext, args ...string) error {
 			Perm:          0766,
 			AbsPath:       repositoryDir,
 		})
-		if err != nil{
+		if err != nil {
 			common.PrintLogW(ctx.LogWriter, "[WARN] create repository folder %s get error: %v", repositoryDir, err)
 		}
 		mounts = append(mounts, mount.Mount{
@@ -111,37 +111,36 @@ func runInContainer(ctx BuildContext, args ...string) error {
 	common.PrintLogW(ctx.LogWriter, "docker command %s", strings.Join(dockerCommandArg, " "))
 
 	containerConfig := &container.Config{
-		Image: image,
-		Cmd:   dockerCommandArg,
+		Image:      image,
+		Cmd:        dockerCommandArg,
 		WorkingDir: "/working",
 	}
 	hostConfig := &container.HostConfig{
 		Mounts: mounts,
 	}
 	cont, err := cli.Client.ContainerCreate(ctx.Ctx, containerConfig, hostConfig, nil, "")
-	if err != nil{
+	if err != nil {
 		return errors.New(fmt.Sprintf("can not create container: %s", err.Error()))
 	}
 
 	defer func(ctx context.Context, cli *client.Client, id string) {
 		_ = cli.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
-			Force:true,
+			Force: true,
 		})
 	}(ctx.Ctx, cli.Client, cont.ID)
 
 	err = cli.Client.ContainerStart(ctx.Ctx, cont.ID, types.ContainerStartOptions{})
-	if err != nil{
+	if err != nil {
 		return errors.New(fmt.Sprintf("can not start container: %s", err.Error()))
 	}
 
 	statusCh, err := cli.Client.ContainerWait(ctx.Ctx, cont.ID)
 	common.PrintLogW(ctx.LogWriter, "container status %+v", statusCh)
-	if err != nil{
+	if err != nil {
 		return errors.New(fmt.Sprintf("run container build get error: %s", err.Error()))
 	}
 	return nil
 }
-
 
 func runOnHost(ctx BuildContext, args ...string) error {
 	args = append(args, "-f", filepath.Join(ctx.WorkDir, PomXML))
@@ -185,7 +184,21 @@ func (b Mvn) PostBuild(ctx BuildContext) error {
 	if err != nil {
 		return err
 	}
-	common.PrintLogW(ctx.LogWriter, "config %+v", c)
+	//copy pom
+	pomFile := filepath.Join(ctx.WorkDir, "target", PomXML)
+	pom, err := common.ReadPOM(pomFile)
+	if err != nil {
+		return err
+	}
+	pomSrc := filepath.Join(ctx.WorkDir, "target", PomXML)
+	pomName := fmt.Sprintf("%s-%s.pom", pom.ArtifactId, ctx.Version)
+	pomPublished := filepath.Join(ctx.OutputDir, pomName)
+	err = common.CopyFile(pomSrc, pomPublished)
+	if err != nil {
+		return err
+	}
+
+	//copy target
 	targetSrc := filepath.Join(ctx.WorkDir, "target")
 	targetDst := filepath.Join(ctx.OutputDir, "target")
 	err = common.CreateDir(common.CreateDirOption{
@@ -196,6 +209,7 @@ func (b Mvn) PostBuild(ctx BuildContext) error {
 	if err != nil {
 		return err
 	}
+	common.PrintLogW(ctx.LogWriter, "copying %+v to %+v", targetSrc, targetSrc)
 	err = common.CopyDirectory(ctx.LogWriter, targetSrc, targetDst)
 	if err != nil {
 		return err

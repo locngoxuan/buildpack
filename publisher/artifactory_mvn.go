@@ -91,7 +91,6 @@ func getArtifactoryMvn() Interface {
 
 			dir, fileName := filepath.Split(file)
 			pomFile := filepath.Join(dir, "pom.xml")
-
 			pom, err := common.ReadPOM(pomFile)
 			if err != nil {
 				return nil, err

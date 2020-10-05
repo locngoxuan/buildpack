@@ -202,7 +202,7 @@ func createRepoManager(workDir string, arg Arguments, c BuildConfig) (rm publish
 			err = e
 			break
 		}
-		if c.Publisher == "none" || c.Publisher == "no_publisher" {
+		if c.Publisher == "none" || c.Publisher == "no_publisher" || c.Publisher == ""{
 			continue
 		}
 

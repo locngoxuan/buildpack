@@ -55,7 +55,7 @@ func GetPublisher(name string) (Interface, error) {
 	}
 
 	switch name {
-	case "", "none":
+	case "", "none", "no_publisher":
 		return noPublisher, nil
 	case "artifactoryMvn":
 		return getArtifactoryMvn(), nil

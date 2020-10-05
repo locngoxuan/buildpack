@@ -92,10 +92,15 @@ func runInContainer(ctx BuildContext, args ...string) error {
 		})
 	}
 
-	working := strings.ReplaceAll(ctx.WorkDir, ctx.Path, "")
+	//working := strings.ReplaceAll(ctx.WorkDir, ctx.Path, "")
+	workingDir := ctx.WorkDir
+	if ctx.Path != "." && ctx.Path != "./" {
+		workingDir, _ = filepath.Split(ctx.WorkDir)
+	}
+	//parentWorkingDir, _ := filepath.Split(ctx.WorkDir)
 	mounts = append(mounts, mount.Mount{
 		Type:   mount.TypeBind,
-		Source: working,
+		Source: workingDir,
 		Target: "/working",
 	})
 	dockerCommandArg := make([]string, 0)
@@ -107,7 +112,8 @@ func runInContainer(ctx BuildContext, args ...string) error {
 	for _, v := range args {
 		dockerCommandArg = append(dockerCommandArg, v)
 	}
-	common.PrintLogW(ctx.LogWriter, "working dir %s", ctx.WorkDir)
+	common.PrintLogW(ctx.LogWriter, "working dir %s", workingDir)
+	common.PrintLogW(ctx.LogWriter, "path of pom at working dir is %s", filepath.Join(ctx.Path, PomXML))
 	common.PrintLogW(ctx.LogWriter, "docker command %s", strings.Join(dockerCommandArg, " "))
 
 	containerConfig := &container.Config{

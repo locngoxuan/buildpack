@@ -226,6 +226,13 @@ func (bp *BuildPack) build(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
+
+	//tagging
+	err = cli.Tag(ver.String())
+	if err != nil {
+		common.PrintLog("tagging error %+v", err)
+	}
+
 	ver.NextPatch()
 
 	if !bp.IsSkipGitBraching() {

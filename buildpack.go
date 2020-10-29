@@ -281,24 +281,10 @@ func (bp *BuildPack) Run(ctx context.Context) error {
 		common.PrintLog("version %s", Version)
 		return nil
 	case cmdBuild:
-		defer func() {
-			if ctx.Err() == nil && !bp.IsSkipClean() {
-				outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
-				_ = common.DeleteDir(common.DeleteDirOption{
-					AbsPath:       outputDir,
-					SkipContainer: true,
-				})
-			}
-		}()
+		defer clearOnExit(ctx, bp)
 		return bp.build(ctx)
 	case cmdClean:
-		defer func() {
-			outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
-			_ = common.DeleteDir(common.DeleteDirOption{
-				AbsPath:       outputDir,
-				SkipContainer: true,
-			})
-		}()
+		defer clearOnExit(ctx, bp)
 		return bp.clean(ctx)
 	case cmdHelp:
 		f.Usage()
@@ -306,6 +292,16 @@ func (bp *BuildPack) Run(ctx context.Context) error {
 	default:
 		f.Usage()
 		return nil
+	}
+}
+
+func clearOnExit(ctx context.Context, bp *BuildPack){
+	if ctx.Err() == nil && !bp.IsSkipClean() {
+		outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
+		_ = common.DeleteDir(common.DeleteDirOption{
+			AbsPath:       outputDir,
+			SkipContainer: true,
+		})
 	}
 }
 

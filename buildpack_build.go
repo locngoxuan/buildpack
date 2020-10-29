@@ -146,7 +146,7 @@ func (bp *BuildPack) build(ctx context.Context) error {
 	err = common.CreateDir(common.CreateDirOption{
 		SkipContainer: true,
 		AbsPath:       outputDir,
-		Perm:          0755,
+		Perm:          0777,
 	})
 	if err != nil {
 		return err
@@ -155,7 +155,7 @@ func (bp *BuildPack) build(ctx context.Context) error {
 		err = common.CreateDir(common.CreateDirOption{
 			SkipContainer: true,
 			AbsPath:       filepath.Join(outputDir, module.Name),
-			Perm:          0755,
+			Perm:          0777,
 		})
 		if err != nil {
 			return err

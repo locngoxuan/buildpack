@@ -15,7 +15,7 @@ func (bp *BuildPack) clean(ctx context.Context) error {
 	err := common.CreateDir(common.CreateDirOption{
 		SkipContainer: true,
 		AbsPath:       outputDir,
-		Perm:          0755,
+		Perm:          0777,
 	})
 	if err != nil {
 		return err
@@ -69,12 +69,5 @@ func (bp *BuildPack) clean(ctx context.Context) error {
 		}
 	}
 
-	err = common.DeleteDir(common.DeleteDirOption{
-		AbsPath:       outputDir,
-		SkipContainer: true,
-	})
-	if err != nil {
-		return err
-	}
 	return nil
 }

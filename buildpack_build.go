@@ -296,19 +296,31 @@ func buildModule(ctx context.Context, bp BuildPack, option RunModuleOption) {
 }
 
 func getLogFile(bp BuildPack, name string) string {
-	file := filepath.Join(bp.WorkDir, BuildPackOutputDir, fmt.Sprintf("%s.log", name))
-	if !common.IsEmptyString(bp.LogDir) {
+	logDir := bp.LogDir
+	_, dir := filepath.Split(bp.WorkDir)
+	timeStr := time.Now().Format("20060102150405")
+	dir = fmt.Sprintf("%s-%s", dir, timeStr)
+	if common.IsEmptyString(logDir) {
+		logDir = filepath.Join("/var/log/buildpack", dir)
 		err := common.CreateDir(common.CreateDirOption{
 			SkipContainer: true,
-			AbsPath:       bp.LogDir,
+			AbsPath:       logDir,
 			Perm:          0777,
 		})
 		if err != nil {
-			return file
+			logDir = filepath.Join("/tmp/buildpack", dir)
+			err = common.CreateDir(common.CreateDirOption{
+				SkipContainer: true,
+				AbsPath:       logDir,
+				Perm:          0777,
+			})
 		}
-		file = filepath.Join(bp.LogDir, fmt.Sprintf("%s.log", name))
+		if err != nil {
+			logDir = filepath.Join(bp.WorkDir, BuildPackOutputDir)
+		}
 	}
-	return file
+
+	return filepath.Join(logDir, fmt.Sprintf("%s.log", name))
 }
 
 func createReverseIndexTable(ms []Module) map[int]int {

@@ -202,7 +202,7 @@ func createRepoManager(workDir string, arg Arguments, c BuildConfig) (rm publish
 			err = e
 			break
 		}
-		if c.Publisher == "none" || c.Publisher == "no_publisher" || c.Publisher == ""{
+		if c.Publisher == "none" || c.Publisher == "no_publisher" || c.Publisher == "" {
 			continue
 		}
 
@@ -295,7 +295,7 @@ func (bp *BuildPack) Run(ctx context.Context) error {
 	}
 }
 
-func clearOnExit(ctx context.Context, bp *BuildPack){
+func clearOnExit(ctx context.Context, bp *BuildPack) {
 	if ctx.Err() == nil && !bp.IsSkipClean() {
 		outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
 		_ = common.DeleteDir(common.DeleteDirOption{
@@ -306,4 +306,11 @@ func clearOnExit(ctx context.Context, bp *BuildPack){
 }
 
 func (bp *BuildPack) Exist(ctx context.Context) {
+	if ctx.Err() == nil && !bp.IsSkipClean() {
+		outputDir := filepath.Join(bp.WorkDir, BuildPackOutputDir)
+		_ = common.DeleteDir(common.DeleteDirOption{
+			AbsPath:       outputDir,
+			SkipContainer: true,
+		})
+	}
 }

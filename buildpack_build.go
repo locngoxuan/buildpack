@@ -184,8 +184,16 @@ func (bp *BuildPack) build(ctx context.Context) error {
 		progress.Steps = stepWithoutPublish
 	}
 	progress.start()
+	max := 10
 	for _, m := range ms {
-		tracker := progress.addTracker(m.Name, getLogFile(*bp, m.Name))
+		if max < len(m.Name) {
+			max = len(m.Name)
+		}
+	}
+
+	format := fmt.Sprintf("%%-%dv", max)
+	for _, m := range ms {
+		tracker := progress.addTracker(fmt.Sprintf(format, m.Name), getLogFile(*bp, m.Name))
 
 		go buildModule(ctx, *bp, RunModuleOption{
 			treeWait:     tree,

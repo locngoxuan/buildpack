@@ -100,8 +100,8 @@ func yarnInContainer(ctx BuildContext, args ...string) error {
 	common.PrintLogW(ctx.LogWriter, "working dir %s", ctx.WorkDir)
 	common.PrintLogW(ctx.LogWriter, "docker command %s", strings.Join(dockerCommandArg, " "))
 	containerConfig := &container.Config{
-		Image: image,
-		Cmd:   dockerCommandArg,
+		Image:      image,
+		Cmd:        dockerCommandArg,
 		WorkingDir: "/working",
 	}
 	hostConfig := &container.HostConfig{
@@ -114,24 +114,24 @@ func yarnInContainer(ctx BuildContext, args ...string) error {
 		},
 	}
 	cont, err := cli.Client.ContainerCreate(ctx.Ctx, containerConfig, hostConfig, nil, "")
-	if err != nil{
+	if err != nil {
 		return errors.New(fmt.Sprintf("can not create container: %s", err.Error()))
 	}
 
 	defer func(ctx context.Context, cli *client.Client, id string) {
 		_ = cli.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
-			Force:true,
+			Force: true,
 		})
 	}(ctx.Ctx, cli.Client, cont.ID)
 
 	err = cli.Client.ContainerStart(ctx.Ctx, cont.ID, types.ContainerStartOptions{})
-	if err != nil{
+	if err != nil {
 		return errors.New(fmt.Sprintf("can not start container: %s", err.Error()))
 	}
 
 	statusCh, err := cli.Client.ContainerWait(ctx.Ctx, cont.ID)
 	common.PrintLogW(ctx.LogWriter, "container status %+v", statusCh)
-	if err != nil{
+	if err != nil {
 		return errors.New(fmt.Sprintf("run container build get error: %s", err.Error()))
 	}
 	return nil
@@ -314,7 +314,32 @@ func (b Yarn) PostBuild(ctx BuildContext) error {
 	//copy {name}.tgz -> ./buildpack/{module}/{name}.tgz
 	tgzName := fmt.Sprintf("%s.tgz", config.Name)
 	tgzSource := filepath.Join(ctx.WorkDir, tgzName)
-	return common.CopyFile(tgzSource, filepath.Join(ctx.OutputDir, tgzName))
+	err = common.CopyFile(tgzSource, filepath.Join(ctx.OutputDir, tgzName))
+	if err != nil {
+		return err
+	}
+	//delete yarn.lock file
+	err = common.DeleteDir(common.DeleteDirOption{
+		SkipContainer: ctx.SkipContainer,
+		AbsPath:       filepath.Join(ctx.WorkDir, "yarn.lock"),
+		WorkDir:       ctx.WorkDir,
+		RelativePath:  "yarn.lock",
+	})
+	if err != nil {
+		return err
+	}
+
+	//delete package.tgz
+	err = common.DeleteDir(common.DeleteDirOption{
+		SkipContainer: ctx.SkipContainer,
+		AbsPath:       filepath.Join(ctx.WorkDir, tgzName),
+		WorkDir:       ctx.WorkDir,
+		RelativePath:  tgzName,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 //internal function

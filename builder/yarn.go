@@ -47,7 +47,7 @@ func yarnOnHost(ctx BuildContext, args ...string) error {
 	_args = append(_args, args...)
 	cmd := exec.CommandContext(ctx.Ctx, "yarn", _args...)
 	common.PrintLogW(ctx.LogWriter, "working dir %s", ctx.WorkDir)
-	common.PrintLogW(ctx.LogWriter, "yarn %v", args)
+	common.PrintLogW(ctx.LogWriter, "yarn %v", _args)
 	cmd.Stdout = ctx.LogWriter
 	cmd.Stderr = ctx.LogWriter
 	return cmd.Run()

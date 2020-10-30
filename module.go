@@ -65,11 +65,6 @@ func (m Module) clean(ctx context.Context, bp BuildPack) error {
 	if err != nil {
 		return err
 	}
-
-	//_ = common.DeleteDir(common.DeleteDirOption{
-	//	SkipContainer: true,
-	//	AbsPath:       logFile,
-	//})
 	return nil
 }
 

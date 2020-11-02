@@ -1,13 +1,11 @@
 package builder
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/mount"
-	"github.com/docker/docker/client"
 	"github.com/locngoxuan/buildpack/common"
 	"os"
 	"os/exec"
@@ -118,11 +116,7 @@ func yarnInContainer(ctx BuildContext, args ...string) error {
 		return errors.New(fmt.Sprintf("can not create container: %s", err.Error()))
 	}
 
-	defer func(ctx context.Context, cli *client.Client, id string) {
-		_ = cli.ContainerRemove(ctx, id, types.ContainerRemoveOptions{
-			Force: true,
-		})
-	}(ctx.Ctx, cli.Client, cont.ID)
+	defer closeOnContainerAfterDone(ctx.Ctx, cli.Client, cont.ID, ctx.LogWriter)
 
 	err = cli.Client.ContainerStart(ctx.Ctx, cont.ID, types.ContainerStartOptions{})
 	if err != nil {

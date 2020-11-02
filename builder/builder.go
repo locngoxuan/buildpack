@@ -1,14 +1,19 @@
 package builder
 
 import (
+	"context"
 	"errors"
 	"fmt"
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 	"github.com/locngoxuan/buildpack/common"
+	"io"
 	"os"
 	"path/filepath"
 	"plugin"
 	"regexp"
 	"strings"
+	"time"
 )
 
 const BuildConfigFileName = "Buildpackfile.build"
@@ -21,7 +26,7 @@ type Interface interface {
 	PostFail(ctx BuildContext) error
 }
 
-func findFromEnv(str string) string{
+func findFromEnv(str string) string {
 	result := strings.TrimSpace(str)
 	if strings.HasPrefix(result, "$") {
 		result = os.ExpandEnv(result)
@@ -100,4 +105,15 @@ func copyUsingFilter(source, dest string, filters []string) error {
 		return nil
 	})
 
+}
+
+func closeOnContainerAfterDone(ctx context.Context, cli *client.Client, id string, logWriter io.Writer) {
+	if ctx.Err() != nil {
+		common.PrintLogW(logWriter, "container is cancelled %s", id)
+		duration := 10 * time.Second
+		_ = cli.ContainerStop(context.Background(), id, &duration)
+	}
+	_ = cli.ContainerRemove(context.Background(), id, types.ContainerRemoveOptions{
+		Force: true,
+	})
 }

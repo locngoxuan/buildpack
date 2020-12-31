@@ -11,14 +11,14 @@ require (
 	github.com/docker/docker v1.13.1
 	github.com/docker/go-connections v0.4.0 // indirect
 	github.com/docker/go-units v0.4.0 // indirect
-	github.com/jedib0t/go-pretty/v6 v6.0.4
+	github.com/jedib0t/go-pretty/v6 v6.0.5
 	github.com/jhoonb/archivex v0.0.0-20180718040744-0488e4ce1681
-	github.com/locngoxuan/sqlbundle v1.1.0
+	github.com/locngoxuan/sqlbundle v1.2.1
 	github.com/mattn/go-isatty v0.0.12 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/pkg/errors v0.9.1
 	golang.org/x/net v0.0.0-20200625001655-4c5254603344
-	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae
+	golang.org/x/sys v0.0.0-20201223074533-0d417f636930
 	gopkg.in/src-d/go-git.v4 v4.13.1
 	gopkg.in/yaml.v2 v2.3.0
 )

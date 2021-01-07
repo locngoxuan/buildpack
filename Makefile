@@ -1,8 +1,8 @@
-.PHONY: buildpack
+.PHONY: clean build
 
 BUILD=buildpack
 INSTALL_DIR=/usr/local/bin
-VERSION=1.1.2
+VERSION=1.2.0
 BUILD_ID=1
 BUILD_OS=linux
 BUILD_ARCH=amd64

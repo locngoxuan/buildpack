@@ -19,6 +19,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	err = buildpack.ReadEnv(arg.ConfigFile)
+	if err != nil{
+		common.PrintLog("read argument fail: %v", err)
+		os.Exit(1)
+	}
+
 	if buildpack.CommandWithoutConfig(arg.Command) {
 		bp := buildpack.BuildPack{
 			Arguments: arg,

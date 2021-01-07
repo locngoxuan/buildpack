@@ -1,9 +1,12 @@
 package buildpack
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
+	"github.com/locngoxuan/buildpack/common"
 	"os"
+	"path/filepath"
 	"strings"
 )
 
@@ -97,4 +100,59 @@ func ReadArguments() (arg Arguments, err error) {
 	}
 	arg.Verbose = verbose
 	return
+}
+
+func ReadEnv(configFile string) error {
+	workDir, err := filepath.Abs(".")
+	if err != nil {
+		return err
+	}
+
+	if !common.IsEmptyString(configFile) {
+		workDir, _ = filepath.Split(configFile)
+	}
+
+	envFile := filepath.Join(workDir, ".env")
+	if !common.Exists(envFile) {
+		envFile = filepath.Join("~/.buildpack/.env")
+	}
+
+	if !common.Exists(envFile) {
+		return nil
+	}
+
+	f, err := os.Open(envFile)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		_ = f.Close()
+	}()
+
+	fi, err := f.Stat()
+	if err != nil {
+		return err
+	}
+
+	if fi.IsDir() {
+		return nil
+	}
+
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := scanner.Text()
+		if strings.HasPrefix(line, "#") {
+			continue
+		}
+		parts := strings.Split(line, "=")
+		if len(parts) != 2 {
+			continue
+		}
+		err = os.Setenv(parts[0], parts[1])
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }

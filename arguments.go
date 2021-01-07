@@ -114,7 +114,11 @@ func ReadEnv(configFile string) error {
 
 	envFile := filepath.Join(workDir, ".env")
 	if !common.Exists(envFile) {
-		envFile = filepath.Join("~/.buildpack/.env")
+		userHomeDir, err := os.UserHomeDir()
+		if err != nil {
+			return err
+		}
+		envFile = filepath.Join(userHomeDir, ".buildpack", ".env")
 	}
 
 	if !common.Exists(envFile) {

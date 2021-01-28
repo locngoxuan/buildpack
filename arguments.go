@@ -64,26 +64,26 @@ type SkipOption struct {
 
 func ReadArguments() (arg Arguments, err error) {
 	f.SetOutput(os.Stdout)
-	f.StringVar(&arg.Version, "version", "", "version number")
-	f.StringVar(&arg.Module, "module", "", "list of module")
-	f.StringVar(&arg.ShareData, "share-data", "", "sharing directory")
-	f.StringVar(&arg.LogDir, "log-dir", "", "log directory")
-	f.StringVar(&arg.ConfigFile, "config", "", "specific path to config file")
+	f.StringVar(&arg.Version, "version", "", "specify version for build")
+	f.StringVar(&arg.Module, "module", "", "modules will be built")
+	f.StringVar(&arg.ShareData, "share-data", "", "sharing directory for any build and any project on same host")
+	f.StringVar(&arg.LogDir, "log-dir", "", "location where logs are written")
+	f.StringVar(&arg.ConfigFile, "config", "", "specify location of configuration file")
 	f.BoolVar(&arg.DevMode, "dev-mode", false, "enable local mode to disable container build")
-	f.BoolVar(&arg.BuildRelease, "release", false, "build for releasing")
-	f.BoolVar(&arg.BuildPath, "patch", false, "build for patching")
+	f.BoolVar(&arg.BuildRelease, "release", false, "project is built for releasing")
+	f.BoolVar(&arg.BuildPath, "patch", false, "project is built only for path")
 
-	f.BoolVar(&arg.SkipClean, "skip-clean", false, "skip clean everything after build complete")
+	f.BoolVar(&arg.SkipClean, "skip-clean", false, "skip running clean when build process has been done")
 	f.BoolVar(&arg.SkipContainer, "skip-container", false, "skip container build")
-	f.BoolVar(&arg.SkipPublish, "skip-publish", false, "skip publish build to repository")
-	f.BoolVar(&arg.SkipProgressBar, "skip-progress", false, "use text plain instead of progress ui")
+	f.BoolVar(&arg.SkipPublish, "skip-publish", false, "skip publishing packages to repositories")
+	f.BoolVar(&arg.SkipProgressBar, "skip-progress", false, "using text plain instead of progress ui")
 
 	//git operation
-	f.BoolVar(&arg.IncreaseVersion, "increase-version", false, "force to increase version after build")
-	f.BoolVar(&arg.NoGitTag, "no-git-tag", false, "skip tagging source code")
+	f.BoolVar(&arg.IncreaseVersion, "increase-version", false, "Automated increasing version then push the change to git central. In release mode, new branch also will be created")
+	f.BoolVar(&arg.NoGitTag, "no-git-tag", false, "skip creating a tag in git central")
 	f.BoolVar(&arg.NoBackward, "no-backward", false, "if true, then major version will be increased")
 
-	f.BoolVar(&verbose, "verbose", false, "show more detail in console")
+	f.BoolVar(&verbose, "verbose", false, "show more detail in console and logs")
 	f.Usage = func() {
 		_, _ = fmt.Fprint(f.Output(), usagePrefix)
 		f.PrintDefaults()

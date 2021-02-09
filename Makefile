@@ -2,7 +2,7 @@
 
 BUILD=buildpack
 INSTALL_DIR=/usr/local/bin
-VERSION=1.2.1
+VERSION=1.3.0
 BUILD_ID=1
 BUILD_OS=linux
 BUILD_ARCH=amd64

@@ -40,25 +40,25 @@ func (cli *GitClient) Close() {
 	 */
 }
 
-func (cli *GitClient) OpenCurrentRepo() (err error) {
+func (cli *GitClient) OpenCurrentRepo() error {
+	var err error
 	cli.Repo, err = git.PlainOpen(cli.WorkDir)
 	if err != nil {
-		return
+		return err
 	}
 
 	if cli.Repo == nil {
-		err = errors.New("can not open repo")
-		return
+		return errors.New("can not open repo")
 	}
 
 	branchRefs, err := cli.Repo.Branches()
 	if err != nil {
-		return
+		return err
 	}
 
 	headRef, err := cli.Repo.Head()
 	if err != nil {
-		return
+		return err
 	}
 
 	err = branchRefs.ForEach(func(branchRef *plumbing.Reference) error {
@@ -70,7 +70,7 @@ func (cli *GitClient) OpenCurrentRepo() (err error) {
 		return nil
 	})
 	if err != nil {
-		return
+		return err
 	}
 
 	if cli.CurrentBranch == nil {
@@ -79,27 +79,24 @@ func (cli *GitClient) OpenCurrentRepo() (err error) {
 
 	remotes, err := cli.Repo.Remotes()
 	if err != nil {
-		return
+		return err
 	}
 
 	if len(remotes) == 0 {
-		err = errors.New("not found remote from git config")
-		return
+		return errors.New("not found remote from git config")
 	}
 
 	for _, remote := range remotes {
 		if _, yes := useHttp(remote); yes {
 			cli.Remote = remote
-			return
+			break
 		}
 	}
 
 	if cli.Remote == nil {
-		err = errors.New("not found URLs started with https from any remote")
-		return
+		return errors.New("not found URLs started with https from any remote")
 	}
-	err = cli.Validate()
-	return
+	return cli.Validate()
 }
 
 func gitAuth(remote *git.Remote, accessToken string) (transport.AuthMethod, error) {
@@ -115,7 +112,7 @@ func gitAuth(remote *git.Remote, accessToken string) (transport.AuthMethod, erro
 
 func useHttp(r *git.Remote) (string, bool) {
 	for _, url := range r.Config().URLs {
-		if strings.HasPrefix(url, "https") {
+		if strings.HasPrefix(url, "https") || strings.HasPrefix(url, "http") {
 			return url, true
 		}
 	}
@@ -157,7 +154,7 @@ func (c *GitClient) Tag(version string) error {
 	}
 	tag := object.Tag{
 		Name:       version,
-		Message:    "Release of " + version,
+		Message:    "v" + version,
 		Tagger:     *c.signature(),
 		Target:     reference.Hash(),
 		TargetType: plumbing.CommitObject,

@@ -20,7 +20,7 @@ func main() {
 	}
 
 	err = buildpack.ReadEnv(arg.ConfigFile)
-	if err != nil{
+	if err != nil {
 		common.PrintLog("read argument fail: %v", err)
 		os.Exit(1)
 	}
@@ -49,7 +49,6 @@ func main() {
 		common.PrintLog("read buildpack config fail: %v", err)
 		os.Exit(1)
 	}
-
 	bp, err := buildpack.CreateBuildPack(arg, config)
 	if err != nil {
 		common.PrintLog("init buildpack fail: %v", err)

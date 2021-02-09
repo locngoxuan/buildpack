@@ -47,19 +47,19 @@ func (bp BuildPack) IsSkipPublish() bool {
 	return bp.Arguments.SkipPublish
 }
 
-func (bp BuildPack) IsSkipGit() bool {
-	if bp.DevMode || (!bp.IncreaseVersion) || bp.Arguments.Command == cmdClean {
-		return true
-	}
-	return false
-}
-
-func (bp BuildPack) IsSkipGitBraching() bool {
-	if bp.IsSkipGit() || bp.BuildPath {
-		return true
-	}
-	return bp.Arguments.NoGitTag
-}
+//func (bp BuildPack) IsSkipGit() bool {
+//	if bp.DevMode || bp.Arguments.Command == cmdClean {
+//		return true
+//	}
+//	return false
+//}
+//
+//func (bp BuildPack) IsSkipGitBraching() bool {
+//	if bp.IsSkipGit() || bp.BuildPath {
+//		return true
+//	}
+//	return bp.Arguments.SkipTag
+//}
 
 func (bp BuildPack) GetVersion() string {
 	if common.IsEmptyString(bp.Arguments.Version) {
@@ -81,7 +81,8 @@ func CommandWithoutConfig(cmd string) bool {
 		cmdHelp:
 		return true
 	case cmdBuild,
-		cmdClean:
+		cmdClean,
+		cmdPump:
 		return false
 	default:
 		return true
@@ -229,10 +230,12 @@ func createRepoManager(workDir string, arg Arguments, c BuildConfig) (rm publish
 	return
 }
 
-func CreateBuildPack(arg Arguments, config BuildConfig) (bp BuildPack, err error) {
+func CreateBuildPack(arg Arguments, config BuildConfig) (BuildPack, error) {
+	bp := BuildPack{}
+	var err error
 	workDir, err := filepath.Abs(".")
 	if err != nil {
-		return
+		return bp, err
 	}
 
 	if !common.IsEmptyString(arg.ConfigFile) {
@@ -243,36 +246,32 @@ func CreateBuildPack(arg Arguments, config BuildConfig) (bp BuildPack, err error
 	bp.Arguments = arg
 	bp.BuildConfig = config
 
-	//if skip publish then no need to create repo manager
-	if !bp.IsSkipPublish() {
-		rm, e := createRepoManager(workDir, arg, config)
-		if e != nil {
-			err = e
-			return
-		}
-		publisher.SetRepoManager(rm)
-	}
-
-	//if skip git is true then no need to create git manager
-	if !bp.IsSkipGit() {
-		cli, e := createGitManager(workDir, config)
+	if bp.Command == cmdPump {
+		//requires git configuration
+		cli, err := createGitManager(workDir, config)
 		if err != nil {
-			err = e
-			return
+			return bp, err
 		}
 		err = cli.OpenCurrentRepo()
 		if err != nil {
-			err = e
-			return
+			return bp, err
 		}
 		common.SetGitClient(cli)
+	} else if bp.Command == cmdBuild && !bp.IsSkipPublish() {
+		rm, err := createRepoManager(workDir, arg, config)
+		if err != nil {
+			return bp, err
+		}
+		publisher.SetRepoManager(rm)
+		if bp.BuildConfig.Docker != nil {
+			common.SetDockerHost(bp.BuildConfig.Docker.Hosts)
+		}
+		err = bp.validateDocker()
+		if err != nil {
+			return bp, err
+		}
 	}
-
-	if bp.BuildConfig.Docker != nil {
-		common.SetDockerHost(bp.BuildConfig.Docker.Hosts)
-	}
-	err = bp.validateDocker()
-	return
+	return bp, nil
 }
 
 func (bp *BuildPack) Run(ctx context.Context) error {
@@ -280,12 +279,14 @@ func (bp *BuildPack) Run(ctx context.Context) error {
 	case cmdVersion:
 		common.PrintLog("version %s", Version)
 		return nil
-	case cmdBuild:
-		defer clearOnExit(ctx, bp)
-		return bp.build(ctx)
 	case cmdClean:
 		defer clearOnExit(ctx, bp)
 		return bp.clean(ctx)
+	case cmdPump:
+		return bp.pump(ctx)
+	case cmdBuild:
+		defer clearOnExit(ctx, bp)
+		return bp.build(ctx)
 	case cmdHelp:
 		f.Usage()
 		return nil

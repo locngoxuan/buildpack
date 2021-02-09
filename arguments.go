@@ -16,6 +16,7 @@ var (
 
 	cmdVersion = "version"
 	cmdBuild   = "build"
+	cmdPump    = "pump"
 	cmdClean   = "clean"
 	cmdHelp    = "help"
 
@@ -23,6 +24,7 @@ var (
 COMMAND:
   clean         Clean build folder		
   build         Run build and publish to repository
+  pump			Increase to next version
   version       Show version of buildpack
   help          Show usage
 
@@ -38,17 +40,16 @@ Options:
 )
 
 type Arguments struct {
-	Command         string
-	Version         string
-	Module          string
-	ConfigFile      string
-	ShareData       string
-	LogDir          string
-	BuildRelease    bool
-	BuildPath       bool
-	Verbose         bool
-	DevMode         bool
-	IncreaseVersion bool
+	Command      string
+	Version      string
+	Module       string
+	ConfigFile   string
+	ShareData    string
+	LogDir       string
+	BuildRelease bool
+	BuildPath    bool
+	Verbose      bool
+	DevMode      bool
 	SkipOption
 }
 
@@ -58,8 +59,8 @@ type SkipOption struct {
 	SkipClean       bool
 	SkipProgressBar bool
 
-	NoGitTag   bool
-	NoBackward bool
+	//SkipTag      bool
+	SkipBackward bool
 }
 
 func ReadArguments() (arg Arguments, err error) {
@@ -79,9 +80,8 @@ func ReadArguments() (arg Arguments, err error) {
 	f.BoolVar(&arg.SkipProgressBar, "skip-progress", false, "using text plain instead of progress ui")
 
 	//git operation
-	f.BoolVar(&arg.IncreaseVersion, "increase-version", false, "Automated increasing version then push the change to git central. In release mode, new branch also will be created")
-	f.BoolVar(&arg.NoGitTag, "no-git-tag", false, "skip creating a tag in git central")
-	f.BoolVar(&arg.NoBackward, "no-backward", false, "if true, then major version will be increased")
+	//f.BoolVar(&arg.SkipTag, "skip-tag", false, "skip creating a tag in git central")
+	f.BoolVar(&arg.SkipBackward, "skip-backward", false, "if true, then major version will be increased")
 
 	f.BoolVar(&verbose, "verbose", false, "show more detail in console and logs")
 	f.Usage = func() {

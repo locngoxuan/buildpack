@@ -47,20 +47,6 @@ func (bp BuildPack) IsSkipPublish() bool {
 	return bp.Arguments.SkipPublish
 }
 
-//func (bp BuildPack) IsSkipGit() bool {
-//	if bp.DevMode || bp.Arguments.Command == cmdClean {
-//		return true
-//	}
-//	return false
-//}
-//
-//func (bp BuildPack) IsSkipGitBraching() bool {
-//	if bp.IsSkipGit() || bp.BuildPath {
-//		return true
-//	}
-//	return bp.Arguments.SkipTag
-//}
-
 func (bp BuildPack) GetVersion() string {
 	if common.IsEmptyString(bp.Arguments.Version) {
 		return bp.BuildConfig.Version

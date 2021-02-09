@@ -139,6 +139,7 @@ func (bp *BuildPack) pump(ctx context.Context) error {
 		return err
 	}
 
+	common.PrintLog("tagging version %v", ver.String())
 	//tagging current version, i.e 1.0.0, 1.0.1, etc.
 	err = cli.Tag(ver.String())
 	if err != nil {
@@ -149,12 +150,14 @@ func (bp *BuildPack) pump(ctx context.Context) error {
 	ver.NextPatch()
 	if bp.BuildPath {
 		//if pump for patching then push new version then terminate
+		common.PrintLog("next version is %v", ver.String())
 		return gitUpdateConfig(cli, *bp, ver)
 	}
 
 	//it it is pump of releasing, then an branch of 1.0.x must be created
 	if bp.BuildRelease {
 		branch := ver.MinorBranch()
+		common.PrintLog("creating new branch (%v) to archive latest published", branch)
 		err = cli.CreateNewBranch(branch)
 		if err != nil {
 			return err
@@ -167,6 +170,8 @@ func (bp *BuildPack) pump(ctx context.Context) error {
 	} else {
 		ver.NextMinor()
 	}
+
+	common.PrintLog("next version is %v", ver.String())
 	err = gitUpdateConfig(cli, *bp, ver)
 	if err != nil {
 		return err

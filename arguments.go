@@ -24,7 +24,7 @@ var (
 COMMAND:
   clean         Clean build folder		
   build         Run build and publish to repository
-  pump			Increase to next version
+  pump          Increase to next version
   version       Show version of buildpack
   help          Show usage
 

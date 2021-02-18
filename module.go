@@ -246,3 +246,7 @@ func (m Module) start(ctx context.Context, bp BuildPack, tracker *Tracker) error
 	//})
 	return nil
 }
+
+func (m Module) publish(ctx context.Context, bp BuildPack, tracker *Tracker) error {
+	return nil
+}

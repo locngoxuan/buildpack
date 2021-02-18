@@ -40,7 +40,7 @@ func (cli *GitClient) Close() {
 	 */
 }
 
-func (cli *GitClient) OpenCurrentRepo() error {
+func (cli *GitClient) OpenCurrentRepo(branch string) error {
 	var err error
 	cli.Repo, err = git.PlainOpen(cli.WorkDir)
 	if err != nil {
@@ -88,8 +88,14 @@ func (cli *GitClient) OpenCurrentRepo() error {
 
 	for _, remote := range remotes {
 		if _, yes := useHttp(remote); yes {
-			cli.Remote = remote
-			break
+			/**
+			if branch is not set or empty, then any remote with HTTP protocol may be selected
+			otherwise, remote with HTTP protocol and its name is similar to branch will be selected
+			 */
+			if strings.TrimSpace(branch) == "" || branch == remote.Config().Name {
+				cli.Remote = remote
+				break
+			}
 		}
 	}
 
@@ -112,7 +118,7 @@ func gitAuth(remote *git.Remote, accessToken string) (transport.AuthMethod, erro
 
 func useHttp(r *git.Remote) (string, bool) {
 	for _, url := range r.Config().URLs {
-		if strings.HasPrefix(url, "https") || strings.HasPrefix(url, "http") {
+		if strings.HasPrefix(url, "http") {
 			return url, true
 		}
 	}
@@ -171,7 +177,6 @@ func (c *GitClient) Tag(version string) error {
 	}
 
 	tagReferenceName := plumbing.NewTagReferenceName(version)
-	//printOutput(fmt.Sprintf("create tag %s", tagReferenceName))
 
 	tagRefer := plumbing.NewHashReference(tagReferenceName, hash)
 	err = c.Repo.Storer.SetReference(tagRefer)
@@ -183,7 +188,6 @@ func (c *GitClient) Tag(version string) error {
 	if err != nil {
 		return err
 	}
-	//printOutput(fmt.Sprintf("push tag %s", tagReferenceName))
 	err = c.Repo.Push(&git.PushOptions{
 		RemoteName: c.Remote.Config().Name,
 		RefSpecs: []config.RefSpec{
@@ -205,7 +209,6 @@ func (c *GitClient) CreateNewBranch(branchName string) error {
 	if err != nil {
 		return err
 	}
-	//printOutput(fmt.Sprintf("switch branch %s -> %s", currentBranch, newBranchName))
 	err = wt.Checkout(&git.CheckoutOptions{
 		Branch: newBranchName,
 		Force:  true,
@@ -219,7 +222,6 @@ func (c *GitClient) CreateNewBranch(branchName string) error {
 	if err != nil {
 		return err
 	}
-	//printOutput(fmt.Sprintf("push branch %s ", newBranchName))
 	err = c.Repo.Push(&git.PushOptions{
 		RemoteName: c.Remote.Config().Name,
 		RefSpecs: []config.RefSpec{
@@ -232,7 +234,6 @@ func (c *GitClient) CreateNewBranch(branchName string) error {
 		return err
 	}
 
-	//printOutput(fmt.Sprintf("switch back %s -> %s", newBranchName, currentBranch))
 	err = wt.Checkout(&git.CheckoutOptions{
 		Branch: c.CurrentBranch.Name(),
 		Force:  true,

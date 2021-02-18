@@ -16,6 +16,7 @@ var (
 
 	cmdVersion = "version"
 	cmdBuild   = "build"
+	cmdPublish = "publish"
 	cmdPump    = "pump"
 	cmdClean   = "clean"
 	cmdHelp    = "help"
@@ -23,7 +24,8 @@ var (
 	usagePrefix = `Usage: buildpack COMMAND [OPTIONS]
 COMMAND:
   clean         Clean build folder		
-  build         Run build and publish to repository
+  build         Compiling and packaging
+  publish       Publish packaged to repository
   pump          Increase to next version
   version       Show version of buildpack
   help          Show usage
@@ -58,9 +60,7 @@ type SkipOption struct {
 	SkipPublish     bool
 	SkipClean       bool
 	SkipProgressBar bool
-
-	//SkipTag      bool
-	SkipBackward bool
+	SkipBackward    bool
 }
 
 func ReadArguments() (arg Arguments, err error) {

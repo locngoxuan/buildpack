@@ -28,6 +28,8 @@ type GitConfig struct {
 	Username    string `yaml:"name,omitempty"`
 	AccessToken string `yaml:"token,omitempty"`
 	Email       string `yaml:"email,omitempty"`
+
+	MainBranch string `yaml:"branch,omitempty"`
 }
 
 type ModuleConfig struct {

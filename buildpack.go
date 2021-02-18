@@ -234,11 +234,16 @@ func CreateBuildPack(arg Arguments, config BuildConfig) (BuildPack, error) {
 
 	if bp.Command == cmdPump {
 		//requires git configuration
+		mainBranch := "master"
+		if strings.TrimSpace(config.Git.MainBranch) != "" {
+			mainBranch = strings.TrimSpace(config.Git.MainBranch)
+		}
+
 		cli, err := createGitManager(workDir, config)
 		if err != nil {
 			return bp, err
 		}
-		err = cli.OpenCurrentRepo()
+		err = cli.OpenCurrentRepo(mainBranch)
 		if err != nil {
 			return bp, err
 		}

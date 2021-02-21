@@ -1,9 +1,9 @@
-package buildpack
+package v1
 
 import (
 	"context"
 	"errors"
-	"github.com/locngoxuan/buildpack/common"
+	"github.com/locngoxuan/buildpack/v1/common"
 	"path/filepath"
 	"sort"
 	"strings"

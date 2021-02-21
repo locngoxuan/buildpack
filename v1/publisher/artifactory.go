@@ -2,7 +2,7 @@ package publisher
 
 import (
 	"errors"
-	"github.com/locngoxuan/buildpack/common"
+	"github.com/locngoxuan/buildpack/v1/common"
 	"golang.org/x/net/context"
 	"net/http"
 	"os"

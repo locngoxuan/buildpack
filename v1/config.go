@@ -1,4 +1,4 @@
-package main
+package v1
 
 import (
 	"errors"
@@ -6,7 +6,6 @@ import (
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
-	"path/filepath"
 )
 
 const (
@@ -52,12 +51,7 @@ type RepoChannelConfig struct {
 	Password string `yaml:"password,omitempty"`
 }
 
-func ReadConfig(argConfigFile string) (c BuildConfig, err error) {
-	configFile := argConfigFile
-	if IsEmptyString(argConfigFile) {
-		configFile = filepath.Join(workDir, ConfigFileName)
-	}
-
+func ReadConfig(configFile string) (c BuildConfig, err error) {
 	_, err = os.Stat(configFile)
 	if os.IsNotExist(err) {
 		err = errors.New("configuration file not found")

@@ -3,7 +3,7 @@ package publisher
 import (
 	"errors"
 	"fmt"
-	"github.com/locngoxuan/buildpack/common"
+	"github.com/locngoxuan/buildpack/v1/common"
 	"os"
 	"path/filepath"
 	"strings"

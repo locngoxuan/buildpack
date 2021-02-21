@@ -2,7 +2,7 @@ package publisher
 
 import (
 	"fmt"
-	"github.com/locngoxuan/buildpack/common"
+	"github.com/locngoxuan/buildpack/v1/common"
 	"github.com/locngoxuan/sqlbundle"
 	"os"
 	"path/filepath"

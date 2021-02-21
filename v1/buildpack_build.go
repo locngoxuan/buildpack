@@ -1,4 +1,4 @@
-package buildpack
+package v1
 
 import (
 	"context"
@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/jedib0t/go-pretty/v6/table"
 	"github.com/jedib0t/go-pretty/v6/text"
-	"github.com/locngoxuan/buildpack/common"
+	"github.com/locngoxuan/buildpack/v1/common"
 	"os"
 	"path/filepath"
 	"sort"

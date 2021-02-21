@@ -1,9 +1,9 @@
-package buildpack
+package v1
 
 import (
 	"fmt"
 	"github.com/cheggaaa/pb"
-	"github.com/locngoxuan/buildpack/common"
+	"github.com/locngoxuan/buildpack/v1/common"
 	"github.com/pkg/errors"
 	"sync"
 	"sync/atomic"

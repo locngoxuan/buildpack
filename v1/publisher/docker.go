@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"github.com/docker/docker/pkg/jsonmessage"
-	"github.com/locngoxuan/buildpack/common"
+	"github.com/locngoxuan/buildpack/v1/common"
 	"io"
 )
 

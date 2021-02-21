@@ -1,11 +1,11 @@
-package buildpack
+package v1
 
 import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/locngoxuan/buildpack/common"
-	"github.com/locngoxuan/buildpack/publisher"
+	"github.com/locngoxuan/buildpack/v1/common"
+	"github.com/locngoxuan/buildpack/v1/publisher"
 	"os"
 	"path/filepath"
 	"strings"

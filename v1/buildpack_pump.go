@@ -1,8 +1,8 @@
-package buildpack
+package v1
 
 import (
 	"context"
-	"github.com/locngoxuan/buildpack/common"
+	"github.com/locngoxuan/buildpack/v1/common"
 )
 
 func (bp *BuildPack) pump(ctx context.Context) error {

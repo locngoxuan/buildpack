@@ -12,5 +12,4 @@ WORKDIR /working
 
 type BuilderTemplate struct {
 	Image   string
-	Command string
 }

@@ -39,7 +39,12 @@ func runMvnBuild(ctx context.Context, m Module) error {
 	}
 	err = t.Execute(f, BuilderTemplate{
 		Image:   dockerImage,
-		Command: "mvn clean install",
 	})
+
+	/**
+	- docker build --no-cache -t {image_name}:{version} -f {dockerFileBuild} .
+	- docker run -it --rm -v {list-of-mounts} {image_name}:{version} {template.Command}
+	- docker system prunes
+	 */
 	return nil
 }

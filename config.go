@@ -10,7 +10,12 @@ import (
 )
 
 const (
-	ConfigFileName = "Buildpackfile"
+	ConfigProject = "Buildpackfile"
+	ConfigBuild   = "Buildpackfile.build"
+	ConfigPack    = "Buildpackfile.pack"
+	ConfigPublish = "Buildpackfile.publish"
+
+	OutputBuildpack = ".buildpack"
 )
 
 type BuildConfig struct {
@@ -52,10 +57,10 @@ type RepoChannelConfig struct {
 	Password string `yaml:"password,omitempty"`
 }
 
-func ReadConfig(argConfigFile string) (c BuildConfig, err error) {
+func readProjectConfig(argConfigFile string) (c BuildConfig, err error) {
 	configFile := argConfigFile
-	if IsEmptyString(argConfigFile) {
-		configFile = filepath.Join(workDir, ConfigFileName)
+	if isStringEmpty(argConfigFile) {
+		configFile = filepath.Join(workDir, ConfigProject)
 	}
 
 	_, err = os.Stat(configFile)

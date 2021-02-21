@@ -1,0 +1,16 @@
+FROM openjdk:14-alpine
+
+MAINTAINER LOC NGO <xuanloc0511@gmail.com>
+
+RUN mkdir -p /opt
+
+ADD /tmp/maven /opt/maven
+RUN mkdir -p /root/.m2
+RUN mkdir -p /root/.m2/repository
+ADD settings.xml /root/.m2/settings.xml
+
+ENV PATH "$PATH:/opt/maven/bin"
+ENV M2_HOME "/opt/maven"
+ENV MAVEN_HOME "/opt/maven"
+
+CMD ["mvn"]

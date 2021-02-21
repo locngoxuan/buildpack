@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"github.com/locngoxuan/buildpack/v1/common"
 	"log"
 	"os"
 	"os/signal"
@@ -17,22 +15,21 @@ var cfg BuildConfig
 
 func main() {
 	var err error
-	arg, err = ReadArguments()
+	arg, err = readArguments()
 	if err != nil {
-		log.Println()
-		common.PrintLog("read argument fail: %v", err)
+		log.Printf("FAILURE: reading arguments get error %v\n", err)
 		os.Exit(1)
 	}
 
-	err = ReadEnv(arg.ConfigFile)
+	err = readEnvVariables(arg.ConfigFile)
 	if err != nil {
-		common.PrintLog("read argument fail: %v", err)
+		log.Printf("FAILURE: reading arguments get error %v\n", err)
 		os.Exit(1)
 	}
 
 	workDir, err = filepath.Abs(".")
 	if err != nil {
-		common.PrintLog("lookup working directory fail: %v", err)
+		log.Printf("FAILURE: looking working directory get error %v\n", err)
 		os.Exit(1)
 	}
 
@@ -54,7 +51,7 @@ func main() {
 
 	err = run(ctx)
 	if err != nil {
-		fmt.Printf("FAILURE: %s", err)
+		log.Printf("FAILURE: %s", err)
 		os.Exit(1)
 	}
 }

@@ -12,7 +12,7 @@ func showVersion() error  {
 
 func clean(ctx context.Context) error{
 	var err error
-	cfg, err = ReadConfig(arg.ConfigFile)
+	cfg, err = readProjectConfig(arg.ConfigFile)
 	if err != nil{
 		return nil
 	}

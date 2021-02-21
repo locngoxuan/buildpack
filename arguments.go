@@ -62,7 +62,7 @@ type SkipOption struct {
 	SkipBackward    bool
 }
 
-func ReadArguments() (arg Arguments, err error) {
+func readArguments() (arg Arguments, err error) {
 	f.SetOutput(os.Stdout)
 	f.StringVar(&arg.Version, "version", "", "specify version for build")
 	f.StringVar(&arg.Module, "module", "", "modules will be built")
@@ -96,7 +96,7 @@ func ReadArguments() (arg Arguments, err error) {
 	return
 }
 
-func ReadEnv(configFile string) error {
+func readEnvVariables(configFile string) error {
 	workDir, err := filepath.Abs(".")
 	if err != nil {
 		return err

@@ -13,5 +13,7 @@ download_maven: clean
 	tar zxvf tmp/apache-maven-$(VERSION)-bin.tar.gz -C tmp/
 	mv tmp/apache-maven-$(VERSION) tmp/maven
 
-build: download_maven clean
+docker:
 	docker build . --no-cache --tag xuanloc0511/mvn-$(VERSION)-$(JAVA) -f Dockerfile.$(JAVA)
+
+build: download_maven docker clean

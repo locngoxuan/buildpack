@@ -11,7 +11,7 @@ import (
 var version = "2.0.0"
 var workDir string
 var arg Arguments
-var cfg BuildConfig
+var cfg ProjectConfig
 
 func main() {
 	var err error

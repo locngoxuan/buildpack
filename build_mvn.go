@@ -34,11 +34,11 @@ func runMvnBuild(ctx context.Context, m Module) error {
 	}()
 
 	dockerImage := mvnConfig.DockerImage
-	if strings.TrimSpace(dockerImage) == ""{
+	if strings.TrimSpace(dockerImage) == "" {
 		dockerImage = defaultMvnImage
 	}
 	err = t.Execute(f, BuilderTemplate{
-		Image:   dockerImage,
+		Image: dockerImage,
 	})
 
 	/**

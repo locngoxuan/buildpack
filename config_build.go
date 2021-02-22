@@ -20,14 +20,14 @@ output:
   - libs
  */
 
-type Config struct {
+type BuildConfig struct {
 	Builder     string   `yaml:"builder,omitempty"`
 	DockerImage string   `yaml:"image,omitempty"`
 	Label       string   `yaml:"label,omitempty"`
 	Output      []string `yaml:"output,omitempty"`
 }
 
-func readBuildConfig(moduleDir string) (c Config, err error) {
+func readBuildConfig(moduleDir string) (c BuildConfig, err error) {
 	configFile := filepath.Join(moduleDir, ConfigBuild)
 	_, err = os.Stat(configFile)
 	if os.IsNotExist(err) {
@@ -49,8 +49,8 @@ func readBuildConfig(moduleDir string) (c Config, err error) {
 }
 
 type MvnConfig struct {
-	Config  `yaml:",inline"`
-	Options []string `yaml:"options,omitempty"`
+	BuildConfig `yaml:",inline"`
+	Options     []string `yaml:"options,omitempty"`
 }
 
 func readMvnConfig(moduleDir string) (c MvnConfig, err error) {

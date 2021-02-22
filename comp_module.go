@@ -14,6 +14,10 @@ type Module struct {
 	Id   int
 	Name string
 	Path string
+
+	moduleDir   string
+	output      string
+	buildConfig BuildConfig
 }
 
 type SortedById []Module
@@ -21,6 +25,21 @@ type SortedById []Module
 func (a SortedById) Len() int           { return len(a) }
 func (a SortedById) Less(i, j int) bool { return a[i].Id < a[j].Id }
 func (a SortedById) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+
+func (m *Module) initiate() error {
+	m.moduleDir = filepath.Join(workDir, m.Path)
+	m.output = filepath.Join(workDir, OutputBuildpack, m.Name)
+	err := os.MkdirAll(m.output, 0777)
+	if err != nil {
+		return err
+	}
+
+	m.buildConfig, err = readBuildConfig(m.moduleDir)
+	if err != nil {
+		return err
+	}
+	return nil
+}
 
 func (m *Module) clean(ctx context.Context) error {
 	outputDir := filepath.Join(workDir, OutputBuildpack, m.Name)
@@ -32,42 +51,7 @@ func (m *Module) clean(ctx context.Context) error {
 }
 
 func (m *Module) build(ctx context.Context) error {
-	var err error
-
-	moduleDir := filepath.Join(workDir, m.Path)
-	output := filepath.Join(workDir, OutputBuildpack, m.Name)
-	err = os.MkdirAll(output, 0777)
-	if err != nil {
-		return err
-	}
-
-	buildConfig, err := readBuildConfig(moduleDir)
-	if err != nil {
-		return err
-	}
-
-	/**
-	- get builder
-
-	- if mvn, yarn, sql --> use internal builder
-
-	- if prefix is custom --> load library
-	 */
-
-	if strings.HasPrefix(buildConfig.Builder, "custom") {
-
-	} else {
-		switch buildConfig.Builder {
-		case "mvn":
-			return runMvnBuild(ctx, *m)
-		case "yarn":
-		case "sql":
-		case "-":
-			//ignore build process
-			return nil
-		}
-	}
-	return err
+	return nil
 }
 
 func (m *Module) pack(ctx context.Context) error {
@@ -78,6 +62,7 @@ func (m *Module) publish(ctx context.Context) error {
 	return nil
 }
 
+//preparing build environment
 func prepareListModule() ([]Module, error) {
 	ms := make([]Module, 0)
 	if common.IsEmptyString(arg.Module) {

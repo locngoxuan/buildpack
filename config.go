@@ -18,7 +18,7 @@ const (
 	OutputBuildpack = ".buildpack"
 )
 
-type BuildConfig struct {
+type ProjectConfig struct {
 	Version string         `yaml:"version,omitempty"`
 	Git     *GitConfig     `yaml:"git,omitempty"`
 	Docker  *DockerConfig  `yaml:"docker,omitempty"`
@@ -57,7 +57,7 @@ type RepoChannelConfig struct {
 	Password string `yaml:"password,omitempty"`
 }
 
-func readProjectConfig(argConfigFile string) (c BuildConfig, err error) {
+func readProjectConfig(argConfigFile string) (c ProjectConfig, err error) {
 	configFile := argConfigFile
 	if isStringEmpty(argConfigFile) {
 		configFile = filepath.Join(workDir, ConfigProject)
@@ -82,7 +82,7 @@ func readProjectConfig(argConfigFile string) (c BuildConfig, err error) {
 	return
 }
 
-func rewriteConfig(config BuildConfig, file string) error {
+func rewriteConfig(config ProjectConfig, file string) error {
 	bytes, err := yaml.Marshal(config)
 	if err != nil {
 		return err

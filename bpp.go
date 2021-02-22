@@ -11,6 +11,8 @@ func run(ctx context.Context) error{
 		return showVersion()
 	case cmdClean:
 		return clean(ctx)
+	case cmdLBuild:
+		return lbuild(ctx)
 	case cmdBuild:
 		return build(ctx)
 	case cmdHelp:

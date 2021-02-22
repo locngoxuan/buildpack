@@ -15,46 +15,20 @@ const (
 	ConfigPack    = "Buildpackfile.pack"
 	ConfigPublish = "Buildpackfile.publish"
 
-	OutputBuildpack = ".buildpack"
+	OutputBuildpack    = ".bpp"
+	ConfigGlobal       = ".config"
+	ConfigEnvVariables = ".env"
 )
 
 type ProjectConfig struct {
 	Version string         `yaml:"version,omitempty"`
-	Git     *GitConfig     `yaml:"git,omitempty"`
-	Docker  *DockerConfig  `yaml:"docker,omitempty"`
-	Repos   []RepoConfig   `yaml:"repositories,omitempty"`
 	Modules []ModuleConfig `yaml:"modules,omitempty"`
-}
-
-type DockerConfig struct {
-	Hosts []string `yaml:"hosts,omitempty"`
-}
-
-type GitConfig struct {
-	Username    string `yaml:"name,omitempty"`
-	AccessToken string `yaml:"token,omitempty"`
-	Email       string `yaml:"email,omitempty"`
-
-	MainBranch string `yaml:"branch,omitempty"`
 }
 
 type ModuleConfig struct {
 	Id   int    `yaml:"id,omitempty"`
 	Name string `yaml:"name,omitempty"`
 	Path string `yaml:"path,omitempty"`
-}
-
-type RepoConfig struct {
-	Name     string             `yaml:"name,omitempty"`
-	Stable   *RepoChannelConfig `yaml:"stable,omitempty"`
-	Unstable *RepoChannelConfig `yaml:"unstable,omitempty"`
-}
-
-type RepoChannelConfig struct {
-	NoAuth   bool   `yaml:"no_auth,omitempty"`
-	Address  string `yaml:"address,omitempty"`
-	Username string `yaml:"username,omitempty"`
-	Password string `yaml:"password,omitempty"`
 }
 
 func readProjectConfig(argConfigFile string) (c ProjectConfig, err error) {
@@ -82,7 +56,7 @@ func readProjectConfig(argConfigFile string) (c ProjectConfig, err error) {
 	return
 }
 
-func rewriteConfig(config ProjectConfig, file string) error {
+func writeProjectConfig(config ProjectConfig, file string) error {
 	bytes, err := yaml.Marshal(config)
 	if err != nil {
 		return err

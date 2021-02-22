@@ -1,0 +1,6 @@
+hosts:
+  - unix://var/run/docker.sock
+  - tcp://localhost:2375
+modules:
+  - name: parent-pom
+    path: .

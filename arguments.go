@@ -4,18 +4,18 @@ import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/locngoxuan/buildpack/v1/common"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
 var (
-	f       = flag.NewFlagSet("buildpack", flag.ContinueOnError)
+	f       = flag.NewFlagSet("BPP", flag.ContinueOnError)
 	verbose = false
 
 	cmdVersion = "version"
 	cmdBuild   = "build"
+	cmdLBuild  = "lbuild"
 	cmdPack    = "pack"
 	cmdPublish = "publish"
 	cmdPump    = "pump"
@@ -24,7 +24,8 @@ var (
 
 	usagePrefix = `Usage: bpp COMMAND [OPTIONS]
 COMMAND:
-  clean         Cleaning output of build process		
+  clean         Cleaning output of build process
+  lbuild        Compiling source code (without container)
   build         Compiling source code
   pack          Packing output of build process as publishable files
   publish       Publish packages to repository
@@ -58,8 +59,8 @@ type Arguments struct {
 }
 
 type SkipOption struct {
-	SkipContainer   bool
-	SkipBackward    bool
+	SkipContainer bool
+	SkipBackward  bool
 }
 
 func readArguments() (arg Arguments, err error) {
@@ -102,20 +103,20 @@ func readEnvVariables(configFile string) error {
 		return err
 	}
 
-	if !common.IsEmptyString(configFile) {
+	if !isStringEmpty(configFile) {
 		workDir, _ = filepath.Split(configFile)
 	}
 
-	envFile := filepath.Join(workDir, ".env")
-	if !common.Exists(envFile) {
+	envFile := filepath.Join(workDir, ConfigEnvVariables)
+	if isNotExists(envFile) {
 		userHomeDir, err := os.UserHomeDir()
 		if err != nil {
 			return err
 		}
-		envFile = filepath.Join(userHomeDir, ".buildpack", ".env")
+		envFile = filepath.Join(userHomeDir, OutputBuildpack, ConfigEnvVariables)
 	}
 
-	if !common.Exists(envFile) {
+	if isNotExists(envFile) {
 		return nil
 	}
 

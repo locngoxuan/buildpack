@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"fmt"
+	"os"
+	"path/filepath"
 )
 
 func showVersion() error  {
@@ -11,21 +13,7 @@ func showVersion() error  {
 }
 
 func clean(ctx context.Context) error{
-	var err error
-	cfg, err = readProjectConfig(arg.ConfigFile)
-	if err != nil{
-		return nil
-	}
-	modules, err := prepareListModule()
-	if err != nil{
-		return err
-	}
-
-	for _, module := range modules{
-		err = module.clean(ctx)
-		if err != nil{
-			return err
-		}
-	}
+	output := filepath.Join(workDir, OutputBuildpack)
+	_ = os.RemoveAll(output)
 	return nil
 }

@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"errors"
-	"github.com/locngoxuan/buildpack/v1/common"
 	"os"
 	"path/filepath"
 	"sort"
@@ -62,16 +61,29 @@ func (m *Module) publish(ctx context.Context) error {
 	return nil
 }
 
+func initModule(id int, name, path string) (Module, error) {
+	m := Module{
+		Id:   id,
+		Name: name,
+		Path: path,
+	}
+	err := m.initiate()
+	if err != nil {
+		return m, err
+	}
+	return m, nil
+}
+
 //preparing build environment
 func prepareListModule() ([]Module, error) {
 	ms := make([]Module, 0)
-	if common.IsEmptyString(arg.Module) {
+	if isStringEmpty(arg.Module) {
 		for _, module := range cfg.Modules {
-			ms = append(ms, Module{
-				Id:   module.Id,
-				Name: module.Name,
-				Path: module.Path,
-			})
+			m, err := initModule(module.Id, module.Name, module.Path)
+			if err != nil {
+				return nil, err
+			}
+			ms = append(ms, m)
 		}
 	} else {
 		excludes := false
@@ -92,12 +104,11 @@ func prepareListModule() ([]Module, error) {
 			if (excludes && ok) || (!excludes && !ok) {
 				continue
 			}
-
-			ms = append(ms, Module{
-				Id:   module.Id,
-				Name: module.Name,
-				Path: module.Path,
-			})
+			m, err := initModule(module.Id, module.Name, module.Path)
+			if err != nil {
+				return nil, err
+			}
+			ms = append(ms, m)
 		}
 	}
 

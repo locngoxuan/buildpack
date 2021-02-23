@@ -1,8 +1,9 @@
-package main
+package config
 
 import (
 	"errors"
 	"fmt"
+	"github.com/locngoxuan/buildpack/utils"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
@@ -15,9 +16,10 @@ const (
 	ConfigPack    = "Buildpackfile.pack"
 	ConfigPublish = "Buildpackfile.publish"
 
-	OutputBuildpack    = ".bpp"
 	ConfigGlobal       = ".config"
 	ConfigEnvVariables = ".env"
+
+	OutputDir = ".bpp"
 )
 
 type ProjectConfig struct {
@@ -31,9 +33,9 @@ type ModuleConfig struct {
 	Path string `yaml:"path,omitempty"`
 }
 
-func readProjectConfig(argConfigFile string) (c ProjectConfig, err error) {
+func ReadProjectConfig(workDir, argConfigFile string) (c ProjectConfig, err error) {
 	configFile := argConfigFile
-	if isStringEmpty(argConfigFile) {
+	if utils.IsStringEmpty(argConfigFile) {
 		configFile = filepath.Join(workDir, ConfigProject)
 	}
 
@@ -56,7 +58,7 @@ func readProjectConfig(argConfigFile string) (c ProjectConfig, err error) {
 	return
 }
 
-func writeProjectConfig(config ProjectConfig, file string) error {
+func WriteProjectConfig(config ProjectConfig, file string) error {
 	bytes, err := yaml.Marshal(config)
 	if err != nil {
 		return err

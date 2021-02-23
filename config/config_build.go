@@ -1,4 +1,4 @@
-package main
+package config
 
 import (
 	"fmt"
@@ -27,33 +27,7 @@ type BuildConfig struct {
 	Output      []string `yaml:"output,omitempty"`
 }
 
-func readBuildConfig(moduleDir string) (c BuildConfig, err error) {
-	configFile := filepath.Join(moduleDir, ConfigBuild)
-	_, err = os.Stat(configFile)
-	if os.IsNotExist(err) {
-		err = fmt.Errorf("build config file %s not found", configFile)
-		return
-	}
-
-	yamlFile, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		err = fmt.Errorf("read build config file get error %v", err)
-		return
-	}
-	err = yaml.Unmarshal(yamlFile, &c)
-	if err != nil {
-		err = fmt.Errorf("unmarshal build config file get error %v", err)
-		return
-	}
-	return
-}
-
-type MvnConfig struct {
-	BuildConfig `yaml:",inline"`
-	Options     []string `yaml:"options,omitempty"`
-}
-
-func readMvnConfig(moduleDir string) (c MvnConfig, err error) {
+func ReadBuildConfig(moduleDir string) (c BuildConfig, err error) {
 	configFile := filepath.Join(moduleDir, ConfigBuild)
 	_, err = os.Stat(configFile)
 	if os.IsNotExist(err) {

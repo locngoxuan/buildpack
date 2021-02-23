@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"errors"
+	"github.com/locngoxuan/buildpack/config"
+	"github.com/locngoxuan/buildpack/utils"
 	"os"
 	"path/filepath"
 	"sort"
@@ -16,7 +18,7 @@ type Module struct {
 
 	moduleDir   string
 	output      string
-	buildConfig BuildConfig
+	buildConfig config.BuildConfig
 }
 
 type SortedById []Module
@@ -27,13 +29,13 @@ func (a SortedById) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 
 func (m *Module) initiate() error {
 	m.moduleDir = filepath.Join(workDir, m.Path)
-	m.output = filepath.Join(workDir, OutputBuildpack, m.Name)
+	m.output = filepath.Join(outputDir, m.Name)
 	err := os.MkdirAll(m.output, 0777)
 	if err != nil {
 		return err
 	}
 
-	m.buildConfig, err = readBuildConfig(m.moduleDir)
+	m.buildConfig, err = config.ReadBuildConfig(m.moduleDir)
 	if err != nil {
 		return err
 	}
@@ -41,7 +43,7 @@ func (m *Module) initiate() error {
 }
 
 func (m *Module) clean(ctx context.Context) error {
-	outputDir := filepath.Join(workDir, OutputBuildpack, m.Name)
+	outputDir := filepath.Join(outputDir, m.Name)
 	_, err := os.Stat(outputDir)
 	if os.IsNotExist(err) {
 		return nil
@@ -77,7 +79,7 @@ func initModule(id int, name, path string) (Module, error) {
 //preparing build environment
 func prepareListModule() ([]Module, error) {
 	ms := make([]Module, 0)
-	if isStringEmpty(arg.Module) {
+	if utils.IsStringEmpty(arg.Module) {
 		for _, module := range cfg.Modules {
 			m, err := initModule(module.Id, module.Name, module.Path)
 			if err != nil {

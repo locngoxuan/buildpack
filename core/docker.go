@@ -119,9 +119,9 @@ func (c *DockerClient) ImageExist(ctx context.Context, imageRef string) (bool, [
 	return len(ids) > 0, ids, nil
 }
 
-func (c *DockerClient) PullImage(ctx context.Context, registry DockerRegistry, image string) (io.ReadCloser, error) {
+func (c *DockerClient) PullImage(ctx context.Context, registry DockerRegistry, reference string) (io.ReadCloser, error) {
 	if strings.TrimSpace(registry.Username) == "" || strings.TrimSpace(registry.Password) == "" {
-		return c.Client.ImagePull(ctx, image, types.ImagePullOptions{})
+		return c.Client.ImagePull(ctx, reference, types.ImagePullOptions{})
 	}
 	a, err := auth(registry.Username, registry.Password)
 	if err != nil {
@@ -131,7 +131,7 @@ func (c *DockerClient) PullImage(ctx context.Context, registry DockerRegistry, i
 		RegistryAuth: a,
 		All:          false,
 	}
-	return c.Client.ImagePull(ctx, image, opt)
+	return c.Client.ImagePull(ctx, reference, opt)
 }
 
 func (c *DockerClient) RemoveImage(ctx context.Context, imageId string) ([]types.ImageDeleteResponseItem, error) {
@@ -150,8 +150,8 @@ func (c *DockerClient) BuildImageWithOpts(ctx context.Context, tarFile string, o
 	authConfigs := make(map[string]types.AuthConfig)
 	for _, registry := range c.Registries {
 		authConfigs[registry.Address] = types.AuthConfig{
-			Username: registry.Username,
-			Password: registry.Password,
+			Username: utils.ReadEnvVariableIfHas(registry.Username),
+			Password: utils.ReadEnvVariableIfHas(registry.Password),
 		}
 	}
 
@@ -206,7 +206,7 @@ func VerifyDockerHostConnection(dockerHosts []string) (string, error) {
 		if err != nil {
 			continue
 		}
-		cli, err := client.NewEnvClient()
+		cli, err := client.NewClientWithOpts()
 		if err != nil || cli == nil {
 			continue
 		}
@@ -241,7 +241,7 @@ func DisplayDockerLog(in io.Reader) error {
 		if jm.Stream == "" {
 			continue
 		}
-		log.Printf(jm.Stream)
+		log.Println(jm.Stream)
 	}
 	return nil
 }

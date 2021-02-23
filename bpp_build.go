@@ -100,7 +100,7 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 		dir = strings.TrimSuffix(dir, "/")
 	}
 	_, cat := filepath.Split(dir)
-	b.BuildImage = fmt.Sprintf("%s_%s:latest", cat, name)
+	b.BuildImage = fmt.Sprintf("%s_%s:%s", cat, name, buildVersion)
 
 	//create image build option
 	_, dockerFileName := filepath.Split(b.Dockerfile)

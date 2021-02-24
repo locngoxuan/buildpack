@@ -20,6 +20,12 @@ func run(ctx context.Context) error {
 			return err
 		}
 		return build(ctx)
+	case cmdPublish:
+		err := prepareConfig()
+		if err != nil {
+			return err
+		}
+		return publish(ctx)
 	case cmdHelp:
 		f.Usage()
 		return nil

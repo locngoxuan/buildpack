@@ -6,9 +6,9 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/jhoonb/archivex"
-	"github.com/locngoxuan/buildpack/builder"
 	"github.com/locngoxuan/buildpack/config"
 	"github.com/locngoxuan/buildpack/core"
+	"github.com/locngoxuan/buildpack/instrument"
 	"github.com/locngoxuan/buildpack/utils"
 	"github.com/locngoxuan/sqlbundle"
 	"io/ioutil"
@@ -60,7 +60,7 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 	var err error
 	dockerImage := e.buildConfig.DockerImage
 	if strings.TrimSpace(dockerImage) == "" {
-		dockerImage, err = builder.DefaultDockerImageName(workDir, e.buildConfig.Builder)
+		dockerImage, err = instrument.DefaultDockerImageName(workDir, e.buildConfig.Builder)
 		if err != nil {
 			return err
 		}
@@ -256,6 +256,10 @@ func build(ctx context.Context) error {
 	//build Dockerfile for each builder type
 	supervisors := make(map[string]*BuildSupervisor)
 	for _, module := range modules {
+		err = module.readBuildConfig()
+		if err != nil {
+			return err
+		}
 		supervisor, ok := supervisors[module.buildConfig.Builder]
 		if !ok {
 			hosts := make([]string, 0)
@@ -384,21 +388,22 @@ func buildModule(ctx context.Context, prevWg *sync.WaitGroup, module Module, sup
 		return nil
 	}
 	log.Printf("[%s] start to build", module.Name)
-	response := builder.Build(ctx, builder.BuildRequest{
-		WorkDir:       workDir,
-		OutputDir:     outputDir,
-		ShareDataDir:  arg.ShareData,
-		Release:       arg.BuildRelease,
-		Patch:         arg.BuildPath,
-		Version:       buildVersion,
-		ModulePath:    module.Path,
-		ModuleName:    module.Name,
-		ModuleOutputs: module.buildConfig.Output,
-		BuilderName:   module.buildConfig.Builder,
-		DockerImage:   supervisor.BuildImage,
-		DockerClient:  supervisor.DockerClient,
-
-		LocalBuild: arg.BuildLocal,
+	response := instrument.Build(ctx, instrument.BuildRequest{
+		BaseProperties: instrument.BaseProperties{
+			WorkDir:       workDir,
+			OutputDir:     outputDir,
+			ShareDataDir:  arg.ShareData,
+			Release:       arg.BuildRelease,
+			Patch:         arg.BuildPath,
+			Version:       buildVersion,
+			ModulePath:    module.Path,
+			ModuleName:    module.Name,
+			ModuleOutputs: module.buildConfig.Output,
+			LocalBuild:    arg.BuildLocal,
+		},
+		BuilderName:  module.buildConfig.Builder,
+		DockerImage:  supervisor.BuildImage,
+		DockerClient: supervisor.DockerClient,
 	})
 	if response.Err != nil {
 		if response.ErrStack != "" {

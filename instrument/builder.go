@@ -1,4 +1,4 @@
-package builder
+package instrument
 
 import (
 	"context"
@@ -15,47 +15,10 @@ const (
 )
 
 type BuildRequest struct {
-	BuilderName   string
-	WorkDir       string
-	OutputDir     string
-	ShareDataDir  string
-	Version       string
-	Release       bool
-	Patch         bool
-	ModuleName    string
-	ModulePath    string
-	ModuleOutputs []string
-	LocalBuild    bool
-	DockerImage   string
-
+	BaseProperties
+	BuilderName string
+	DockerImage string
 	core.DockerClient
-}
-
-type BuildResponse struct {
-	Success  bool
-	ErrStack string
-	Err      error
-}
-
-func responseSuccess() BuildResponse {
-	return BuildResponse{
-		Success: true,
-		Err:     nil,
-	}
-}
-
-func responseError(err error) BuildResponse {
-	return BuildResponse{
-		Success: false,
-		Err:     err,
-	}
-}
-func responseErrorWithStack(err error, stack string) BuildResponse {
-	return BuildResponse{
-		Success:  false,
-		ErrStack: stack,
-		Err:      err,
-	}
 }
 
 func DefaultDockerImageName(moduleAbsPath, builderName string) (string, error) {
@@ -81,25 +44,19 @@ func DefaultDockerImageName(moduleAbsPath, builderName string) (string, error) {
 	return "", fmt.Errorf("can not recognize builder name")
 }
 
-func Build(ctx context.Context, request BuildRequest) BuildResponse {
+func Build(ctx context.Context, request BuildRequest) Response {
 	if strings.HasPrefix(request.BuilderName, "external") {
 		pluginName := strings.TrimPrefix(request.BuilderName, "external.")
 		pluginPath := filepath.Join(request.WorkDir, request.ModulePath, fmt.Sprintf("%s.so", pluginName))
 		p, err := plugin.Open(pluginPath)
 		if err != nil {
-			return BuildResponse{
-				Success: false,
-				Err:     err,
-			}
+			return responseError(err)
 		}
 		f, err := p.Lookup(FuncBuild)
 		if err != nil {
-			return BuildResponse{
-				Success: false,
-				Err:     err,
-			}
+			return responseError(err)
 		}
-		return f.(func(context.Context, BuildRequest) BuildResponse)(ctx, request)
+		return f.(func(context.Context, BuildRequest) Response)(ctx, request)
 	}
 	switch strings.ToLower(request.BuilderName) {
 	case MvnBuilderName:
@@ -107,8 +64,5 @@ func Build(ctx context.Context, request BuildRequest) BuildResponse {
 	case YarnBuilderName:
 		return yarnBuild(ctx, request)
 	}
-	return BuildResponse{
-		Success: false,
-		Err:     fmt.Errorf("can not recognize builder name"),
-	}
+	return responseError(fmt.Errorf("can not recognize builder name"))
 }

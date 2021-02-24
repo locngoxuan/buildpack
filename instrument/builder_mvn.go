@@ -1,4 +1,4 @@
-package builder
+package instrument
 
 import (
 	"bytes"
@@ -52,7 +52,7 @@ func ReadMvnConfig(moduleDir string) (c MvnConfig, err error) {
 	return
 }
 
-func mvnLocalBuild(ctx context.Context, req BuildRequest) BuildResponse {
+func mvnLocalBuild(ctx context.Context, req BuildRequest) Response {
 	mvnConfig, err := ReadMvnConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
 		return responseError(err)
@@ -99,7 +99,7 @@ func mvnLocalBuild(ctx context.Context, req BuildRequest) BuildResponse {
 	return responseSuccess()
 }
 
-func mvnBuild(ctx context.Context, req BuildRequest) BuildResponse {
+func mvnBuild(ctx context.Context, req BuildRequest) Response {
 	if req.LocalBuild {
 		return mvnLocalBuild(ctx, req)
 	}

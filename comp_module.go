@@ -31,11 +31,20 @@ func (a SortedById) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (m *Module) initiate() error {
 	m.moduleDir = filepath.Join(workDir, m.Path)
 	m.output = filepath.Join(outputDir, m.Name)
-	err := os.MkdirAll(m.output, 0777)
+	return os.MkdirAll(m.output, 0777)
+}
+
+func (m *Module) readBuildConfig() error {
+	var err error
+	m.buildConfig, err = config.ReadBuildConfig(m.moduleDir)
 	if err != nil {
 		return err
 	}
+	return nil
+}
 
+func (m *Module) readPublishConfig() error {
+	var err error
 	m.buildConfig, err = config.ReadBuildConfig(m.moduleDir)
 	if err != nil {
 		return err

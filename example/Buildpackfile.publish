@@ -1,0 +1,4 @@
+builder: "Mvn"
+label: "SNAPSHOT"
+output:
+  - target

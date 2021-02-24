@@ -55,10 +55,7 @@ func ReadMvnConfig(moduleDir string) (c MvnConfig, err error) {
 func mvnLocalBuild(ctx context.Context, req BuildRequest) BuildResponse {
 	mvnConfig, err := ReadMvnConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
-		return BuildResponse{
-			Success: false,
-			Err:     err,
-		}
+		return responseError(err)
 	}
 	args := make([]string, 0)
 	args = append(args, "clean", "install")
@@ -79,7 +76,7 @@ func mvnLocalBuild(ctx context.Context, req BuildRequest) BuildResponse {
 	}
 	args = append(args, "-f", filepath.Join(req.WorkDir, req.ModulePath, "pom.xml"))
 	args = append(args, "-N")
-	log.Printf("[%s] workging dir %s\n", req.ModuleName, req.WorkDir)
+	log.Printf("[%s] workging dir %s", req.ModuleName, req.WorkDir)
 	log.Printf("[%s] path of pom at working dir is %s", req.ModuleName, filepath.Join(req.WorkDir, req.ModulePath, "pom.xml"))
 	log.Printf("[%s] mvn command: mvn %s", req.ModuleName, strings.Join(args, " "))
 	cmd := exec.CommandContext(ctx, "mvn", args...)
@@ -95,21 +92,11 @@ func mvnLocalBuild(ctx context.Context, req BuildRequest) BuildResponse {
 	err = cmd.Run()
 	if err != nil {
 		if ctx.Err() == context.Canceled {
-			return BuildResponse{
-				Success: false,
-				Err:     err,
-			}
+			return responseError(err)
 		}
-		return BuildResponse{
-			Success:  false,
-			ErrStack: buf.String(),
-			Err:      err,
-		}
+		return responseErrorWithStack(err, buf.String())
 	}
-	return BuildResponse{
-		Success: true,
-		Err:     nil,
-	}
+	return responseSuccess()
 }
 
 func mvnBuild(ctx context.Context, req BuildRequest) BuildResponse {
@@ -126,10 +113,7 @@ func mvnBuild(ctx context.Context, req BuildRequest) BuildResponse {
 	if len(hostRepository) > 0 {
 		err := os.MkdirAll(hostRepository, 0766)
 		if err != nil {
-			return BuildResponse{
-				Success: false,
-				Err:     err,
-			}
+			return responseError(err)
 		}
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
@@ -141,10 +125,7 @@ func mvnBuild(ctx context.Context, req BuildRequest) BuildResponse {
 	for _, moduleOutput := range req.ModuleOutputs {
 		err := os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, moduleOutput), 0777)
 		if err != nil {
-			return BuildResponse{
-				Success: false,
-				Err:     err,
-			}
+			return responseError(err)
 		}
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
@@ -155,10 +136,7 @@ func mvnBuild(ctx context.Context, req BuildRequest) BuildResponse {
 
 	mvnConfig, err := ReadMvnConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
-		return BuildResponse{
-			Success: false,
-			Err:     err,
-		}
+		return responseError(err)
 	}
 
 	label := mvnConfig.Label
@@ -198,18 +176,12 @@ func mvnBuild(ctx context.Context, req BuildRequest) BuildResponse {
 	cli := req.DockerClient.Client
 	cont, err := cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, "")
 	if err != nil {
-		return BuildResponse{
-			Success: false,
-			Err:     fmt.Errorf("can not create build container: %s", err.Error()),
-		}
+		return responseError(fmt.Errorf("can not create build container: %s", err.Error()))
 	}
 
 	err = cli.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{})
 	if err != nil {
-		return BuildResponse{
-			Success: false,
-			Err:     fmt.Errorf("can not start build container: %s", err.Error()),
-		}
+		return responseError(fmt.Errorf("can not start build container: %s", err.Error()))
 	}
 
 	defer removeAfterDone(cli, cont.ID)
@@ -220,10 +192,7 @@ func mvnBuild(ctx context.Context, req BuildRequest) BuildResponse {
 		if err != nil {
 			duration := 30 * time.Second
 			_ = cli.ContainerStop(context.Background(), cont.ID, &duration)
-			return BuildResponse{
-				Success: false,
-				Err:     err,
-			}
+			return responseError(err)
 		}
 	case status := <-statusCh:
 		//due to status code just takes either running (0) or exited (1) and I can not find a constants or variable
@@ -233,29 +202,16 @@ func mvnBuild(ctx context.Context, req BuildRequest) BuildResponse {
 			defer buf.Reset()
 			out, err := cli.ContainerLogs(ctx, cont.ID, types.ContainerLogsOptions{ShowStdout: true})
 			if err != nil {
-				return BuildResponse{
-					Success: false,
-					Err:     fmt.Errorf("exit status 1"),
-				}
+				return responseError(fmt.Errorf("exit status 1"))
 			}
 			_, err = stdcopy.StdCopy(&buf, &buf, out)
 			if err != nil {
-				return BuildResponse{
-					Success: false,
-					Err:     fmt.Errorf("exit status 1"),
-				}
+				return responseError(fmt.Errorf("exit status 1"))
 			}
-			return BuildResponse{
-				Success:  false,
-				ErrStack: buf.String(),
-				Err:      fmt.Errorf("exit status 1"),
-			}
+			return responseErrorWithStack(fmt.Errorf("exit status 1"), buf.String())
 		}
 	}
-	return BuildResponse{
-		Success: true,
-		Err:     nil,
-	}
+	return responseSuccess()
 }
 
 func removeAfterDone(cli *client.Client, id string) {

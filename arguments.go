@@ -94,7 +94,7 @@ func readArguments() (arg Arguments, err error) {
 	return
 }
 
-func readEnvVariables(configFile string) error {
+func readEnvVariables() error {
 	envFile := filepath.Join(workDir, config.ConfigEnvVariables)
 	if utils.IsNotExists(envFile) {
 		userHomeDir, err := os.UserHomeDir()

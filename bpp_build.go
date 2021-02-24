@@ -41,7 +41,7 @@ func (b *BuildSupervisor) initDockerClient() error {
 	if arg.BuildLocal {
 		return nil
 	}
-	log.Printf("[%s] initiating docker client\n", b.BuilderName)
+	log.Printf("[%s] initiating docker client", b.BuilderName)
 	dockerClient, err := core.InitDockerClient(b.DockerConfig.Host)
 	if err != nil {
 		return err
@@ -55,7 +55,7 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 	if arg.BuildLocal {
 		return nil
 	}
-	log.Printf("[%s] preparing docker image for running build\n", b.BuilderName)
+	log.Printf("[%s] preparing docker image for running build", b.BuilderName)
 	e := b.Modules[0]
 	var err error
 	dockerImage := e.buildConfig.DockerImage
@@ -107,7 +107,7 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 	}
 	_, cat := filepath.Split(dir)
 	b.BuildImage = fmt.Sprintf("%s_%s:%s", cat, name, buildVersion)
-	log.Printf("[%s] docker build image name = %s\n", b.BuilderName, b.BuildImage)
+	log.Printf("[%s] docker build image name = %s", b.BuilderName, b.BuildImage)
 	//create image build option
 	_, dockerFileName := filepath.Split(b.Dockerfile)
 	opt := types.ImageBuildOptions{
@@ -137,7 +137,7 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 		_ = os.RemoveAll(tarFile)
 	}()
 
-	log.Printf("[%s] building docker build image\n", b.BuilderName)
+	log.Printf("[%s] building docker build image", b.BuilderName)
 	response, err := b.DockerClient.BuildImageWithOpts(ctx, tarFile, opt)
 	if err != nil {
 		return err
@@ -156,7 +156,7 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 func (b *BuildSupervisor) createDockerBuildContext() (string, error) {
 	// tar info
 	tarFile := fmt.Sprintf("%s.tar", b.Dockerfile)
-	log.Printf("[%s] packaging docker build context at %s\n", b.BuilderName, tarFile)
+	log.Printf("[%s] packaging docker build context at %s", b.BuilderName, tarFile)
 	//create tar at common directory
 	tar := new(archivex.TarFile)
 	err := tar.Create(tarFile)
@@ -275,7 +275,7 @@ func build(ctx context.Context) error {
 				registries = append(registries, globalDockerConfig.Registries...)
 			}
 
-			log.Printf("initiating build instruction for builder %s\n", module.buildConfig.Builder)
+			log.Printf("initiating build instruction for builder %s", module.buildConfig.Builder)
 			supervisor = &BuildSupervisor{
 				BuilderName: module.buildConfig.Builder,
 				Modules:     make([]Module, 0),
@@ -380,10 +380,10 @@ func build(ctx context.Context) error {
 func buildModule(ctx context.Context, prevWg *sync.WaitGroup, module Module, supervisor BuildSupervisor) error {
 	prevWg.Wait()
 	if ctx.Err() != nil {
-		log.Printf("[%s] is aborted\n", module.Name)
+		log.Printf("[%s] is aborted", module.Name)
 		return nil
 	}
-	log.Printf("[%s] start to build\n", module.Name)
+	log.Printf("[%s] start to build", module.Name)
 	response := builder.Build(ctx, builder.BuildRequest{
 		WorkDir:       workDir,
 		OutputDir:     outputDir,
@@ -406,6 +406,6 @@ func buildModule(ctx context.Context, prevWg *sync.WaitGroup, module Module, sup
 		}
 		return response.Err
 	}
-	log.Printf("[%s] has been built successful\n", module.Name)
+	log.Printf("[%s] has been built successful", module.Name)
 	return nil
 }

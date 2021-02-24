@@ -65,7 +65,7 @@ func (m *Module) publish(ctx context.Context) error {
 }
 
 func initModule(id int, name, path string) (Module, error) {
-	log.Printf("initiating module %s at %s\n", name, path)
+	log.Printf("initiating module %s at %s", name, path)
 	m := Module{
 		Id:   id,
 		Name: name,

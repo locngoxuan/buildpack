@@ -22,19 +22,19 @@ func main() {
 	var err error
 	arg, err = readArguments()
 	if err != nil {
-		log.Printf("FAILURE: reading arguments get error %v\n", err)
+		log.Printf("FAILURE: reading arguments get error %v", err)
 		os.Exit(1)
 	}
 
-	err = readEnvVariables(arg.ConfigFile)
+	err = readEnvVariables()
 	if err != nil {
-		log.Printf("FAILURE: reading arguments get error %v\n", err)
+		log.Printf("FAILURE: reading arguments get error %v", err)
 		os.Exit(1)
 	}
 
 	workDir, err = filepath.Abs(".")
 	if err != nil {
-		log.Printf("FAILURE: looking working directory get error %v\n", err)
+		log.Printf("FAILURE: looking working directory get error %v", err)
 		os.Exit(1)
 	}
 	if !utils.IsStringEmpty(arg.ConfigFile) {
@@ -59,8 +59,8 @@ func main() {
 
 	err = run(ctx)
 	if err != nil {
-		log.Println(fmt.Sprintf("%s: %s", utils.TextRed("FAILURE"), err))
+		fmt.Println(fmt.Sprintf("%s: %s", utils.TextRed("FAILURE"), err))
 		os.Exit(1)
 	}
-	log.Println(utils.TextGreen("SUCCESS"))
+	fmt.Println(utils.TextGreen("SUCCESS"))
 }

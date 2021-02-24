@@ -37,6 +37,27 @@ type BuildResponse struct {
 	Err      error
 }
 
+func responseSuccess() BuildResponse {
+	return BuildResponse{
+		Success: true,
+		Err:     nil,
+	}
+}
+
+func responseError(err error) BuildResponse {
+	return BuildResponse{
+		Success: false,
+		Err:     err,
+	}
+}
+func responseErrorWithStack(err error, stack string) BuildResponse {
+	return BuildResponse{
+		Success:  false,
+		ErrStack: stack,
+		Err:      err,
+	}
+}
+
 func DefaultDockerImageName(moduleAbsPath, builderName string) (string, error) {
 	if strings.HasPrefix(builderName, "external") {
 		pluginName := strings.TrimPrefix(builderName, "external.")
@@ -54,6 +75,8 @@ func DefaultDockerImageName(moduleAbsPath, builderName string) (string, error) {
 	switch strings.ToLower(builderName) {
 	case MvnBuilderName:
 		return defaultMvnDockerImage, nil
+	case YarnBuilderName:
+		return defaultYarnDockerImage, nil
 	}
 	return "", fmt.Errorf("can not recognize builder name")
 }
@@ -81,6 +104,8 @@ func Build(ctx context.Context, request BuildRequest) BuildResponse {
 	switch strings.ToLower(request.BuilderName) {
 	case MvnBuilderName:
 		return mvnBuild(ctx, request)
+	case YarnBuilderName:
+		return yarnBuild(ctx, request)
 	}
 	return BuildResponse{
 		Success: false,

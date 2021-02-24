@@ -65,9 +65,13 @@ func mvnLocalBuild(ctx context.Context, req BuildRequest) BuildResponse {
 	if !req.Release && !req.Patch {
 		args = append(args, "-U")
 	}
+	label := mvnConfig.Label
+	if utils.Trim(label) == "" {
+		label = "SNAPSHOT"
+	}
 	ver := req.Version
 	if !req.Release && !req.Patch {
-		ver = fmt.Sprintf("%s-%s", req.Version, mvnConfig.Label)
+		ver = fmt.Sprintf("%s-%s", req.Version, label)
 	}
 	args = append(args, fmt.Sprintf("-Drevision=%s", ver))
 	if len(mvnConfig.Options) > 0 {
@@ -163,7 +167,7 @@ func mvnBuild(ctx context.Context, req BuildRequest) BuildResponse {
 	}
 	ver := req.Version
 	if !req.Release && !req.Patch {
-		ver = fmt.Sprintf("%s-%s", req.Version, mvnConfig.Label)
+		ver = fmt.Sprintf("%s-%s", req.Version, label)
 	}
 
 	dockerCommandArg := make([]string, 0)
@@ -178,7 +182,7 @@ func mvnBuild(ctx context.Context, req BuildRequest) BuildResponse {
 	dockerCommandArg = append(dockerCommandArg, "-f", filepath.Join(req.ModulePath, "pom.xml"))
 	dockerCommandArg = append(dockerCommandArg, "-N")
 
-	log.Printf("[%s] workging dir %s\n", req.ModuleName, req.WorkDir)
+	log.Printf("[%s] workging dir %s", req.ModuleName, req.WorkDir)
 	log.Printf("[%s] path of pom at working dir is %s", req.ModuleName, filepath.Join(req.ModulePath, "pom.xml"))
 	log.Printf("[%s] docker command: %s", req.ModuleName, strings.Join(dockerCommandArg, " "))
 	//

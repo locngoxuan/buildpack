@@ -1,6 +1,7 @@
 package builder
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/docker/docker/api/types"
@@ -14,13 +15,14 @@ import (
 	"io/ioutil"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
 )
 
 const (
-	MvnBuilderName        = "Mvn"
+	MvnBuilderName        = "mvn"
 	defaultMvnDockerImage = "xuanloc0511/mvn-3.6.3-oraclejava8:latest"
 )
 
@@ -50,7 +52,66 @@ func ReadMvnConfig(moduleDir string) (c MvnConfig, err error) {
 	return
 }
 
+func mvnLocalBuild(ctx context.Context, req BuildRequest) BuildResponse {
+	mvnConfig, err := ReadMvnConfig(filepath.Join(req.WorkDir, req.ModulePath))
+	if err != nil {
+		return BuildResponse{
+			Success: false,
+			Err:     err,
+		}
+	}
+	args := make([]string, 0)
+	args = append(args, "clean", "install")
+	if !req.Release && !req.Patch {
+		args = append(args, "-U")
+	}
+	ver := req.Version
+	if !req.Release && !req.Patch {
+		ver = fmt.Sprintf("%s-%s", req.Version, mvnConfig.Label)
+	}
+	args = append(args, fmt.Sprintf("-Drevision=%s", ver))
+	if len(mvnConfig.Options) > 0 {
+		args = append(args, mvnConfig.Options...)
+	}
+	args = append(args, "-f", filepath.Join(req.WorkDir, req.ModulePath, "pom.xml"))
+	args = append(args, "-N")
+	log.Printf("[%s] workging dir %s\n", req.ModuleName, req.WorkDir)
+	log.Printf("[%s] path of pom at working dir is %s", req.ModuleName, filepath.Join(req.WorkDir, req.ModulePath, "pom.xml"))
+	log.Printf("[%s] mvn command: mvn %s", req.ModuleName, strings.Join(args, " "))
+	cmd := exec.CommandContext(ctx, "mvn", args...)
+	defer func() {
+		_ = cmd.Process.Kill()
+	}()
+	var buf bytes.Buffer
+	defer func() {
+		buf.Reset()
+	}()
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	err = cmd.Run()
+	if err != nil {
+		if ctx.Err() == context.Canceled {
+			return BuildResponse{
+				Success: false,
+				Err:     err,
+			}
+		}
+		return BuildResponse{
+			Success:  false,
+			ErrStack: buf.String(),
+			Err:      err,
+		}
+	}
+	return BuildResponse{
+		Success: true,
+		Err:     nil,
+	}
+}
+
 func mvnBuild(ctx context.Context, req BuildRequest) BuildResponse {
+	if req.LocalBuild {
+		return mvnLocalBuild(ctx, req)
+	}
 	shareDataDir := strings.TrimSpace(req.ShareDataDir)
 	hostRepository := ""
 	if shareDataDir != "" {
@@ -117,9 +178,9 @@ func mvnBuild(ctx context.Context, req BuildRequest) BuildResponse {
 	dockerCommandArg = append(dockerCommandArg, "-f", filepath.Join(req.ModulePath, "pom.xml"))
 	dockerCommandArg = append(dockerCommandArg, "-N")
 
-	log.Printf("workging dir %s\n", req.WorkDir)
-	log.Printf("path of pom at working dir is %s", filepath.Join(req.ModulePath, "pom.xml"))
-	log.Printf("docker command: %s", strings.Join(dockerCommandArg, " "))
+	log.Printf("[%s] workging dir %s\n", req.ModuleName, req.WorkDir)
+	log.Printf("[%s] path of pom at working dir is %s", req.ModuleName, filepath.Join(req.ModulePath, "pom.xml"))
+	log.Printf("[%s] docker command: %s", req.ModuleName, strings.Join(dockerCommandArg, " "))
 	//
 	containerConfig := &container.Config{
 		Image:      req.DockerImage,
@@ -135,18 +196,15 @@ func mvnBuild(ctx context.Context, req BuildRequest) BuildResponse {
 	if err != nil {
 		return BuildResponse{
 			Success: false,
-			Err:     fmt.Errorf("can not create container: %s", err.Error()),
+			Err:     fmt.Errorf("can not create build container: %s", err.Error()),
 		}
 	}
 
-	//defer closeOnContainerAfterDone(ctx.Ctx, cli.Client, cont.ID, ctx.LogWriter)
-
 	err = cli.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{})
 	if err != nil {
-		//return errors.New(fmt.Sprintf("can not start container: %s", err.Error()))
 		return BuildResponse{
 			Success: false,
-			Err:     fmt.Errorf("can not start container: %s", err.Error()),
+			Err:     fmt.Errorf("can not start build container: %s", err.Error()),
 		}
 	}
 
@@ -156,27 +214,38 @@ func mvnBuild(ctx context.Context, req BuildRequest) BuildResponse {
 	select {
 	case err := <-errCh:
 		if err != nil {
-			duration := 10 * time.Second
+			duration := 30 * time.Second
 			_ = cli.ContainerStop(context.Background(), cont.ID, &duration)
 			return BuildResponse{
 				Success: false,
 				Err:     err,
 			}
 		}
-	case <-statusCh:
-	}
-	out, err := cli.ContainerLogs(ctx, cont.ID, types.ContainerLogsOptions{ShowStdout: true})
-	if err != nil {
-		return BuildResponse{
-			Success: false,
-			Err:     err,
-		}
-	}
-	_, err = stdcopy.StdCopy(os.Stdout, os.Stderr, out)
-	if err != nil {
-		return BuildResponse{
-			Success: false,
-			Err:     err,
+	case status := <-statusCh:
+		//due to status code just takes either running (0) or exited (1) and I can not find a constants or variable
+		//in docker sdk that represents for both two state. Then I hard-code value 1 here
+		if status.StatusCode == 1 {
+			var buf bytes.Buffer
+			defer buf.Reset()
+			out, err := cli.ContainerLogs(ctx, cont.ID, types.ContainerLogsOptions{ShowStdout: true})
+			if err != nil {
+				return BuildResponse{
+					Success: false,
+					Err:     fmt.Errorf("exit status 1"),
+				}
+			}
+			_, err = stdcopy.StdCopy(&buf, &buf, out)
+			if err != nil {
+				return BuildResponse{
+					Success: false,
+					Err:     fmt.Errorf("exit status 1"),
+				}
+			}
+			return BuildResponse{
+				Success:  false,
+				ErrStack: buf.String(),
+				Err:      fmt.Errorf("exit status 1"),
+			}
 		}
 	}
 	return BuildResponse{

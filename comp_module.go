@@ -5,6 +5,7 @@ import (
 	"errors"
 	"github.com/locngoxuan/buildpack/config"
 	"github.com/locngoxuan/buildpack/utils"
+	"log"
 	"os"
 	"path/filepath"
 	"sort"
@@ -64,6 +65,7 @@ func (m *Module) publish(ctx context.Context) error {
 }
 
 func initModule(id int, name, path string) (Module, error) {
+	log.Printf("initiating module %s at %s\n", name, path)
 	m := Module{
 		Id:   id,
 		Name: name,
@@ -78,6 +80,7 @@ func initModule(id int, name, path string) (Module, error) {
 
 //preparing build environment
 func prepareListModule() ([]Module, error) {
+	log.Println("preparing modules for running build")
 	ms := make([]Module, 0)
 	if utils.IsStringEmpty(arg.Module) {
 		for _, module := range cfg.Modules {

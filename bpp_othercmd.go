@@ -11,6 +11,7 @@ import (
 	"github.com/locngoxuan/buildpack/config"
 	"github.com/locngoxuan/buildpack/core"
 	"io"
+	"io/ioutil"
 	"os"
 	"time"
 )
@@ -21,17 +22,13 @@ func showVersion() error {
 }
 
 func clean(ctx context.Context) error {
-	_ = os.RemoveAll(outputDir)
-
-	projectDockerConfig, err := core.ReadProjectDockerConfig(workDir, arg.ConfigFile)
-	if err != nil {
+	err := os.RemoveAll(outputDir)
+	if arg.BuildLocal {
 		return err
 	}
 
-	globalDockerConfig, err := core.ReadGlobalDockerConfig()
-	if err != nil {
-		return err
-	}
+	projectDockerConfig, _ := core.ReadProjectDockerConfig(workDir, arg.ConfigFile)
+	globalDockerConfig, _ := core.ReadGlobalDockerConfig()
 
 	hosts := make([]string, 0)
 	hosts = append(hosts, core.DefaultDockerUnixSock, core.DefaultDockerTCPSock)
@@ -59,23 +56,25 @@ func clean(ctx context.Context) error {
 		dockerClient.Close()
 	}()
 
-	imageFound, _, err := dockerClient.ImageExist(ctx, AlpineImage)
+	cleanImage := core.DockerCleanImage
+	imageFound, _, err := dockerClient.ImageExist(ctx, cleanImage)
 	if err != nil {
 		return err
 	}
 
 	if !imageFound {
 		for _, registry := range registries {
-			r, err := dockerClient.PullImage(ctx, registry, AlpineImage)
-			_, _ = io.Copy(os.Stdout, r)
+			r, err := dockerClient.PullImage(ctx, registry, cleanImage)
+			_, _ = io.Copy(ioutil.Discard, r)
 			if err == nil {
 				imageFound = true
 				break
 			}
+
 		}
 	}
 
-	if !imageFound{
+	if !imageFound {
 		return fmt.Errorf("no such image: alpine:3.12.0")
 	}
 
@@ -83,7 +82,7 @@ func clean(ctx context.Context) error {
 		"rm", "-rf", config.OutputDir,
 	}
 	containerConfig := &container.Config{
-		Image:      AlpineImage,
+		Image:      cleanImage,
 		Cmd:        dockerCommandArg,
 		WorkingDir: "/working",
 	}

@@ -1,6 +1,7 @@
 package core
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/json"
@@ -15,7 +16,6 @@ import (
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
-	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -25,6 +25,7 @@ var (
 	DefaultDockerUnixSock    = "unix:///var/run/docker.sock"
 	DefaultDockerTCPSock     = "tcp://127.0.0.1:2375"
 	DefaultDockerHubRegistry = DockerRegistry{}
+	DockerCleanImage         = "alpine:3.12.2"
 )
 
 type DockerConfig struct {
@@ -225,7 +226,9 @@ func VerifyDockerHostConnection(dockerHosts []string) (string, error) {
 	return "", fmt.Errorf("can not connect to docker host")
 }
 
-func DisplayDockerLog(in io.Reader) error {
+func DisplayDockerLog(in io.Reader) (string, error) {
+	var buf bytes.Buffer
+	defer buf.Reset()
 	var dec = json.NewDecoder(in)
 	for {
 		var jm jsonmessage.JSONMessage
@@ -233,15 +236,15 @@ func DisplayDockerLog(in io.Reader) error {
 			if err == io.EOF {
 				break
 			}
-			return err
+			return "", err
 		}
 		if jm.Error != nil {
-			return errors.New(jm.Error.Message)
+			return "", errors.New(jm.Error.Message)
 		}
 		if jm.Stream == "" {
 			continue
 		}
-		log.Println(jm.Stream)
+		buf.WriteString(jm.Stream)
 	}
-	return nil
+	return buf.String(), nil
 }

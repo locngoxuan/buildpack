@@ -76,3 +76,4 @@ target
 /gocd-plugins/.nb-gradle/
 
 build
+.bpp

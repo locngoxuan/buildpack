@@ -51,7 +51,7 @@ func DefaultDockerImageName(moduleAbsPath, builderName string) (string, error) {
 		}
 		return f.(func() string)(), nil
 	}
-	switch builderName {
+	switch strings.ToLower(builderName) {
 	case MvnBuilderName:
 		return defaultMvnDockerImage, nil
 	}
@@ -78,7 +78,7 @@ func Build(ctx context.Context, request BuildRequest) BuildResponse {
 		}
 		return f.(func(context.Context, BuildRequest) BuildResponse)(ctx, request)
 	}
-	switch request.BuilderName {
+	switch strings.ToLower(request.BuilderName) {
 	case MvnBuilderName:
 		return mvnBuild(ctx, request)
 	}

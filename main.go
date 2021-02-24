@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"github.com/locngoxuan/buildpack/config"
 	"github.com/locngoxuan/buildpack/utils"
 	"log"
@@ -58,7 +59,8 @@ func main() {
 
 	err = run(ctx)
 	if err != nil {
-		log.Printf("FAILURE: %s", err)
+		log.Println(fmt.Sprintf("%s: %s", utils.TextRed("FAILURE"), err))
 		os.Exit(1)
 	}
+	log.Println(utils.TextGreen("SUCCESS"))
 }

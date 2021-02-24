@@ -51,16 +51,15 @@ type Arguments struct {
 	Module       string
 	ConfigFile   string
 	ShareData    string
+	BuildLocal   bool
 	BuildRelease bool
 	BuildPath    bool
 	Verbose      bool
-	DevMode      bool
 	SkipOption
 }
 
 type SkipOption struct {
-	SkipContainer bool
-	SkipBackward  bool
+	SkipBackward bool
 }
 
 func readArguments() (arg Arguments, err error) {
@@ -69,11 +68,9 @@ func readArguments() (arg Arguments, err error) {
 	f.StringVar(&arg.Module, "module", "", "modules will be built")
 	f.StringVar(&arg.ShareData, "share-data", "", "sharing directory for any build and any project on same host")
 	f.StringVar(&arg.ConfigFile, "config", "", "specify location of configuration file")
-	f.BoolVar(&arg.DevMode, "dev-mode", false, "enable local mode to disable container build")
 	f.BoolVar(&arg.BuildRelease, "release", false, "project is built for releasing")
 	f.BoolVar(&arg.BuildPath, "patch", false, "project is built only for path")
-
-	f.BoolVar(&arg.SkipContainer, "skip-container", false, "skip container build")
+	f.BoolVar(&arg.BuildLocal, "local", false, "running build and clean in local")
 
 	//git operation
 	f.BoolVar(&arg.SkipBackward, "skip-backward", false, "if true, then major version will be increased")

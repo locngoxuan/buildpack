@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"github.com/docker/docker/api/types"
@@ -11,9 +12,11 @@ import (
 	"github.com/locngoxuan/buildpack/utils"
 	"github.com/locngoxuan/sqlbundle"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"text/template"
 )
 
@@ -28,10 +31,17 @@ type BuildSupervisor struct {
 }
 
 func (b *BuildSupervisor) close() {
+	if arg.BuildLocal {
+		return
+	}
 	b.DockerClient.Close()
 }
 
 func (b *BuildSupervisor) initDockerClient() error {
+	if arg.BuildLocal {
+		return nil
+	}
+	log.Printf("[%s] initiating docker client\n", b.BuilderName)
 	dockerClient, err := core.InitDockerClient(b.DockerConfig.Host)
 	if err != nil {
 		return err
@@ -42,6 +52,10 @@ func (b *BuildSupervisor) initDockerClient() error {
 }
 
 func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) error {
+	if arg.BuildLocal {
+		return nil
+	}
+	log.Printf("[%s] preparing docker image for running build\n", b.BuilderName)
 	e := b.Modules[0]
 	var err error
 	dockerImage := e.buildConfig.DockerImage
@@ -84,14 +98,6 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 	if err != nil {
 		return err
 	}
-	//create tar file
-	tarFile, err := b.createDockerBuildContext()
-	if err != nil {
-		return err
-	}
-	defer func() {
-		_ = os.RemoveAll(tarFile)
-	}()
 
 	//create docker image
 	//build temporary image tag
@@ -101,7 +107,7 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 	}
 	_, cat := filepath.Split(dir)
 	b.BuildImage = fmt.Sprintf("%s_%s:%s", cat, name, buildVersion)
-
+	log.Printf("[%s] docker build image name = %s\n", b.BuilderName, b.BuildImage)
 	//create image build option
 	_, dockerFileName := filepath.Split(b.Dockerfile)
 	opt := types.ImageBuildOptions{
@@ -122,6 +128,16 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 		_, _ = b.DockerClient.RemoveImage(context.Background(), imgId)
 	}
 
+	//create tar file
+	tarFile, err := b.createDockerBuildContext()
+	if err != nil {
+		return err
+	}
+	defer func() {
+		_ = os.RemoveAll(tarFile)
+	}()
+
+	log.Printf("[%s] building docker build image\n", b.BuilderName)
 	response, err := b.DockerClient.BuildImageWithOpts(ctx, tarFile, opt)
 	if err != nil {
 		return err
@@ -130,9 +146,9 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 		_ = response.Body.Close()
 	}()
 
-	err = core.DisplayDockerLog(response.Body)
+	str, err := core.DisplayDockerLog(response.Body)
 	if err != nil {
-		return err
+		return fmtError(err, str)
 	}
 	return nil
 }
@@ -140,6 +156,7 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 func (b *BuildSupervisor) createDockerBuildContext() (string, error) {
 	// tar info
 	tarFile := fmt.Sprintf("%s.tar", b.Dockerfile)
+	log.Printf("[%s] packaging docker build context at %s\n", b.BuilderName, tarFile)
 	//create tar at common directory
 	tar := new(archivex.TarFile)
 	err := tar.Create(tarFile)
@@ -205,7 +222,7 @@ func (b *BuildSupervisor) createDockerBuildContext() (string, error) {
 
 func build(ctx context.Context) error {
 	var err error
-	//create .bpp directory
+	//preparing phase of build process is started
 	if !utils.IsNotExists(outputDir) {
 		err = os.RemoveAll(outputDir)
 		if err != nil {
@@ -232,6 +249,10 @@ func build(ctx context.Context) error {
 		return err
 	}
 
+	if len(modules) == 0 {
+		return fmt.Errorf("could not find the selected module")
+	}
+
 	//build Dockerfile for each builder type
 	supervisors := make(map[string]*BuildSupervisor)
 	for _, module := range modules {
@@ -254,6 +275,7 @@ func build(ctx context.Context) error {
 				registries = append(registries, globalDockerConfig.Registries...)
 			}
 
+			log.Printf("initiating build instruction for builder %s\n", module.buildConfig.Builder)
 			supervisor = &BuildSupervisor{
 				BuilderName: module.buildConfig.Builder,
 				Modules:     make([]Module, 0),
@@ -284,31 +306,106 @@ func build(ctx context.Context) error {
 			return err
 		}
 	}
+	//preparing phase of build process is completed
 
+	type BuildStep struct {
+		Current int
+		Prev    int
+	}
+
+	currentId := modules[0].Id
+	steps := []BuildStep{
+		{currentId, currentId},
+	}
 	for _, module := range modules {
-		supervisor, ok := supervisors[module.buildConfig.Builder]
-		if !ok {
-			continue
-		}
-		response := builder.Build(ctx, builder.BuildRequest{
-			WorkDir:       workDir,
-			OutputDir:     outputDir,
-			ShareDataDir:  arg.ShareData,
-			Release:       arg.BuildRelease,
-			Patch:         arg.BuildPath,
-			Version:       buildVersion,
-			ModulePath:    module.Path,
-			ModuleName:    module.Name,
-			ModuleOutputs: module.buildConfig.Output,
-			BuilderName:   module.buildConfig.Builder,
-			DockerImage:   supervisor.BuildImage,
-			DockerClient:  supervisor.DockerClient,
-
-			LocalBuild: false,
-		})
-		if response.Err != nil {
-			return response.Err
+		if module.Id > currentId {
+			steps = append(steps, BuildStep{
+				module.Id, currentId,
+			})
+			currentId = module.Id
 		}
 	}
+
+	waitGroups := make(map[int]*sync.WaitGroup)
+	waitGroups[-1] = new(sync.WaitGroup)
+	for _, id := range steps {
+		wg := new(sync.WaitGroup)
+		for _, module := range modules {
+			if module.Id == id.Current {
+				wg.Add(1)
+			}
+		}
+		waitGroups[id.Current] = wg
+	}
+
+	findWaitGroup := func(step BuildStep, wgs map[int]*sync.WaitGroup) []*sync.WaitGroup {
+		if step.Current == step.Prev {
+			return []*sync.WaitGroup{
+				wgs[step.Current], new(sync.WaitGroup),
+			}
+		}
+		return []*sync.WaitGroup{
+			wgs[step.Current], wgs[step.Prev],
+		}
+	}
+
+	var globalWaitGroup sync.WaitGroup
+
+	var errOut bytes.Buffer
+	defer errOut.Reset()
+	newContext, cancel := context.WithCancel(ctx)
+	for _, module := range modules {
+		globalWaitGroup.Add(1)
+		step := steps[module.Id]
+		wgs := findWaitGroup(step, waitGroups)
+		go func(c context.Context, cwg *sync.WaitGroup, pwg *sync.WaitGroup, m Module, s *BuildSupervisor, err *bytes.Buffer) {
+			e := buildModule(c, pwg, m, *s)
+			if e != nil {
+				err.WriteString(fmt.Sprintf("[%s] is failure: %s\n", m.Name, e.Error()))
+				cancel()
+			}
+			cwg.Done()
+			globalWaitGroup.Done()
+		}(newContext, wgs[0], wgs[1], module, supervisors[module.buildConfig.Builder], &errOut)
+	}
+	globalWaitGroup.Wait()
+
+	if errOut.Len() > 0 {
+		return fmt.Errorf(errOut.String())
+	}
+
+	return nil
+}
+
+func buildModule(ctx context.Context, prevWg *sync.WaitGroup, module Module, supervisor BuildSupervisor) error {
+	prevWg.Wait()
+	if ctx.Err() != nil {
+		log.Printf("[%s] is aborted\n", module.Name)
+		return nil
+	}
+	log.Printf("[%s] start to build\n", module.Name)
+	response := builder.Build(ctx, builder.BuildRequest{
+		WorkDir:       workDir,
+		OutputDir:     outputDir,
+		ShareDataDir:  arg.ShareData,
+		Release:       arg.BuildRelease,
+		Patch:         arg.BuildPath,
+		Version:       buildVersion,
+		ModulePath:    module.Path,
+		ModuleName:    module.Name,
+		ModuleOutputs: module.buildConfig.Output,
+		BuilderName:   module.buildConfig.Builder,
+		DockerImage:   supervisor.BuildImage,
+		DockerClient:  supervisor.DockerClient,
+
+		LocalBuild: arg.BuildLocal,
+	})
+	if response.Err != nil {
+		if response.ErrStack != "" {
+			return fmtError(response.Err, response.ErrStack)
+		}
+		return response.Err
+	}
+	log.Printf("[%s] has been built successful\n", module.Name)
 	return nil
 }

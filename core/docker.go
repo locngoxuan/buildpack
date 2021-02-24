@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
@@ -16,6 +15,7 @@ import (
 	"gopkg.in/yaml.v2"
 	"io"
 	"io/ioutil"
+	"log"
 	"os"
 	"path/filepath"
 	"strings"
@@ -29,8 +29,10 @@ var (
 )
 
 type DockerConfig struct {
-	Host       []string         `json:"hosts,omitempty" yaml:"hosts,omitempty"`
-	Registries []DockerRegistry `json:"registries,omitempty" yaml:"registries,omitempty"`
+	Elements struct {
+		Hosts      []string         `json:"hosts,omitempty" yaml:"hosts,omitempty"`
+		Registries []DockerRegistry `json:"registries,omitempty" yaml:"registries,omitempty"`
+	} `yaml:"docker,omitempty" json:"docker,omitempty"`
 }
 
 type DockerRegistry struct {
@@ -47,18 +49,18 @@ func ReadProjectDockerConfig(workDir, argConfigFile string) (c DockerConfig, err
 
 	_, err = os.Stat(configFile)
 	if os.IsNotExist(err) {
-		err = errors.New("project docker configuration file not found")
+		err = fmt.Errorf("project docker configuration file not found")
 		return
 	}
 
 	yamlFile, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("read project docker config file get error %v", err))
+		err = fmt.Errorf("read project docker config file get error %v", err)
 		return
 	}
 	err = yaml.Unmarshal(yamlFile, &c)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("unmarshal project docker config file get error %v", err))
+		err = fmt.Errorf("unmarshal project docker config file get error %v", err)
 		return
 	}
 	return
@@ -81,12 +83,12 @@ func ReadGlobalDockerConfig() (c DockerConfig, err error) {
 
 	yamlFile, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("read global docker config file get error %v", err))
+		err = fmt.Errorf("read global docker config file get error %v", err)
 		return
 	}
 	err = yaml.Unmarshal(yamlFile, &c)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("unmarshal global docker config file get error %v", err))
+		err = fmt.Errorf("unmarshal global docker config file get error %v", err)
 		return
 	}
 	return
@@ -239,12 +241,14 @@ func DisplayDockerLog(in io.Reader) (string, error) {
 			return "", err
 		}
 		if jm.Error != nil {
-			return "", errors.New(jm.Error.Message)
+			return "", fmt.Errorf(jm.Error.Message)
 		}
 		if jm.Stream == "" {
 			continue
 		}
-		buf.WriteString(jm.Stream)
+		log.Printf("%v", jm)
+		log.Printf("%s >>> %s", jm.ID, jm.Stream)
+		//buf.WriteString(jm.Stream)
 	}
 	return buf.String(), nil
 }

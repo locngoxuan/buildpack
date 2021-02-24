@@ -1,7 +1,6 @@
 package config
 
 import (
-	"errors"
 	"fmt"
 	"github.com/locngoxuan/buildpack/utils"
 	"gopkg.in/yaml.v2"
@@ -11,10 +10,8 @@ import (
 )
 
 const (
-	ConfigProject = "Buildpackfile"
-	ConfigBuild   = "Buildpackfile.build"
-	ConfigPack    = "Buildpackfile.pack"
-	ConfigPublish = "Buildpackfile.publish"
+	ConfigProject = "Project.bpp"
+	ConfigModule  = "Module.bpp"
 
 	ConfigGlobal       = ".config"
 	ConfigEnvVariables = ".env"
@@ -41,18 +38,18 @@ func ReadProjectConfig(workDir, argConfigFile string) (c ProjectConfig, err erro
 
 	_, err = os.Stat(configFile)
 	if os.IsNotExist(err) {
-		err = errors.New("configuration file not found")
+		err = fmt.Errorf("configuration file not found")
 		return
 	}
 
 	yamlFile, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("read application config file get error %v", err))
+		err = fmt.Errorf("read application config file get error %v", err)
 		return
 	}
 	err = yaml.Unmarshal(yamlFile, &c)
 	if err != nil {
-		err = errors.New(fmt.Sprintf("unmarshal application config file get error %v", err))
+		err = fmt.Errorf("unmarshal application config file get error %v", err)
 		return
 	}
 	return

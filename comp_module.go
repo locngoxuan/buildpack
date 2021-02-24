@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"errors"
+	"fmt"
 	"github.com/locngoxuan/buildpack/config"
 	"github.com/locngoxuan/buildpack/utils"
 	"log"
@@ -31,21 +31,12 @@ func (a SortedById) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (m *Module) initiate() error {
 	m.moduleDir = filepath.Join(workDir, m.Path)
 	m.output = filepath.Join(outputDir, m.Name)
-	return os.MkdirAll(m.output, 0777)
-}
-
-func (m *Module) readBuildConfig() error {
-	var err error
-	m.buildConfig, err = config.ReadBuildConfig(m.moduleDir)
+	err := os.MkdirAll(m.output, 0777)
 	if err != nil {
 		return err
 	}
-	return nil
-}
 
-func (m *Module) readPublishConfig() error {
-	var err error
-	m.buildConfig, err = config.ReadBuildConfig(m.moduleDir)
+	m.buildConfig, err = config.ReadModuleConfig(m.moduleDir)
 	if err != nil {
 		return err
 	}
@@ -127,7 +118,7 @@ func prepareListModule() ([]Module, error) {
 	}
 
 	if len(ms) == 0 {
-		return nil, errors.New("not found any module")
+		return nil, fmt.Errorf("not found any module")
 	}
 
 	//sorting by id

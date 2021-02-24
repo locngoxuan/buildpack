@@ -16,6 +16,10 @@ default: help
 clean:
 	rm -fr ./bin
 
+dev:
+	mkdir -p bin
+	go build -o bin/${BINARY_NAME} -a .
+
 build:
 	mkdir -p bin
 	env GOOS=${BUILD_OS} GOARCH=${BUILD_ARCH} CGO_ENABLED=1 go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/${BINARY_NAME} -a .

@@ -3,6 +3,7 @@ package instrument
 import (
 	"context"
 	"fmt"
+	"github.com/locngoxuan/buildpack/core"
 	"path/filepath"
 	"plugin"
 	"strings"
@@ -11,6 +12,7 @@ import (
 type PublishRequest struct {
 	BaseProperties
 	PublisherName string
+	Repositories  map[string]core.Repository
 }
 
 func PublishPackage(ctx context.Context, request PublishRequest) Response {

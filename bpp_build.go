@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/jhoonb/archivex"
@@ -21,13 +22,14 @@ import (
 )
 
 type BuildSupervisor struct {
-	BuilderName string
-	SockAddr    string
-	Modules     []Module
-	Dockerfile  string
-	core.DockerConfig
+	BuilderName      string
+	SockAddr         string
+	Modules          []Module
+	BuildImage       string
+	Dockerfile       string
+	DockerHosts      []string
+	DockerRegistries []core.DockerRegistry
 	core.DockerClient
-	BuildImage string
 }
 
 func (b *BuildSupervisor) close() {
@@ -42,7 +44,7 @@ func (b *BuildSupervisor) initDockerClient() error {
 		return nil
 	}
 	log.Printf("[%s] initiating docker client", b.BuilderName)
-	dockerClient, err := core.InitDockerClient(b.DockerConfig.Host)
+	dockerClient, err := core.InitDockerClient(b.DockerHosts)
 	if err != nil {
 		return err
 	}
@@ -148,6 +150,10 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 
 	str, err := core.DisplayDockerLog(response.Body)
 	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			//searching all dangling image then remove them
+			//it may is not safe in case there are many build-processes are running in parallel
+		}
 		return fmtError(err, str)
 	}
 	return nil
@@ -256,38 +262,33 @@ func build(ctx context.Context) error {
 	//build Dockerfile for each builder type
 	supervisors := make(map[string]*BuildSupervisor)
 	for _, module := range modules {
-		err = module.readBuildConfig()
-		if err != nil {
-			return err
-		}
 		supervisor, ok := supervisors[module.buildConfig.Builder]
 		if !ok {
 			hosts := make([]string, 0)
 			hosts = append(hosts, core.DefaultDockerUnixSock, core.DefaultDockerTCPSock)
-			if len(projectDockerConfig.Host) > 0 {
-				hosts = append(hosts, projectDockerConfig.Host...)
+			if len(projectDockerConfig.Elements.Hosts) > 0 {
+				hosts = append(hosts, projectDockerConfig.Elements.Hosts...)
 			}
-			if len(globalDockerConfig.Host) > 0 {
-				hosts = append(hosts, globalDockerConfig.Host...)
+			if len(globalDockerConfig.Elements.Hosts) > 0 {
+				hosts = append(hosts, globalDockerConfig.Elements.Hosts...)
 			}
 			registries := make([]core.DockerRegistry, 0)
 			registries = append(registries, core.DefaultDockerHubRegistry)
-			if len(projectDockerConfig.Registries) > 0 {
-				registries = append(registries, projectDockerConfig.Registries...)
+			if len(projectDockerConfig.Elements.Registries) > 0 {
+				registries = append(registries, projectDockerConfig.Elements.Registries...)
 			}
-			if len(globalDockerConfig.Registries) > 0 {
-				registries = append(registries, globalDockerConfig.Registries...)
+			if len(globalDockerConfig.Elements.Registries) > 0 {
+				registries = append(registries, globalDockerConfig.Elements.Registries...)
 			}
 
 			log.Printf("initiating build instruction for builder %s", module.buildConfig.Builder)
+
 			supervisor = &BuildSupervisor{
-				BuilderName: module.buildConfig.Builder,
-				Modules:     make([]Module, 0),
-				Dockerfile:  "",
-				DockerConfig: core.DockerConfig{
-					Host:       hosts,
-					Registries: registries,
-				},
+				BuilderName:      module.buildConfig.Builder,
+				Modules:          make([]Module, 0),
+				Dockerfile:       "",
+				DockerHosts:      hosts,
+				DockerRegistries: registries,
 			}
 			err = supervisor.initDockerClient()
 			if err != nil {

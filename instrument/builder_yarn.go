@@ -39,7 +39,7 @@ func yarnBuild(ctx context.Context, req BuildRequest) Response {
 		})
 	}
 
-	c, err := config.ReadBuildConfig(filepath.Join(req.WorkDir, req.ModulePath))
+	c, err := config.ReadModuleConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
 		return responseError(err)
 	}

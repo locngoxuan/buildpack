@@ -1,0 +1,10 @@
+build:
+  type: "Mvn"
+  label: "SNAPSHOT"
+  output:
+    - target
+pack:
+publish:
+  type: "ArtifactoryMvn"
+  repo_ids:
+    - artifactory

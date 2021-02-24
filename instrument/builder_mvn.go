@@ -32,7 +32,7 @@ type MvnConfig struct {
 }
 
 func ReadMvnConfig(moduleDir string) (c MvnConfig, err error) {
-	configFile := filepath.Join(moduleDir, config.ConfigBuild)
+	configFile := filepath.Join(moduleDir, config.ConfigModule)
 	_, err = os.Stat(configFile)
 	if os.IsNotExist(err) {
 		err = fmt.Errorf("build config file %s not found", configFile)

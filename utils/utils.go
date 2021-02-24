@@ -19,9 +19,12 @@ func IsNotExists(s string) bool {
 }
 
 func ReadEnvVariableIfHas(str string) string {
-	result := strings.TrimSpace(str)
-	if strings.HasPrefix(result, "$") {
-		result = os.ExpandEnv(result)
+	origin := Trim(str)
+	if strings.HasPrefix(origin, "$") {
+		result := os.ExpandEnv(origin)
+		if !IsStringEmpty(result){
+			return result
+		}
 	}
-	return result
+	return origin
 }

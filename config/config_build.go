@@ -27,8 +27,8 @@ type BuildConfig struct {
 	Output      []string `yaml:"output,omitempty"`
 }
 
-func ReadBuildConfig(moduleDir string) (c BuildConfig, err error) {
-	configFile := filepath.Join(moduleDir, ConfigBuild)
+func ReadModuleConfig(moduleDir string) (c BuildConfig, err error) {
+	configFile := filepath.Join(moduleDir, ConfigModule)
 	_, err = os.Stat(configFile)
 	if os.IsNotExist(err) {
 		err = fmt.Errorf("build config file %s not found", configFile)

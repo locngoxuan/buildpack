@@ -27,24 +27,23 @@ func clean(ctx context.Context) error {
 		return err
 	}
 
-	projectDockerConfig, _ := config.ReadProjectDockerConfig(workDir, arg.ConfigFile)
 	globalDockerConfig, _ := config.ReadGlobalDockerConfig()
 
 	hosts := make([]string, 0)
 	hosts = append(hosts, core.DefaultDockerUnixSock, core.DefaultDockerTCPSock)
-	if len(projectDockerConfig.Elements.Hosts) > 0 {
-		hosts = append(hosts, projectDockerConfig.Elements.Hosts...)
+	if len(cfg.DockerConfig.Hosts) > 0 {
+		hosts = append(hosts, cfg.DockerConfig.Hosts...)
 	}
-	if len(globalDockerConfig.Elements.Hosts) > 0 {
-		hosts = append(hosts, globalDockerConfig.Elements.Hosts...)
+	if len(globalDockerConfig.Hosts) > 0 {
+		hosts = append(hosts, globalDockerConfig.Hosts...)
 	}
 	registries := make([]config.DockerRegistry, 0)
 	registries = append(registries, core.DefaultDockerHubRegistry)
-	if len(projectDockerConfig.Elements.Registries) > 0 {
-		registries = append(registries, projectDockerConfig.Elements.Registries...)
+	if len(cfg.DockerConfig.Registries) > 0 {
+		registries = append(registries,cfg.DockerConfig.Registries...)
 	}
-	if len(globalDockerConfig.Elements.Registries) > 0 {
-		registries = append(registries, globalDockerConfig.Elements.Registries...)
+	if len(globalDockerConfig.Registries) > 0 {
+		registries = append(registries, globalDockerConfig.Registries...)
 	}
 
 	dockerClient, err := core.InitDockerClient(hosts)

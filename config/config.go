@@ -21,8 +21,11 @@ const (
 )
 
 type ProjectConfig struct {
-	Version string       `yaml:"version,omitempty"`
-	Modules []ModuleInfo `yaml:"modules,omitempty"`
+	Version      string       `yaml:"version,omitempty"`
+	Modules      []ModuleInfo `yaml:"modules,omitempty"`
+	GitConfig    `yaml:"git,omitempty"`
+	DockerConfig `yaml:"docker,omitempty"`
+	RepoConfig   []Repository `yaml:"repositories,omitempty"`
 }
 
 type ModuleInfo struct {

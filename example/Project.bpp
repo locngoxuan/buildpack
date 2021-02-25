@@ -2,3 +2,11 @@ version: 1.0.0
 modules:
   - name: parent-pom
     path: .
+git:
+  remote: https://github.com/account/project.git
+  credential:
+    #token/account
+    type: token
+    access_token: 123
+    username: 123
+    password: 123

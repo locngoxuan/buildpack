@@ -51,6 +51,7 @@ type Arguments struct {
 	Module       string
 	ConfigFile   string
 	ShareData    string
+	GitBranch    string
 	BuildLocal   bool
 	BuildRelease bool
 	BuildPath    bool
@@ -71,6 +72,7 @@ func readArguments() (arg Arguments, err error) {
 	f.BoolVar(&arg.BuildRelease, "release", false, "project is built for releasing")
 	f.BoolVar(&arg.BuildPath, "patch", false, "project is built only for path")
 	f.BoolVar(&arg.BuildLocal, "local", false, "running build and clean in local")
+	f.StringVar(&arg.GitBranch, "git-branch", "", "branch that code will be pushed")
 
 	//git operation
 	f.BoolVar(&arg.SkipBackward, "skip-backward", false, "if true, then major version will be increased")

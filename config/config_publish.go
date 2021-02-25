@@ -1,5 +1,13 @@
 package config
 
+import (
+	"fmt"
+	"gopkg.in/yaml.v2"
+	"io/ioutil"
+	"os"
+	"path/filepath"
+)
+
 //publish config in each module
 type PublishConfig struct {
 	Type    string   `yaml:"type,omitempty" json:"type,omitempty"`
@@ -7,7 +15,7 @@ type PublishConfig struct {
 }
 
 //repository
-type RepositoryConfig struct {
+type GlobalRepositoryConfig struct {
 	Repos []Repository `yaml:"repositories,omitempty" json:"repositories,omitempty"`
 }
 
@@ -28,4 +36,57 @@ type Channel struct {
 	Address  string `yaml:"address,omitempty" json:"address,omitempty"`
 	Username string `yaml:"username,omitempty" json:"username,omitempty"`
 	Password string `yaml:"password,omitempty" json:"password,omitempty"`
+}
+
+//func ReadProjectRepositoryConfig(workDir, argConfigFile string) (c RepositoryConfig, err error) {
+//	configFile := argConfigFile
+//	if utils.IsStringEmpty(argConfigFile) {
+//		configFile = filepath.Join(workDir, ConfigProject)
+//	}
+//
+//	_, err = os.Stat(configFile)
+//	if os.IsNotExist(err) {
+//		err = fmt.Errorf("project repository configuration file not found")
+//		return
+//	}
+//
+//	yamlFile, err := ioutil.ReadFile(configFile)
+//	if err != nil {
+//		err = fmt.Errorf("read project docker config file get error %v", err)
+//		return
+//	}
+//	err = yaml.Unmarshal(yamlFile, &c)
+//	if err != nil {
+//		err = fmt.Errorf("unmarshal project docker config file get error %v", err)
+//		return
+//	}
+//	return
+//}
+
+func ReadGlobalRepositoryConfig() (c GlobalRepositoryConfig, err error) {
+	userHome, err := os.UserHomeDir()
+	if err != nil {
+		return
+	}
+	configFile := filepath.Join(userHome, fmt.Sprintf(".%s", OutputDir), ConfigGlobal)
+	_, err = os.Stat(configFile)
+	if err != nil {
+		if os.IsNotExist(err) {
+			err = nil
+			return
+		}
+		return
+	}
+
+	yamlFile, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		err = fmt.Errorf("read global docker config file get error %v", err)
+		return
+	}
+	err = yaml.Unmarshal(yamlFile, &c)
+	if err != nil {
+		err = fmt.Errorf("unmarshal global docker config file get error %v", err)
+		return
+	}
+	return
 }

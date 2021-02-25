@@ -2,18 +2,19 @@ package config
 
 import (
 	"fmt"
-	"github.com/locngoxuan/buildpack/utils"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"
 	"path/filepath"
 )
 
+type DockerGlobalConfig struct {
+	DockerConfig `yaml:"docker,omitempty" json:"docker,omitempty"`
+}
+
 type DockerConfig struct {
-	Elements struct {
-		Hosts      []string         `json:"hosts,omitempty" yaml:"hosts,omitempty"`
-		Registries []DockerRegistry `json:"registries,omitempty" yaml:"registries,omitempty"`
-	} `yaml:"docker,omitempty" json:"docker,omitempty"`
+	Hosts      []string         `json:"hosts,omitempty" yaml:"hosts,omitempty"`
+	Registries []DockerRegistry `json:"registries,omitempty" yaml:"registries,omitempty"`
 }
 
 type DockerRegistry struct {
@@ -22,32 +23,7 @@ type DockerRegistry struct {
 	Password string `json:"username,omitempty" yaml:"username,omitempty"`
 }
 
-func ReadProjectDockerConfig(workDir, argConfigFile string) (c DockerConfig, err error) {
-	configFile := argConfigFile
-	if utils.IsStringEmpty(argConfigFile) {
-		configFile = filepath.Join(workDir, ConfigProject)
-	}
-
-	_, err = os.Stat(configFile)
-	if os.IsNotExist(err) {
-		err = fmt.Errorf("project docker configuration file not found")
-		return
-	}
-
-	yamlFile, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		err = fmt.Errorf("read project docker config file get error %v", err)
-		return
-	}
-	err = yaml.Unmarshal(yamlFile, &c)
-	if err != nil {
-		err = fmt.Errorf("unmarshal project docker config file get error %v", err)
-		return
-	}
-	return
-}
-
-func ReadGlobalDockerConfig() (c DockerConfig, err error) {
+func ReadGlobalDockerConfig() (c DockerGlobalConfig, err error) {
 	userHome, err := os.UserHomeDir()
 	if err != nil {
 		return

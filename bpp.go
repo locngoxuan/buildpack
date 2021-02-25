@@ -26,6 +26,12 @@ func run(ctx context.Context) error {
 			return err
 		}
 		return publish(ctx)
+	case cmdPump:
+		err := prepareConfig()
+		if err != nil {
+			return err
+		}
+		return pump(ctx)
 	case cmdHelp:
 		f.Usage()
 		return nil

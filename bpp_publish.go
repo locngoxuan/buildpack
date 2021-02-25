@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/locngoxuan/buildpack/config"
-	"github.com/locngoxuan/buildpack/core"
 	"github.com/locngoxuan/buildpack/instrument"
 	"github.com/locngoxuan/buildpack/utils"
 )
@@ -33,12 +32,7 @@ func publish(ctx context.Context) error {
 		return fmt.Errorf("could not find the selected module")
 	}
 
-	projectRepoConfig, err := core.ReadProjectRepositoryConfig(workDir, arg.ConfigFile)
-	if err != nil {
-		return err
-	}
-
-	globalRepoConfig, err := core.ReadGlobalRepositoryConfig()
+	globalRepoConfig, err := config.ReadGlobalRepositoryConfig()
 	if err != nil {
 		return err
 	}
@@ -47,7 +41,7 @@ func publish(ctx context.Context) error {
 	for _, r := range globalRepoConfig.Repos {
 		repositories[r.Id] = r
 	}
-	for _, r := range projectRepoConfig.Repos {
+	for _, r := range cfg.RepoConfig {
 		repositories[r.Id] = r
 	}
 

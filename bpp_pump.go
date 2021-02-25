@@ -36,7 +36,7 @@ func pump(ctx context.Context) error {
 		return fmt.Errorf("can not recognize version %v", err)
 	}
 
-	log.Printf("git tag version %s", buildVersion)
+	log.Printf("create tag of version %s", buildVersion)
 	err = gitClient.Tag(ctx, v.String())
 	if err != nil {
 		return fmt.Errorf("tagging before pumping version error %v", err)
@@ -64,12 +64,7 @@ func pump(ctx context.Context) error {
 		v.NextMinor()
 	}
 
-	err = updateVersion(ctx, v.String(), gitClient)
-	if err != nil {
-		return err
-	}
-	log.Println("pulling latest code...")
-	return gitClient.PullLatestCode(ctx)
+	return updateVersion(ctx, v.String(), gitClient)
 }
 
 func updateVersion(ctx context.Context, nextVer string, gitClient *core.GitClient) error {
@@ -79,7 +74,7 @@ func updateVersion(ctx context.Context, nextVer string, gitClient *core.GitClien
 	if err != nil {
 		return fmt.Errorf("marshal data error %v", err)
 	}
-	err = gitClient.WriteSingleFile(bytes, config.ConfigProject, "pump version")
+	err = gitClient.WriteSingleFile(bytes, config.ConfigProject, fmt.Sprintf("increasing version to %s", nextVer))
 	if err != nil {
 		return fmt.Errorf("write file error %v", err)
 	}
@@ -87,5 +82,6 @@ func updateVersion(ctx context.Context, nextVer string, gitClient *core.GitClien
 	if err != nil {
 		return fmt.Errorf("push error %v", err)
 	}
-	return nil
+	log.Println("refreshing latest code...")
+	return gitClient.PullLatestCode(ctx)
 }

@@ -130,52 +130,54 @@ func (c *GitClient) Push(ctx context.Context) error {
 	return nil
 }
 
+func tagExists(tag string, r *git.Repository) (bool, error) {
+	tagFoundErr := "tag was found"
+	tags, err := r.TagObjects()
+	if err != nil {
+		return false, err
+	}
+	err = tags.ForEach(func(t *object.Tag) error {
+		if t.Name == tag {
+			return fmt.Errorf(tagFoundErr)
+		}
+		return nil
+	})
+	return err != nil, nil
+}
+
 func (c *GitClient) Tag(ctx context.Context, version string) error {
-	reference, err := c.Repo.Storer.Reference(c.ReferenceName)
+	exist, err := tagExists(version, c.Repo)
 	if err != nil {
 		return err
 	}
-	tag := object.Tag{
-		Name:       version,
-		Message:    "v" + version,
-		Tagger:     *signature(),
-		Target:     reference.Hash(),
-		TargetType: plumbing.CommitObject,
+	if exist {
+		return fmt.Errorf("tag was found")
 	}
 
-	e := c.Repo.Storer.NewEncodedObject()
-	err = tag.Encode(e)
+	h, err := c.Repo.Head()
 	if err != nil {
 		return err
 	}
-	hash, err := c.Repo.Storer.SetEncodedObject(e)
+	_, err = c.Repo.CreateTag(version, h.Hash(), &git.CreateTagOptions{
+		Message: "v" + version,
+	})
+
 	if err != nil {
 		return err
 	}
-
-	tagReferenceName := plumbing.NewTagReferenceName(version)
-
-	tagRefer := plumbing.NewHashReference(tagReferenceName, hash)
-	err = c.Repo.Storer.SetReference(tagRefer)
-	if err != nil {
-		return err
-	}
-
 	auth, err := c.auth()
 	if err != nil {
 		return err
 	}
-	err = c.Repo.PushContext(ctx, &git.PushOptions{
+
+	po := &git.PushOptions{
+		Progress: os.Stdout,
 		RefSpecs: []gitconfig.RefSpec{
-			gitconfig.RefSpec(tagReferenceName + ":" + tagReferenceName),
+			gitconfig.RefSpec("refs/tags/*:refs/tags/*"),
 		},
-		Progress: ioutil.Discard,
-		Auth:     auth,
-	})
-	if err != nil {
-		return err
+		Auth: auth,
 	}
-	return nil
+	return c.Repo.Push(po)
 }
 
 func authWithCred(cred config.GitCredential) (transport.AuthMethod, error) {

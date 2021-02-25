@@ -12,6 +12,7 @@ import (
 	"github.com/locngoxuan/buildpack/utils"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"time"
 )
@@ -21,11 +22,88 @@ const (
 	defaultYarnDockerImage = "xuanloc0511/node:lts-alpine3.13"
 )
 
+func yarnCmd(ctx context.Context, req BuildRequest, options []string) Response {
+	_args := make([]string, 0)
+	_args = append(_args, "--cwd", req.WorkDir)
+	_args = append(_args, options...)
+	cmd := exec.CommandContext(ctx, "yarn", _args...)
+	defer func() {
+		_ = cmd.Process.Kill()
+	}()
+	var buf bytes.Buffer
+	defer func() {
+		buf.Reset()
+	}()
+	cmd.Stdout = &buf
+	cmd.Stderr = &buf
+	err := cmd.Run()
+	if err != nil {
+		if ctx.Err() == context.Canceled {
+			return responseError(err)
+		}
+		return responseErrorWithStack(err, buf.String())
+	}
+	return responseSuccess()
+}
+
 func yarnLocalBuild(ctx context.Context, req BuildRequest) Response {
-	return responseError(fmt.Errorf("not supported yet"))
+	c, err := config.ReadModuleConfig(filepath.Join(req.WorkDir, req.ModulePath))
+	if err != nil {
+		return responseError(err)
+	}
+	label := c.Label
+	if utils.Trim(label) == "" {
+		label = "SNAPSHOT"
+	}
+	ver := req.Version
+	if !req.Release && !req.Patch {
+		ver = fmt.Sprintf("%s-%s", req.Version, label)
+	}
+	//should read current version from package.json here
+	//apply new version
+	versionCmd := []string{
+		"version",
+		fmt.Sprintf("--new-version=%s", ver),
+		"--no-git-tag-version",
+	}
+	response := yarnCmd(ctx, req, versionCmd)
+	if response.Err != nil {
+		return response
+	}
+
+	//should put reverse to old version via defer func here
+
+	response = yarnCmd(ctx, req, []string{"install"})
+	if response.Err != nil {
+		return response
+	}
+
+	response = yarnCmd(ctx, req, []string{"build"})
+	if response.Err != nil {
+		return response
+	}
+
+	//copy output
+	for _, moduleOutput := range req.ModuleOutputs {
+		dest := filepath.Join(req.OutputDir, req.ModuleName, moduleOutput)
+		err = os.MkdirAll(dest, 0755)
+		if err != nil {
+			return responseError(err)
+		}
+		src := filepath.Join(req.WorkDir, req.ModulePath, moduleOutput)
+		err = utils.CopyDirectory(src, dest)
+		if err != nil {
+			return responseError(err)
+		}
+	}
+
+	return responseSuccess()
 }
 
 func yarnBuild(ctx context.Context, req BuildRequest) Response {
+	if req.LocalBuild {
+		return yarnLocalBuild(ctx, req)
+	}
 	mounts := make([]mount.Mount, 0)
 	for _, moduleOutput := range req.ModuleOutputs {
 		err := os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, moduleOutput), 0777)

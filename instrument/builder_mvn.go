@@ -96,6 +96,19 @@ func mvnLocalBuild(ctx context.Context, req BuildRequest) Response {
 		}
 		return responseErrorWithStack(err, buf.String())
 	}
+
+	for _, moduleOutput := range req.ModuleOutputs {
+		dest := filepath.Join(req.OutputDir, req.ModuleName, moduleOutput)
+		err = os.MkdirAll(dest, 0755)
+		if err != nil {
+			return responseError(err)
+		}
+		src := filepath.Join(req.WorkDir, req.ModulePath, moduleOutput)
+		err = utils.CopyDirectory(src, dest)
+		if err != nil {
+			return responseError(err)
+		}
+	}
 	return responseSuccess()
 }
 

@@ -16,18 +16,8 @@ type ArtifactoryPackage struct {
 	Password string
 }
 
-func upload(ctx context.Context, packages []ArtifactoryPackage) error {
-	for _, upload := range packages {
-		log.Printf("uploading %s with md5:%s", upload.Endpoint, upload.Md5)
-		err := uploadFile(ctx, upload)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
 func uploadFile(ctx context.Context, param ArtifactoryPackage) error {
+	log.Printf("publish package to %s", param.Endpoint)
 	data, err := os.Open(param.Source)
 	if err != nil {
 		return err

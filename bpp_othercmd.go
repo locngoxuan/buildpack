@@ -27,8 +27,8 @@ func clean(ctx context.Context) error {
 		return err
 	}
 
-	projectDockerConfig, _ := core.ReadProjectDockerConfig(workDir, arg.ConfigFile)
-	globalDockerConfig, _ := core.ReadGlobalDockerConfig()
+	projectDockerConfig, _ := config.ReadProjectDockerConfig(workDir, arg.ConfigFile)
+	globalDockerConfig, _ := config.ReadGlobalDockerConfig()
 
 	hosts := make([]string, 0)
 	hosts = append(hosts, core.DefaultDockerUnixSock, core.DefaultDockerTCPSock)
@@ -38,7 +38,7 @@ func clean(ctx context.Context) error {
 	if len(globalDockerConfig.Elements.Hosts) > 0 {
 		hosts = append(hosts, globalDockerConfig.Elements.Hosts...)
 	}
-	registries := make([]core.DockerRegistry, 0)
+	registries := make([]config.DockerRegistry, 0)
 	registries = append(registries, core.DefaultDockerHubRegistry)
 	if len(projectDockerConfig.Elements.Registries) > 0 {
 		registries = append(registries, projectDockerConfig.Elements.Registries...)

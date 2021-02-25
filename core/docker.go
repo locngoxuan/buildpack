@@ -12,91 +12,21 @@ import (
 	"github.com/docker/docker/pkg/jsonmessage"
 	"github.com/locngoxuan/buildpack/config"
 	"github.com/locngoxuan/buildpack/utils"
-	"gopkg.in/yaml.v2"
 	"io"
-	"io/ioutil"
-	"log"
 	"os"
-	"path/filepath"
 	"strings"
 )
 
 var (
 	DefaultDockerUnixSock    = "unix:///var/run/docker.sock"
 	DefaultDockerTCPSock     = "tcp://127.0.0.1:2375"
-	DefaultDockerHubRegistry = DockerRegistry{}
+	DefaultDockerHubRegistry = config.DockerRegistry{}
 	DockerCleanImage         = "alpine:3.12.2"
 )
 
-type DockerConfig struct {
-	Elements struct {
-		Hosts      []string         `json:"hosts,omitempty" yaml:"hosts,omitempty"`
-		Registries []DockerRegistry `json:"registries,omitempty" yaml:"registries,omitempty"`
-	} `yaml:"docker,omitempty" json:"docker,omitempty"`
-}
-
-type DockerRegistry struct {
-	Address  string `json:"address,omitempty" yaml:"address,omitempty"`
-	Username string `json:"username,omitempty" yaml:"username,omitempty"`
-	Password string `json:"username,omitempty" yaml:"username,omitempty"`
-}
-
-func ReadProjectDockerConfig(workDir, argConfigFile string) (c DockerConfig, err error) {
-	configFile := argConfigFile
-	if utils.IsStringEmpty(argConfigFile) {
-		configFile = filepath.Join(workDir, config.ConfigProject)
-	}
-
-	_, err = os.Stat(configFile)
-	if os.IsNotExist(err) {
-		err = fmt.Errorf("project docker configuration file not found")
-		return
-	}
-
-	yamlFile, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		err = fmt.Errorf("read project docker config file get error %v", err)
-		return
-	}
-	err = yaml.Unmarshal(yamlFile, &c)
-	if err != nil {
-		err = fmt.Errorf("unmarshal project docker config file get error %v", err)
-		return
-	}
-	return
-}
-
-func ReadGlobalDockerConfig() (c DockerConfig, err error) {
-	userHome, err := os.UserHomeDir()
-	if err != nil {
-		return
-	}
-	configFile := filepath.Join(userHome, fmt.Sprintf(".%s", config.OutputDir), config.ConfigGlobal)
-	_, err = os.Stat(configFile)
-	if err != nil {
-		if os.IsNotExist(err) {
-			err = nil
-			return
-		}
-		return
-	}
-
-	yamlFile, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		err = fmt.Errorf("read global docker config file get error %v", err)
-		return
-	}
-	err = yaml.Unmarshal(yamlFile, &c)
-	if err != nil {
-		err = fmt.Errorf("unmarshal global docker config file get error %v", err)
-		return
-	}
-	return
-}
-
 type DockerClient struct {
 	Client     *client.Client
-	Registries []DockerRegistry
+	Registries []config.DockerRegistry
 }
 
 func (c *DockerClient) Close() {
@@ -122,7 +52,7 @@ func (c *DockerClient) ImageExist(ctx context.Context, imageRef string) (bool, [
 	return len(ids) > 0, ids, nil
 }
 
-func (c *DockerClient) PullImage(ctx context.Context, registry DockerRegistry, reference string) (io.ReadCloser, error) {
+func (c *DockerClient) PullImage(ctx context.Context, registry config.DockerRegistry, reference string) (io.ReadCloser, error) {
 	if strings.TrimSpace(registry.Username) == "" || strings.TrimSpace(registry.Password) == "" {
 		return c.Client.ImagePull(ctx, reference, types.ImagePullOptions{})
 	}
@@ -246,9 +176,7 @@ func DisplayDockerLog(in io.Reader) (string, error) {
 		if jm.Stream == "" {
 			continue
 		}
-		log.Printf("%v", jm)
-		log.Printf("%s >>> %s", jm.ID, jm.Stream)
-		//buf.WriteString(jm.Stream)
+		buf.WriteString(jm.Stream)
 	}
 	return buf.String(), nil
 }

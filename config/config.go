@@ -20,14 +20,19 @@ const (
 )
 
 type ProjectConfig struct {
-	Version string         `yaml:"version,omitempty"`
-	Modules []ModuleConfig `yaml:"modules,omitempty"`
+	Version string       `yaml:"version,omitempty"`
+	Modules []ModuleInfo `yaml:"modules,omitempty"`
 }
 
-type ModuleConfig struct {
+type ModuleInfo struct {
 	Id   int    `yaml:"id,omitempty"`
 	Name string `yaml:"name,omitempty"`
 	Path string `yaml:"path,omitempty"`
+}
+
+type ModuleConfig struct {
+	BuildConfig `yaml:"build,omitempty" json:"build,omitempty"`
+	Publish     []PublishConfig `yaml:"publish,omitempty" json:"publish,omitempty"`
 }
 
 func ReadProjectConfig(workDir, argConfigFile string) (c ProjectConfig, err error) {
@@ -66,4 +71,25 @@ func WriteProjectConfig(config ProjectConfig, file string) error {
 		return err
 	}
 	return nil
+}
+
+func ReadModuleConfig(moduleDir string) (c ModuleConfig, err error) {
+	configFile := filepath.Join(moduleDir, ConfigModule)
+	_, err = os.Stat(configFile)
+	if os.IsNotExist(err) {
+		err = fmt.Errorf("build config file %s not found", configFile)
+		return
+	}
+
+	yamlFile, err := ioutil.ReadFile(configFile)
+	if err != nil {
+		err = fmt.Errorf("read build config file get error %v", err)
+		return
+	}
+	err = yaml.Unmarshal(yamlFile, &c)
+	if err != nil {
+		err = fmt.Errorf("unmarshal build config file get error %v", err)
+		return
+	}
+	return
 }

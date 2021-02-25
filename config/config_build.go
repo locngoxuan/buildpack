@@ -1,13 +1,5 @@
 package config
 
-import (
-	"fmt"
-	"gopkg.in/yaml.v2"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-)
-
 /**
 Example:
 
@@ -21,29 +13,8 @@ output:
  */
 
 type BuildConfig struct {
-	Builder     string   `yaml:"builder,omitempty"`
+	Type        string   `yaml:"type,omitempty"`
 	DockerImage string   `yaml:"image,omitempty"`
 	Label       string   `yaml:"label,omitempty"`
 	Output      []string `yaml:"output,omitempty"`
-}
-
-func ReadModuleConfig(moduleDir string) (c BuildConfig, err error) {
-	configFile := filepath.Join(moduleDir, ConfigModule)
-	_, err = os.Stat(configFile)
-	if os.IsNotExist(err) {
-		err = fmt.Errorf("build config file %s not found", configFile)
-		return
-	}
-
-	yamlFile, err := ioutil.ReadFile(configFile)
-	if err != nil {
-		err = fmt.Errorf("read build config file get error %v", err)
-		return
-	}
-	err = yaml.Unmarshal(yamlFile, &c)
-	if err != nil {
-		err = fmt.Errorf("unmarshal build config file get error %v", err)
-		return
-	}
-	return
 }

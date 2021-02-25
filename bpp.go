@@ -40,6 +40,8 @@ func prepareConfig() error {
 		return nil
 	}
 	//initializing version
+	//due to each module may have different label. Then it takes version without label here and let appending label
+	//is executed in each module
 	buildVersion = arg.Version
 	if utils.IsStringEmpty(buildVersion) {
 		buildVersion = utils.Trim(cfg.Version)

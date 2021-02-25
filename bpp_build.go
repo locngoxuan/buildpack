@@ -28,7 +28,7 @@ type BuildSupervisor struct {
 	BuildImage       string
 	Dockerfile       string
 	DockerHosts      []string
-	DockerRegistries []core.DockerRegistry
+	DockerRegistries []config.DockerRegistry
 	core.DockerClient
 }
 
@@ -60,9 +60,9 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 	log.Printf("[%s] preparing docker image for running build", b.BuilderName)
 	e := b.Modules[0]
 	var err error
-	dockerImage := e.buildConfig.DockerImage
+	dockerImage := e.config.DockerImage
 	if strings.TrimSpace(dockerImage) == "" {
-		dockerImage, err = instrument.DefaultDockerImageName(workDir, e.buildConfig.Builder)
+		dockerImage, err = instrument.DefaultDockerImageName(workDir, e.config.BuildConfig.Type)
 		if err != nil {
 			return err
 		}
@@ -240,12 +240,12 @@ func build(ctx context.Context) error {
 		return err
 	}
 
-	projectDockerConfig, err := core.ReadProjectDockerConfig(workDir, arg.ConfigFile)
+	projectDockerConfig, err := config.ReadProjectDockerConfig(workDir, arg.ConfigFile)
 	if err != nil {
 		return err
 	}
 
-	globalDockerConfig, err := core.ReadGlobalDockerConfig()
+	globalDockerConfig, err := config.ReadGlobalDockerConfig()
 	if err != nil {
 		return err
 	}
@@ -262,7 +262,7 @@ func build(ctx context.Context) error {
 	//build Dockerfile for each builder type
 	supervisors := make(map[string]*BuildSupervisor)
 	for _, module := range modules {
-		supervisor, ok := supervisors[module.buildConfig.Builder]
+		supervisor, ok := supervisors[module.config.BuildConfig.Type]
 		if !ok {
 			hosts := make([]string, 0)
 			hosts = append(hosts, core.DefaultDockerUnixSock, core.DefaultDockerTCPSock)
@@ -272,7 +272,7 @@ func build(ctx context.Context) error {
 			if len(globalDockerConfig.Elements.Hosts) > 0 {
 				hosts = append(hosts, globalDockerConfig.Elements.Hosts...)
 			}
-			registries := make([]core.DockerRegistry, 0)
+			registries := make([]config.DockerRegistry, 0)
 			registries = append(registries, core.DefaultDockerHubRegistry)
 			if len(projectDockerConfig.Elements.Registries) > 0 {
 				registries = append(registries, projectDockerConfig.Elements.Registries...)
@@ -281,10 +281,10 @@ func build(ctx context.Context) error {
 				registries = append(registries, globalDockerConfig.Elements.Registries...)
 			}
 
-			log.Printf("initiating build instruction for builder %s", module.buildConfig.Builder)
+			log.Printf("initiating build instruction for builder %s", module.config.BuildConfig.Type)
 
 			supervisor = &BuildSupervisor{
-				BuilderName:      module.buildConfig.Builder,
+				BuilderName:      module.config.BuildConfig.Type,
 				Modules:          make([]Module, 0),
 				Dockerfile:       "",
 				DockerHosts:      hosts,
@@ -294,7 +294,7 @@ func build(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			supervisors[module.buildConfig.Builder] = supervisor
+			supervisors[module.config.BuildConfig.Type] = supervisor
 		}
 		supervisor.Modules = append(supervisor.Modules, module)
 	}
@@ -371,7 +371,7 @@ func build(ctx context.Context) error {
 			}
 			cwg.Done()
 			globalWaitGroup.Done()
-		}(newContext, wgs[0], wgs[1], module, supervisors[module.buildConfig.Builder], &errOut)
+		}(newContext, wgs[0], wgs[1], module, supervisors[module.config.BuildConfig.Type], &errOut)
 	}
 	globalWaitGroup.Wait()
 
@@ -399,10 +399,10 @@ func buildModule(ctx context.Context, prevWg *sync.WaitGroup, module Module, sup
 			Version:       buildVersion,
 			ModulePath:    module.Path,
 			ModuleName:    module.Name,
-			ModuleOutputs: module.buildConfig.Output,
+			ModuleOutputs: module.config.Output,
 			LocalBuild:    arg.BuildLocal,
 		},
-		BuilderName:  module.buildConfig.Builder,
+		BuilderName:  module.config.BuildConfig.Type,
 		DockerImage:  supervisor.BuildImage,
 		DockerClient: supervisor.DockerClient,
 	})

@@ -12,7 +12,6 @@ import (
 const ArtifactoryMvnPublisherName = "artifactorymvn"
 
 func publishMvnJarToArtifactory(ctx context.Context, req PublishRequest) Response {
-
 	targetDir := ""
 	for _, output := range req.ModuleOutputs {
 		targetDir = filepath.Join(req.OutputDir, req.ModuleName, output)
@@ -39,7 +38,7 @@ func publishMvnJarToArtifactory(ctx context.Context, req PublishRequest) Respons
 			p.Version)
 	}
 
-	packages := []*ArtifactoryPackage{
+	temp := []ArtifactoryPackage{
 		{
 			Source:   filepath.Join(targetDir, fmt.Sprintf("%s.jar", finalName)),
 			Endpoint: fmt.Sprintf("%s/%s.jar", modulePath(pom), finalName),
@@ -58,20 +57,34 @@ func publishMvnJarToArtifactory(ctx context.Context, req PublishRequest) Respons
 		},
 	}
 
-	for _, item := range packages {
-		item.Md5, err = utils.SumContentMD5(item.Source)
+	packages := make([]*ArtifactoryPackage, 0)
+	for _, item := range temp {
+		if utils.IsNotExists(item.Source) {
+			continue
+		}
+		md5, err := utils.SumContentMD5(item.Source)
 		if err != nil {
 			return responseError(err)
 		}
+		p := &ArtifactoryPackage{
+			Source:   item.Source,
+			Endpoint: item.Endpoint,
+			Md5:      md5,
+		}
+		packages = append(packages, p)
 	}
 
 	for _, repo := range req.Repositories {
-		for _, item := range packages {
-			item.Endpoint = fmt.Sprintf("%s/%s", repo.Address, item.Endpoint)
-			item.Username = utils.ReadEnvVariableIfHas(repo.Username)
-			item.Password = utils.ReadEnvVariableIfHas(repo.Password)
-			err := uploadFile(ctx, *item)
-			if err != nil{
+		for _, element := range packages {
+			chn := repo.GetChannel(req.Release || req.Patch)
+			if utils.IsStringEmpty(chn.Address) {
+				return responseError(fmt.Errorf("channel of repo %s is malformed", repo.Id))
+			}
+			element.Endpoint = fmt.Sprintf("%s/%s", chn.Address, element.Endpoint)
+			element.Username = utils.ReadEnvVariableIfHas(chn.Username)
+			element.Password = utils.ReadEnvVariableIfHas(chn.Password)
+			err := uploadFile(ctx, *element)
+			if err != nil {
 				return responseError(err)
 			}
 		}

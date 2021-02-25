@@ -5,6 +5,6 @@ build:
     - target
 pack:
 publish:
-  type: "ArtifactoryMvn"
-  repo_ids:
-    - artifactory
+  - type: "ArtifactoryMvn"
+    repo_ids:
+     - artifactory

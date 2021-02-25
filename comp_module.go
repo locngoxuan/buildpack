@@ -17,9 +17,9 @@ type Module struct {
 	Name string
 	Path string
 
-	moduleDir   string
-	output      string
-	buildConfig config.BuildConfig
+	moduleDir string
+	output    string
+	config    config.ModuleConfig
 }
 
 type SortedById []Module
@@ -36,7 +36,7 @@ func (m *Module) initiate() error {
 		return err
 	}
 
-	m.buildConfig, err = config.ReadModuleConfig(m.moduleDir)
+	m.config, err = config.ReadModuleConfig(m.moduleDir)
 	if err != nil {
 		return err
 	}

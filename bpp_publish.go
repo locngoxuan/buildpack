@@ -34,23 +34,53 @@ func publish(ctx context.Context) error {
 		return err
 	}
 
-	repositories := make(map[string]core.Repository)
+	repositories := make(map[string]config.Repository)
 	for _, r := range globalRepoConfig.Repos {
 		repositories[r.Id] = r
 	}
 	for _, r := range projectRepoConfig.Repos {
 		repositories[r.Id] = r
 	}
+
 	for _, module := range modules {
-		fmt.Println(module)
-		resp := instrument.PublishPackage(ctx, instrument.PublishRequest{
-			Repositories: repositories,
-		})
-		if resp.Err != nil {
-			if resp.ErrStack != "" {
-				return fmtError(resp.Err, resp.ErrStack)
+		for _, pc := range module.config.Publish {
+			if len(pc.RepoIds) == 0 {
+				continue
 			}
-			return resp.Err
+
+			selectedRepos := make(map[string]config.Repository)
+			for _, repoId := range pc.RepoIds{
+				r, ok := repositories[repoId]
+				if !ok {
+					continue
+				}
+				selectedRepos[repoId] = r
+			}
+			resp := instrument.PublishPackage(ctx, instrument.PublishRequest{
+				BaseProperties: instrument.BaseProperties{
+					WorkDir:       workDir,
+					OutputDir:     outputDir,
+					ShareDataDir:  arg.ShareData,
+					Release:       arg.BuildRelease,
+					Patch:         arg.BuildPath,
+					Version:       buildVersion,
+					ModulePath:    module.Path,
+					ModuleName:    module.Name,
+					ModuleOutputs: module.config.Output,
+					LocalBuild:    arg.BuildLocal,
+				},
+				Repositories: selectedRepos,
+				PublishConfig: config.PublishConfig{
+					Type:    pc.Type,
+					RepoIds: pc.RepoIds,
+				},
+			})
+			if resp.Err != nil {
+				if resp.ErrStack != "" {
+					return fmtError(resp.Err, resp.ErrStack)
+				}
+				return resp.Err
+			}
 		}
 	}
 	return nil

@@ -1,8 +1,7 @@
-package core
+package config
 
 import (
 	"fmt"
-	"github.com/locngoxuan/buildpack/config"
 	"github.com/locngoxuan/buildpack/utils"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -10,15 +9,28 @@ import (
 	"path/filepath"
 )
 
-func ReadProjectRepositoryConfig(workDir, argConfigFile string) (c config.RepositoryConfig, err error) {
+type DockerConfig struct {
+	Elements struct {
+		Hosts      []string         `json:"hosts,omitempty" yaml:"hosts,omitempty"`
+		Registries []DockerRegistry `json:"registries,omitempty" yaml:"registries,omitempty"`
+	} `yaml:"docker,omitempty" json:"docker,omitempty"`
+}
+
+type DockerRegistry struct {
+	Address  string `json:"address,omitempty" yaml:"address,omitempty"`
+	Username string `json:"username,omitempty" yaml:"username,omitempty"`
+	Password string `json:"username,omitempty" yaml:"username,omitempty"`
+}
+
+func ReadProjectDockerConfig(workDir, argConfigFile string) (c DockerConfig, err error) {
 	configFile := argConfigFile
 	if utils.IsStringEmpty(argConfigFile) {
-		configFile = filepath.Join(workDir, config.ConfigProject)
+		configFile = filepath.Join(workDir, ConfigProject)
 	}
 
 	_, err = os.Stat(configFile)
 	if os.IsNotExist(err) {
-		err = fmt.Errorf("project repository configuration file not found")
+		err = fmt.Errorf("project docker configuration file not found")
 		return
 	}
 
@@ -35,12 +47,12 @@ func ReadProjectRepositoryConfig(workDir, argConfigFile string) (c config.Reposi
 	return
 }
 
-func ReadGlobalRepositoryConfig() (c config.RepositoryConfig, err error) {
+func ReadGlobalDockerConfig() (c DockerConfig, err error) {
 	userHome, err := os.UserHomeDir()
 	if err != nil {
 		return
 	}
-	configFile := filepath.Join(userHome, fmt.Sprintf(".%s", config.OutputDir), config.ConfigGlobal)
+	configFile := filepath.Join(userHome, fmt.Sprintf(".%s", OutputDir), ConfigGlobal)
 	_, err = os.Stat(configFile)
 	if err != nil {
 		if os.IsNotExist(err) {

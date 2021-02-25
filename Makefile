@@ -18,11 +18,14 @@ clean:
 
 dev:
 	mkdir -p bin
-	go build -o bin/${BINARY_NAME} -a .
+	go build -o bin/${BINARY_NAME} .
 
 build:
 	mkdir -p bin
 	env GOOS=${BUILD_OS} GOARCH=${BUILD_ARCH} CGO_ENABLED=1 go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/${BINARY_NAME} -a .
+
+install:
+	cp -r bin/${BINARY_NAME} /usr/bin/${BINARY_NAME}
 
 help:
 	@echo 'Usage:'

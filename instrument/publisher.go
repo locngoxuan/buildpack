@@ -3,7 +3,7 @@ package instrument
 import (
 	"context"
 	"fmt"
-	"github.com/locngoxuan/buildpack/core"
+	"github.com/locngoxuan/buildpack/config"
 	"path/filepath"
 	"plugin"
 	"strings"
@@ -11,13 +11,13 @@ import (
 
 type PublishRequest struct {
 	BaseProperties
-	PublisherName string
-	Repositories  map[string]core.Repository
+	config.PublishConfig
+	Repositories map[string]config.Repository
 }
 
 func PublishPackage(ctx context.Context, request PublishRequest) Response {
-	if strings.HasPrefix(request.PublisherName, "external") {
-		pluginName := strings.TrimPrefix(request.PublisherName, "external.")
+	if strings.HasPrefix(request.Type, "external") {
+		pluginName := strings.TrimPrefix(request.Type, "external.")
 		pluginPath := filepath.Join(request.WorkDir, request.ModulePath, fmt.Sprintf("%s.so", pluginName))
 		p, err := plugin.Open(pluginPath)
 		if err != nil {
@@ -29,7 +29,7 @@ func PublishPackage(ctx context.Context, request PublishRequest) Response {
 		}
 		return f.(func(context.Context, PublishRequest) Response)(ctx, request)
 	}
-	switch strings.ToLower(request.PublisherName) {
+	switch strings.ToLower(request.Type) {
 	case ArtifactoryMvnPublisherName:
 		return publishMvnJarToArtifactory(ctx, request)
 	case ArtifactoryYarnPublisherName:

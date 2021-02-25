@@ -1,6 +1,8 @@
 package core
 
+import "C"
 import (
+	"context"
 	"fmt"
 	"github.com/go-git/go-billy/v5/memfs"
 	"github.com/go-git/go-git/v5"
@@ -53,13 +55,13 @@ func (c *GitClient) auth() (transport.AuthMethod, error) {
 	return nil, fmt.Errorf("can not recognize credential type")
 }
 
-func (c *GitClient) CloneIntoMemory() error {
+func (c *GitClient) CloneIntoMemory(ctx context.Context) error {
 	auth, err := c.auth()
 	if err != nil {
 		return err
 	}
 	c.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", c.Branch))
-	c.Repo, err = git.Clone(memory.NewStorage(), memfs.New(), &git.CloneOptions{
+	c.Repo, err = git.CloneContext(ctx, memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		ReferenceName: c.ReferenceName,
 		URL:           c.GitOption.RemoteAddress,
 		Auth:          auth,
@@ -109,12 +111,12 @@ func (c *GitClient) WriteSingleFile(data []byte, file, commitMsg string) error {
 	return nil
 }
 
-func (c *GitClient) Push() error {
+func (c *GitClient) Push(ctx context.Context) error {
 	auth, err := c.auth()
 	if err != nil {
 		return err
 	}
-	err = c.Repo.Push(&git.PushOptions{
+	err = c.Repo.PushContext(ctx, &git.PushOptions{
 		RefSpecs: []gitconfig.RefSpec{
 			gitconfig.RefSpec(c.ReferenceName + ":" + c.ReferenceName),
 		},
@@ -128,7 +130,7 @@ func (c *GitClient) Push() error {
 	return nil
 }
 
-func (c *GitClient) Tag(version string) error {
+func (c *GitClient) Tag(ctx context.Context, version string) error {
 	reference, err := c.Repo.Storer.Reference(c.ReferenceName)
 	if err != nil {
 		return err
@@ -163,12 +165,61 @@ func (c *GitClient) Tag(version string) error {
 	if err != nil {
 		return err
 	}
-	err = c.Repo.Push(&git.PushOptions{
+	err = c.Repo.PushContext(ctx, &git.PushOptions{
 		RefSpecs: []gitconfig.RefSpec{
 			gitconfig.RefSpec(tagReferenceName + ":" + tagReferenceName),
 		},
 		Progress: ioutil.Discard,
 		Auth:     auth,
+	})
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func authWithCred(cred config.GitCredential) (transport.AuthMethod, error) {
+	switch cred.Type {
+	case config.CredentialToken:
+		return &http.BasicAuth{
+			Username: "token",
+			Password: utils.ReadEnvVariableIfHas(cred.AccessToken),
+		}, nil
+	case config.CredentialAccount:
+		return &http.BasicAuth{
+			Username: utils.ReadEnvVariableIfHas(cred.Username),
+			Password: utils.ReadEnvVariableIfHas(cred.Password),
+		}, nil
+	}
+	return nil, fmt.Errorf("can not recognize credential type")
+}
+
+func (c *GitClient) PullLatestCode(ctx context.Context) error {
+	repo, err := git.PlainOpen(c.WorkDir)
+	if err != nil {
+		return err
+	}
+	wt, err := repo.Worktree()
+	if err != nil {
+		return err
+	}
+	_ = repo.DeleteRemote("update-code")
+	remote, err := repo.CreateRemote(&gitconfig.RemoteConfig{
+		Name: "update-code",
+		URLs: []string{c.RemoteAddress},
+	})
+	if err != nil {
+		return fmt.Errorf("can not create anonymouse remote %v", err)
+	}
+	auth, err := authWithCred(c.GitCredential)
+	if err != nil {
+		return err
+	}
+	err = wt.PullContext(ctx, &git.PullOptions{
+		RemoteName:    remote.Config().Name,
+		SingleBranch:  true,
+		Auth:          auth,
+		ReferenceName: c.ReferenceName,
 	})
 	if err != nil {
 		return err

@@ -25,7 +25,8 @@ func pump(ctx context.Context) error {
 			GitCredential: cfg.GitConfig.GitCredential,
 		},
 	}
-	err := gitClient.CloneIntoMemory()
+
+	err := gitClient.CloneIntoMemory(ctx)
 	if err != nil {
 		return fmt.Errorf("clone error %v", err)
 	}
@@ -35,7 +36,8 @@ func pump(ctx context.Context) error {
 		return fmt.Errorf("can not recognize version %v", err)
 	}
 
-	err = gitClient.Tag(v.String())
+	log.Printf("git tag version %s", buildVersion)
+	err = gitClient.Tag(ctx, v.String())
 	if err != nil {
 		return fmt.Errorf("tagging before pumping version error %v", err)
 	}
@@ -43,7 +45,7 @@ func pump(ctx context.Context) error {
 	v.NextPatch()
 	if arg.BuildPath {
 		//if pump for patching then push new version then terminate
-		return updateVersion(v.String(), gitClient)
+		return updateVersion(ctx, v.String(), gitClient)
 	}
 
 	//it it is pump of releasing, then an branch of 1.0.x must be created
@@ -62,12 +64,17 @@ func pump(ctx context.Context) error {
 		v.NextMinor()
 	}
 
-	return updateVersion(v.String(), gitClient)
+	err = updateVersion(ctx, v.String(), gitClient)
+	if err != nil {
+		return err
+	}
+	log.Println("pulling latest code...")
+	return gitClient.PullLatestCode(ctx)
 }
 
-func updateVersion(str string, gitClient *core.GitClient) error {
-	log.Printf("next version is %s", str)
-	cfg.Version = str
+func updateVersion(ctx context.Context, nextVer string, gitClient *core.GitClient) error {
+	log.Printf("next version is %s", nextVer)
+	cfg.Version = nextVer
 	bytes, err := yaml.Marshal(cfg)
 	if err != nil {
 		return fmt.Errorf("marshal data error %v", err)
@@ -76,7 +83,7 @@ func updateVersion(str string, gitClient *core.GitClient) error {
 	if err != nil {
 		return fmt.Errorf("write file error %v", err)
 	}
-	err = gitClient.Push()
+	err = gitClient.Push(ctx)
 	if err != nil {
 		return fmt.Errorf("push error %v", err)
 	}

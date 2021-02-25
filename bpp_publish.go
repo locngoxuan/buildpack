@@ -15,6 +15,15 @@ func publish(ctx context.Context) error {
 		return fmt.Errorf("output directory %s does not exist", config.OutputDir)
 	}
 
+	buildInfo, err := config.ReadBuildOutputInfo(outputDir)
+	if err != nil {
+		return err
+	}
+
+	if utils.IsStringEmpty(buildInfo.Version) {
+		return fmt.Errorf("not found build info")
+	}
+
 	modules, err := prepareListModule()
 	if err != nil {
 		return err
@@ -49,7 +58,7 @@ func publish(ctx context.Context) error {
 			}
 
 			selectedRepos := make(map[string]config.Repository)
-			for _, repoId := range pc.RepoIds{
+			for _, repoId := range pc.RepoIds {
 				r, ok := repositories[repoId]
 				if !ok {
 					continue
@@ -61,9 +70,9 @@ func publish(ctx context.Context) error {
 					WorkDir:       workDir,
 					OutputDir:     outputDir,
 					ShareDataDir:  arg.ShareData,
-					Release:       arg.BuildRelease,
-					Patch:         arg.BuildPath,
-					Version:       buildVersion,
+					Release:       buildInfo.Release,
+					Patch:         buildInfo.Release,
+					Version:       buildInfo.Version,
 					ModulePath:    module.Path,
 					ModuleName:    module.Name,
 					ModuleOutputs: module.config.Output,

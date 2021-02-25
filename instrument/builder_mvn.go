@@ -44,7 +44,20 @@ func ReadMvnConfig(moduleDir string) (c MvnConfig, err error) {
 		err = fmt.Errorf("read build config file get error %v", err)
 		return
 	}
-	err = yaml.Unmarshal(yamlFile, &c)
+	var tmp map[string]interface{}
+	err = yaml.Unmarshal(yamlFile, &tmp)
+	if err != nil {
+		err = fmt.Errorf("unmarshal build config file get error %v", err)
+		return
+	}
+
+	out, err := yaml.Marshal(tmp["build"])
+	if err != nil {
+		err = fmt.Errorf("mvn build config is malformed %v", err)
+		return
+	}
+
+	err = yaml.Unmarshal(out, &c)
 	if err != nil {
 		err = fmt.Errorf("unmarshal build config file get error %v", err)
 		return

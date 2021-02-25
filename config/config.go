@@ -16,7 +16,8 @@ const (
 	ConfigGlobal       = ".config"
 	ConfigEnvVariables = ".env"
 
-	OutputDir = ".bpp"
+	OutputDir  = ".bpp"
+	OutputInfo = "info"
 )
 
 type ProjectConfig struct {
@@ -33,6 +34,11 @@ type ModuleInfo struct {
 type ModuleConfig struct {
 	BuildConfig `yaml:"build,omitempty" json:"build,omitempty"`
 	Publish     []PublishConfig `yaml:"publish,omitempty" json:"publish,omitempty"`
+}
+
+type BuildOutputInfo struct {
+	Version string `yaml:"build_mode,omitempty" json:"version,omitempty"`
+	Release bool   `yaml:"release,omitempty" json:"release,omitempty"`
 }
 
 func ReadProjectConfig(workDir, argConfigFile string) (c ProjectConfig, err error) {
@@ -60,13 +66,47 @@ func ReadProjectConfig(workDir, argConfigFile string) (c ProjectConfig, err erro
 	return
 }
 
-func WriteProjectConfig(config ProjectConfig, file string) error {
+func WriteProjectConfig(config ProjectConfig, dir string) error {
 	bytes, err := yaml.Marshal(config)
 	if err != nil {
 		return err
 	}
 
-	err = ioutil.WriteFile(file, bytes, 0644)
+	err = ioutil.WriteFile(filepath.Join(dir, ConfigProject), bytes, 0644)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func ReadBuildOutputInfo(dir string) (out BuildOutputInfo, err error) {
+	file := filepath.Join(dir, OutputInfo)
+	_, err = os.Stat(file)
+	if os.IsNotExist(err) {
+		err = fmt.Errorf("build info not found")
+		return
+	}
+
+	yamlFile, err := ioutil.ReadFile(file)
+	if err != nil {
+		err = fmt.Errorf("read build info get error %v", err)
+		return
+	}
+	err = yaml.Unmarshal(yamlFile, &out)
+	if err != nil {
+		err = fmt.Errorf("unmarshal build info get error %v", err)
+		return
+	}
+	return
+}
+
+func WriteBuildOutputInfo(out BuildOutputInfo, dir string) error {
+	bytes, err := yaml.Marshal(out)
+	if err != nil {
+		return err
+	}
+
+	err = ioutil.WriteFile(filepath.Join(dir, OutputInfo), bytes, 0644)
 	if err != nil {
 		return err
 	}

@@ -139,7 +139,7 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 		_ = os.RemoveAll(tarFile)
 	}()
 
-	log.Printf("[%s] building docker build image", b.BuilderName)
+	log.Printf("[%s] building docker image", b.BuilderName)
 	response, err := b.DockerClient.BuildImageWithOpts(ctx, tarFile, opt)
 	if err != nil {
 		return err
@@ -236,6 +236,18 @@ func build(ctx context.Context) error {
 		}
 	}
 	err = os.Mkdir(outputDir, 0777)
+	if err != nil {
+		return err
+	}
+
+	outputAsRelease := false
+	if arg.BuildRelease || arg.BuildPath {
+		outputAsRelease = true
+	}
+	err = config.WriteBuildOutputInfo(config.BuildOutputInfo{
+		Version: buildVersion,
+		Release: outputAsRelease,
+	}, outputDir)
 	if err != nil {
 		return err
 	}

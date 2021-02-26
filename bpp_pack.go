@@ -20,6 +20,7 @@ import (
 
 type PackSupervisor struct {
 	PackType         string
+	DevMode          bool
 	Modules          []Module
 	PackImage        string
 	Dockerfile       string
@@ -201,6 +202,29 @@ func (b *PackSupervisor) createDockerBuildContext() (string, error) {
 }
 
 func pack(ctx context.Context) error {
+	var err error
+	//preparing phase of build process is started
+	if utils.IsNotExists(outputDir) {
+		err = os.Mkdir(outputDir, 0777)
+		if err != nil {
+			return err
+		}
+	}
+
+	isReleased := false
+	if arg.BuildRelease || arg.BuildPath {
+		isReleased = true
+	}
+	if utils.IsNotExists(filepath.Join(outputDir, config.OutputInfo)) {
+		err = config.WriteBuildOutputInfo(config.BuildOutputInfo{
+			Version: buildVersion,
+			Release: isReleased,
+		}, outputDir)
+		if err != nil {
+			return err
+		}
+	}
+
 	globalDockerConfig, err := config.ReadGlobalDockerConfig()
 	if err != nil {
 		return err
@@ -232,6 +256,7 @@ func pack(ctx context.Context) error {
 		if !ok {
 			log.Printf("initiating pack supervisor for builder %s", module.config.PackConfig.Type)
 			supervisor = &PackSupervisor{
+				DevMode:          !isReleased,
 				PackType:         module.config.PackConfig.Type,
 				Modules:          make([]Module, 0),
 				Dockerfile:       "",
@@ -267,8 +292,7 @@ func pack(ctx context.Context) error {
 				WorkDir:       workDir,
 				OutputDir:     outputDir,
 				ShareDataDir:  arg.ShareData,
-				Release:       arg.BuildRelease,
-				Patch:         arg.BuildRelease,
+				DevMode:       supervisor.DevMode,
 				Version:       buildVersion,
 				ModulePath:    module.Path,
 				ModuleName:    module.Name,

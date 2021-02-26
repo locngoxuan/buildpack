@@ -72,15 +72,13 @@ func mvnLocalBuild(ctx context.Context, req BuildRequest) Response {
 	}
 	args := make([]string, 0)
 	args = append(args, "clean", "install")
-	if !req.Release && !req.Patch {
-		args = append(args, "-U")
-	}
 	label := mvnConfig.Label
 	if utils.Trim(label) == "" {
 		label = "SNAPSHOT"
 	}
 	ver := req.Version
-	if !req.Release && !req.Patch {
+	if req.DevMode {
+		args = append(args, "-U")
 		ver = fmt.Sprintf("%s-%s", req.Version, label)
 	}
 	args = append(args, fmt.Sprintf("-Drevision=%s", ver))
@@ -170,13 +168,10 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 		label = "SNAPSHOT"
 	}
 	ver := req.Version
-	if !req.Release && !req.Patch {
-		ver = fmt.Sprintf("%s-%s", req.Version, label)
-	}
-
 	dockerCommandArg := make([]string, 0)
 	dockerCommandArg = append(dockerCommandArg, "mvn", "install")
-	if !req.Release && !req.Patch {
+	if req.DevMode {
+		ver = fmt.Sprintf("%s-%s", req.Version, label)
 		dockerCommandArg = append(dockerCommandArg, "-U")
 	}
 	dockerCommandArg = append(dockerCommandArg, fmt.Sprintf("-Drevision=%s", ver))

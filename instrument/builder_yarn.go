@@ -57,7 +57,7 @@ func yarnLocalBuild(ctx context.Context, req BuildRequest) Response {
 		label = "SNAPSHOT"
 	}
 	ver := req.Version
-	if !req.Release && !req.Patch {
+	if req.DevMode {
 		ver = fmt.Sprintf("%s-%s", req.Version, label)
 	}
 	log.Printf("[%s] workging dir: %s", req.ModuleName, req.WorkDir)
@@ -133,7 +133,7 @@ func yarnBuild(ctx context.Context, req BuildRequest) Response {
 		label = "SNAPSHOT"
 	}
 	ver := req.Version
-	if !req.Release && !req.Patch {
+	if req.DevMode {
 		ver = fmt.Sprintf("%s-%s", req.Version, label)
 	}
 	log.Printf("[%s] docker image: %s", req.ModuleName, req.DockerImage)

@@ -33,7 +33,7 @@ func yarnLocalPack(ctx context.Context, req PackRequest) Response {
 		label = "SNAPSHOT"
 	}
 	ver := req.Version
-	if !req.Release && !req.Patch {
+	if req.DevMode {
 		ver = fmt.Sprintf("%s-%s", req.Version, label)
 	}
 	//should read current version from package.json here
@@ -84,16 +84,6 @@ func yarnPack(ctx context.Context, req PackRequest) Response {
 	if req.LocalBuild {
 		return yarnLocalPack(ctx, req)
 	}
-	mounts := make([]mount.Mount, 0)
-	err := os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, defaultYarnPackDir), 0755)
-	if err != nil {
-		return responseError(err)
-	}
-	mounts = append(mounts, mount.Mount{
-		Type:   mount.TypeBind,
-		Source: filepath.Join(req.OutputDir, req.ModuleName, defaultYarnPackDir),
-		Target: filepath.Join("/working", req.ModulePath, defaultYarnPackDir),
-	})
 	c, err := config.ReadModuleConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
 		return responseError(err)
@@ -103,13 +93,23 @@ func yarnPack(ctx context.Context, req PackRequest) Response {
 		label = "SNAPSHOT"
 	}
 	ver := req.Version
-	if !req.Release && !req.Patch {
+	if req.DevMode {
 		ver = fmt.Sprintf("%s-%s", req.Version, label)
 	}
 	log.Printf("[%s] docker image: %s", req.ModuleName, req.DockerImage)
 	log.Printf("[%s] workging dir: %s", req.ModuleName, req.WorkDir)
 	log.Printf("[%s] cwd option: %s", req.ModuleName, req.ModulePath)
 
+	mounts := make([]mount.Mount, 0)
+	err = os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, defaultYarnPackDir), 0755)
+	if err != nil {
+		return responseError(err)
+	}
+	mounts = append(mounts, mount.Mount{
+		Type:   mount.TypeBind,
+		Source: filepath.Join(req.OutputDir, req.ModuleName, defaultYarnPackDir),
+		Target: filepath.Join("/working", req.ModulePath, defaultYarnPackDir),
+	})
 	dockerCmd := []string{"/bin/sh", "/scripts/packscript.sh"}
 	log.Printf("[%s] docker command: %s", req.ModuleName, strings.Join(dockerCmd, " "))
 

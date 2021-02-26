@@ -5,8 +5,7 @@ type BaseProperties struct {
 	OutputDir     string
 	ShareDataDir  string
 	Version       string
-	Release       bool
-	Patch         bool
+	DevMode       bool
 	ModuleName    string
 	ModulePath    string
 	ModuleOutputs []string

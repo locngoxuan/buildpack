@@ -22,6 +22,7 @@ import (
 
 type BuildSupervisor struct {
 	BuildType        string
+	DevMode          bool
 	Modules          []Module
 	BuildImage       string
 	Dockerfile       string
@@ -216,13 +217,13 @@ func build(ctx context.Context) error {
 		return err
 	}
 
-	outputAsRelease := false
+	isReleased := false
 	if arg.BuildRelease || arg.BuildPath {
-		outputAsRelease = true
+		isReleased = true
 	}
 	err = config.WriteBuildOutputInfo(config.BuildOutputInfo{
 		Version: buildVersion,
-		Release: outputAsRelease,
+		Release: isReleased,
 	}, outputDir)
 	if err != nil {
 		return err
@@ -260,6 +261,7 @@ func build(ctx context.Context) error {
 			log.Printf("initiating build supervisor for builder %s", module.config.BuildConfig.Type)
 			supervisor = &BuildSupervisor{
 				BuildType:        module.config.BuildConfig.Type,
+				DevMode:          !isReleased,
 				Modules:          make([]Module, 0),
 				Dockerfile:       "",
 				DockerHosts:      hosts,
@@ -365,12 +367,12 @@ func buildModule(ctx context.Context, prevWg *sync.WaitGroup, module Module, sup
 	}
 	log.Printf("[%s] start to build", module.Name)
 	response := instrument.Build(ctx, instrument.BuildRequest{
+
 		BaseProperties: instrument.BaseProperties{
 			WorkDir:       workDir,
 			OutputDir:     outputDir,
 			ShareDataDir:  arg.ShareData,
-			Release:       arg.BuildRelease,
-			Patch:         arg.BuildPath,
+			DevMode:       supervisor.DevMode,
 			Version:       buildVersion,
 			ModulePath:    module.Path,
 			ModuleName:    module.Name,

@@ -76,7 +76,7 @@ func publishMvnJarToArtifactory(ctx context.Context, req PublishRequest) Respons
 
 	for _, repo := range req.Repositories {
 		for _, element := range packages {
-			chn := repo.GetChannel(req.Release || req.Patch)
+			chn := repo.GetChannel(!req.DevMode)
 			if utils.IsStringEmpty(chn.Address) {
 				return responseError(fmt.Errorf("channel of repo %s is malformed", repo.Id))
 			}

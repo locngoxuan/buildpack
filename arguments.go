@@ -12,8 +12,7 @@ import (
 )
 
 var (
-	f       = flag.NewFlagSet("BPP", flag.ContinueOnError)
-	verbose = false
+	f = flag.NewFlagSet("BPP", flag.ContinueOnError)
 
 	cmdVersion = "version"
 	cmdBuild   = "build"
@@ -55,7 +54,6 @@ type Arguments struct {
 	BuildLocal   bool
 	BuildRelease bool
 	BuildPath    bool
-	Verbose      bool
 	SkipOption
 }
 
@@ -73,11 +71,8 @@ func readArguments() (arg Arguments, err error) {
 	f.BoolVar(&arg.BuildPath, "patch", false, "project is built only for path")
 	f.BoolVar(&arg.BuildLocal, "local", false, "running build and clean in local")
 	f.StringVar(&arg.GitBranch, "git-branch", "", "branch that code will be pushed")
-
-	//git operation
 	f.BoolVar(&arg.SkipBackward, "skip-backward", false, "if true, then major version will be increased")
 
-	f.BoolVar(&verbose, "verbose", false, "show more detail in console and logs")
 	f.Usage = func() {
 		_, _ = fmt.Fprint(f.Output(), usagePrefix)
 		f.PrintDefaults()
@@ -92,20 +87,10 @@ func readArguments() (arg Arguments, err error) {
 	if len(os.Args) > 2 {
 		err = f.Parse(os.Args[2:])
 	}
-	arg.Verbose = verbose
 	return
 }
 
-func readEnvVariables() error {
-	envFile := filepath.Join(workDir, config.ConfigEnvVariables)
-	if utils.IsNotExists(envFile) {
-		userHomeDir, err := os.UserHomeDir()
-		if err != nil {
-			return err
-		}
-		envFile = filepath.Join(userHomeDir, config.OutputDir, config.ConfigEnvVariables)
-	}
-
+func updateEnvFromFile(envFile string) error {
 	if utils.IsNotExists(envFile) {
 		return nil
 	}
@@ -142,6 +127,22 @@ func readEnvVariables() error {
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func readEnvVariables() error {
+	userHomeDir, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	err = updateEnvFromFile(filepath.Join(userHomeDir, config.OutputDir, config.ConfigEnvVariables))
+	if err != nil {
+		return err
+	}
+	err = updateEnvFromFile(filepath.Join(workDir, config.ConfigEnvVariables))
+	if err != nil {
+		return err
 	}
 	return nil
 }

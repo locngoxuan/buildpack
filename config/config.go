@@ -36,6 +36,7 @@ type ModuleInfo struct {
 
 type ModuleConfig struct {
 	BuildConfig `yaml:"build,omitempty" json:"build,omitempty"`
+	PackConfig  `yaml:"pack,omitempty" json:"pack,omitempty"`
 	Publish     []PublishConfig `yaml:"publish,omitempty" json:"publish,omitempty"`
 }
 

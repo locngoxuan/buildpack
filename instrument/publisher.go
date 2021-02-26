@@ -35,5 +35,5 @@ func PublishPackage(ctx context.Context, request PublishRequest) Response {
 	case ArtifactoryYarnPublisherName:
 		return publishYarnJarToArtifactory(ctx, request)
 	}
-	return responseError(fmt.Errorf("can not recognize builder name"))
+	return responseError(fmt.Errorf("can not recognize publish type"))
 }

@@ -18,12 +18,10 @@ import (
 	"path/filepath"
 	"strings"
 	"sync"
-	"text/template"
 )
 
 type BuildSupervisor struct {
-	BuilderName      string
-	SockAddr         string
+	BuildType        string
 	Modules          []Module
 	BuildImage       string
 	Dockerfile       string
@@ -43,7 +41,7 @@ func (b *BuildSupervisor) initDockerClient(ctx context.Context) error {
 	if arg.BuildLocal {
 		return nil
 	}
-	log.Printf("[%s] initiating docker client", b.BuilderName)
+	log.Printf("[%s] initiating docker client", b.BuildType)
 	dockerClient, err := core.InitDockerClient(ctx, b.DockerHosts)
 	if err != nil {
 		return err
@@ -57,10 +55,10 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 	if arg.BuildLocal {
 		return nil
 	}
-	log.Printf("[%s] preparing docker image for running build", b.BuilderName)
+	log.Printf("[%s] preparing docker image for running build", b.BuildType)
 	e := b.Modules[0]
 	var err error
-	dockerImage := e.config.DockerImage
+	dockerImage := e.config.BuildConfig.DockerImage
 	if strings.TrimSpace(dockerImage) == "" {
 		dockerImage, err = instrument.DefaultDockerImageName(workDir, e.config.BuildConfig.Type)
 		if err != nil {
@@ -68,29 +66,7 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 		}
 	}
 
-	createDockerfile := func(fileName, dockerImage string) (string, error) {
-		dockerFileBuild := filepath.Join(outputDir, fileName)
-		f, err := os.Create(dockerFileBuild)
-		if err != nil {
-			return "", err
-		}
-
-		defer func() {
-			_ = f.Close()
-		}()
-
-		t := template.Must(template.New("Dockerfile").Parse(DockerfileOfBuilder))
-
-		err = t.Execute(f, BuilderTemplate{
-			Image: dockerImage,
-		})
-		if err != nil {
-			return "", err
-		}
-		return dockerFileBuild, nil
-	}
-
-	dockerFile, err := createDockerfile(fmt.Sprintf("Dockerfile.%s", b.BuilderName), dockerImage)
+	dockerFile, err := createDockerfile(fmt.Sprintf("Dockerfile.%s", b.BuildType), dockerImage)
 	if err != nil {
 		return err
 	}
@@ -109,7 +85,7 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 	}
 	_, cat := filepath.Split(dir)
 	b.BuildImage = strings.ToLower(fmt.Sprintf("%s_%s:%s", cat, name, buildVersion))
-	log.Printf("[%s] docker build image name = %s", b.BuilderName, b.BuildImage)
+	log.Printf("[%s] docker build image name = %s", b.BuildType, b.BuildImage)
 	//create image build option
 	_, dockerFileName := filepath.Split(b.Dockerfile)
 	opt := types.ImageBuildOptions{
@@ -139,7 +115,7 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 		_ = os.RemoveAll(tarFile)
 	}()
 
-	log.Printf("[%s] building docker image", b.BuilderName)
+	log.Printf("[%s] building docker image", b.BuildType)
 	response, err := b.DockerClient.BuildImageWithOpts(ctx, tarFile, opt)
 	if err != nil {
 		return err
@@ -162,7 +138,7 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 func (b *BuildSupervisor) createDockerBuildContext() (string, error) {
 	// tar info
 	tarFile := fmt.Sprintf("%s.tar", b.Dockerfile)
-	log.Printf("[%s] packaging docker build context at %s", b.BuilderName, tarFile)
+	log.Printf("[%s] packaging docker build context at %s", b.BuildType, tarFile)
 	//create tar at common directory
 	tar := new(archivex.TarFile)
 	err := tar.Create(tarFile)
@@ -226,47 +202,6 @@ func (b *BuildSupervisor) createDockerBuildContext() (string, error) {
 	return tarFile, nil
 }
 
-func aggregateDockerConfigInfo(global config.DockerGlobalConfig) ([]string, []config.DockerRegistry) {
-	hostSet := make(map[string]struct{})
-	hostSet[core.DefaultDockerUnixSock] = struct{}{}
-	hostSet[core.DefaultDockerTCPSock] = struct{}{}
-	if len(global.Hosts) > 0 {
-		for _, host := range global.Hosts {
-			hostSet[host] = struct{}{}
-		}
-	}
-	if len(cfg.DockerConfig.Hosts) > 0 {
-		for _, host := range cfg.DockerConfig.Hosts {
-			hostSet[host] = struct{}{}
-		}
-	}
-
-	registryMap := make(map[string]config.DockerRegistry)
-
-	if len(global.Registries) > 0 {
-		for _, registry := range global.Registries {
-			registryMap[registry.Address] = registry
-		}
-	}
-	if len(cfg.DockerConfig.Registries) > 0 {
-		for _, registry := range cfg.DockerConfig.Registries {
-			registryMap[registry.Address] = registry
-		}
-	}
-
-	hosts := make([]string, 0)
-	for host := range hostSet {
-		hosts = append(hosts, host)
-	}
-
-	registries := make([]config.DockerRegistry, 0)
-	registries = append(registries, core.DefaultDockerHubRegistry)
-	for _, registry := range registryMap {
-		registries = append(registries, registry)
-	}
-	return hosts, registries
-}
-
 func build(ctx context.Context) error {
 	var err error
 	//preparing phase of build process is started
@@ -298,25 +233,33 @@ func build(ctx context.Context) error {
 		return err
 	}
 
-	modules, err := prepareListModule()
+	tempModules, err := prepareListModule()
 	if err != nil {
 		return err
 	}
 
-	if len(modules) == 0 {
+	if len(tempModules) == 0 {
 		return fmt.Errorf("could not find the selected module")
 	}
 
+	//ignore module that is not configured for building
+	modules := make([]Module, 0)
+	for _, m := range tempModules {
+		if utils.IsStringEmpty(m.config.BuildConfig.Type) {
+			continue
+		}
+		modules = append(modules, m)
+	}
+
 	//build Dockerfile for each builder type
+	hosts, registries := aggregateDockerConfigInfo(globalDockerConfig)
 	supervisors := make(map[string]*BuildSupervisor)
 	for _, module := range modules {
 		supervisor, ok := supervisors[module.config.BuildConfig.Type]
 		if !ok {
-			hosts, registries := aggregateDockerConfigInfo(globalDockerConfig)
-			log.Printf("initiating build instruction for builder %s", module.config.BuildConfig.Type)
-
+			log.Printf("initiating build supervisor for builder %s", module.config.BuildConfig.Type)
 			supervisor = &BuildSupervisor{
-				BuilderName:      module.config.BuildConfig.Type,
+				BuildType:        module.config.BuildConfig.Type,
 				Modules:          make([]Module, 0),
 				Dockerfile:       "",
 				DockerHosts:      hosts,

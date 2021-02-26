@@ -10,8 +10,9 @@ import (
 )
 
 const (
-	FuncDefaultDockerImage = "DefaultDockerImageName"
-	FuncBuild              = "Build"
+	FuncDefaultDockerImage     = "DefaultDockerImageName"
+	FuncDefaultPackDockerImage = "DefaultPackDockerImage"
+	FuncBuild                  = "Build"
 )
 
 type BuildRequest struct {
@@ -41,7 +42,7 @@ func DefaultDockerImageName(moduleAbsPath, builderName string) (string, error) {
 	case YarnBuilderName:
 		return defaultYarnDockerImage, nil
 	}
-	return "", fmt.Errorf("can not recognize builder name")
+	return "", fmt.Errorf("can not recognize build type")
 }
 
 func Build(ctx context.Context, request BuildRequest) Response {

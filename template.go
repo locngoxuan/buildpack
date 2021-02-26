@@ -3,6 +3,8 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"os"
+	"path/filepath"
 	"text/template"
 )
 
@@ -39,4 +41,26 @@ func fmtError(err error, msg string) error {
 		return err
 	}
 	return fmt.Errorf(buf.String())
+}
+
+func createDockerfile(fileName, dockerImage string) (string, error) {
+	dockerFileBuild := filepath.Join(outputDir, fileName)
+	f, err := os.Create(dockerFileBuild)
+	if err != nil {
+		return "", err
+	}
+
+	defer func() {
+		_ = f.Close()
+	}()
+
+	t := template.Must(template.New("Dockerfile").Parse(DockerfileOfBuilder))
+
+	err = t.Execute(f, BuilderTemplate{
+		Image: dockerImage,
+	})
+	if err != nil {
+		return "", err
+	}
+	return dockerFileBuild, nil
 }

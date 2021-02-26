@@ -17,6 +17,10 @@ func pump(ctx context.Context) error {
 	}
 	branchName = utils.Trim(branchName)
 
+	if utils.IsStringEmpty(branchName) {
+		branchName = "master"
+	}
+
 	gitClient := &core.GitClient{
 		GitOption: core.GitOption{
 			WorkDir:       workDir,

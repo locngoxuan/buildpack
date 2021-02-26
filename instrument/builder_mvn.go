@@ -89,8 +89,8 @@ func mvnLocalBuild(ctx context.Context, req BuildRequest) Response {
 	}
 	args = append(args, "-f", filepath.Join(req.WorkDir, req.ModulePath, "pom.xml"))
 	args = append(args, "-N")
-	log.Printf("[%s] workging dir %s", req.ModuleName, req.WorkDir)
-	log.Printf("[%s] path of pom at working dir is %s", req.ModuleName, filepath.Join(req.WorkDir, req.ModulePath, "pom.xml"))
+	log.Printf("[%s] workging dir: %s", req.ModuleName, req.WorkDir)
+	log.Printf("[%s] path of pom at working dir: %s", req.ModuleName, filepath.Join(req.WorkDir, req.ModulePath, "pom.xml"))
 	log.Printf("[%s] mvn command: mvn %s", req.ModuleName, strings.Join(args, " "))
 	cmd := exec.CommandContext(ctx, "mvn", args...)
 	defer func() {
@@ -186,8 +186,8 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 	dockerCommandArg = append(dockerCommandArg, "-f", filepath.Join(req.ModulePath, "pom.xml"))
 	dockerCommandArg = append(dockerCommandArg, "-N")
 
-	log.Printf("[%s] workging dir %s", req.ModuleName, req.WorkDir)
-	log.Printf("[%s] path of pom at working dir is %s", req.ModuleName, filepath.Join(req.ModulePath, "pom.xml"))
+	log.Printf("[%s] workging dir: %s", req.ModuleName, req.WorkDir)
+	log.Printf("[%s] path of pom at working dir: %s", req.ModuleName, filepath.Join(req.ModulePath, "pom.xml"))
 	log.Printf("[%s] docker command: %s", req.ModuleName, strings.Join(dockerCommandArg, " "))
 	//
 	containerConfig := &container.Config{

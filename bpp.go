@@ -11,17 +11,23 @@ func run(ctx context.Context) error {
 	switch arg.Command {
 	case cmdVersion:
 		return showVersion()
+	case cmdHelp:
+		f.Usage()
+		return nil
 	case cmdClean:
 		return clean(ctx)
 	case cmdBuild:
-		//read configuration
 		err := prepareConfig()
 		if err != nil {
 			return err
 		}
 		return build(ctx)
 	case cmdPack:
-		return nil
+		err := prepareConfig()
+		if err != nil {
+			return err
+		}
+		return pack(ctx)
 	case cmdPublish:
 		err := prepareConfig()
 		if err != nil {
@@ -34,9 +40,6 @@ func run(ctx context.Context) error {
 			return err
 		}
 		return pump(ctx)
-	case cmdHelp:
-		f.Usage()
-		return nil
 	}
 	return fmt.Errorf("can recognize command %s", arg.Command)
 }

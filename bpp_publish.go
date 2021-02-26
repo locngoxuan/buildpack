@@ -23,13 +23,31 @@ func publish(ctx context.Context) error {
 		return fmt.Errorf("not found build info")
 	}
 
-	modules, err := prepareListModule()
+	tempModules, err := prepareListModule()
 	if err != nil {
 		return err
 	}
 
-	if len(modules) == 0 {
+	if len(tempModules) == 0 {
 		return fmt.Errorf("could not find the selected module")
+	}
+
+	//ignore module that is not configured for building
+	modules := make([]Module, 0)
+	for _, m := range tempModules {
+		if len(m.config.Publish) == 0 {
+			continue
+		}
+		modules = append(modules, m)
+	}
+
+	//verify publish type
+	for _, m := range modules {
+		for _, p := range m.config.Publish {
+			if utils.IsStringEmpty(p.Type) {
+				return fmt.Errorf("publish type of module %s is malformed", m.Name)
+			}
+		}
 	}
 
 	globalRepoConfig, err := config.ReadGlobalRepositoryConfig()

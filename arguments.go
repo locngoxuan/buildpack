@@ -25,20 +25,30 @@ var (
 	usagePrefix = `Usage: bpp COMMAND [OPTIONS]
 COMMAND:
   clean         Cleaning output of build process
+
   build         Compiling source code
+                (Options: config, release, share-data, module, version, local)
+
   pack          Packing output of build process as publishable files
+                (Options: config, release, module, version, local)
+
   publish       Publish packages to repository
+                (Options: config, module, version)
+
   pump          Increasing version of project
+                (Options: patch, release, skip-backward, force-pull, git-branch)
+
   version       Showing version of bpp
+
   help          Showing usage
 
 Examples:
   bpp clean
   bpp version
-  bpp build --release
+  bpp build --release --local  
   bpp package --release
-  bpp publish --release
-  bpp pump --patch/--release --skip-backward
+  bpp publish
+  bpp pump --skip-backward --git-branch=develop    
 
 Options:
 `

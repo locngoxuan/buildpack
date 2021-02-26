@@ -223,6 +223,13 @@ func pack(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
+	}else{
+		buildInfo, err := config.ReadBuildOutputInfo(outputDir)
+		if err != nil {
+			return err
+		}
+		isReleased = buildInfo.Release
+		buildVersion = buildInfo.Version
 	}
 
 	globalDockerConfig, err := config.ReadGlobalDockerConfig()

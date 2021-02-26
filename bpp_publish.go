@@ -23,6 +23,7 @@ func publish(ctx context.Context) error {
 		return fmt.Errorf("not found build info")
 	}
 
+	buildVersion = buildInfo.Version
 	tempModules, err := prepareListModule()
 	if err != nil {
 		return err

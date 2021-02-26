@@ -8,6 +8,7 @@ import (
 	"github.com/locngoxuan/buildpack/utils"
 	"gopkg.in/yaml.v2"
 	"log"
+	"time"
 )
 
 func pump(ctx context.Context) error {
@@ -29,7 +30,6 @@ func pump(ctx context.Context) error {
 			GitCredential: cfg.GitConfig.GitCredential,
 		},
 	}
-
 	err := gitClient.CloneIntoMemory(ctx)
 	if err != nil {
 		return fmt.Errorf("clone error %v", err)
@@ -43,7 +43,7 @@ func pump(ctx context.Context) error {
 	log.Printf("create tag of version %s", buildVersion)
 	err = gitClient.Tag(ctx, v.String())
 	if err != nil {
-		return fmt.Errorf("tagging before pumping version error %v", err)
+		return fmt.Errorf("tagging before pumping version error: %v", err)
 	}
 
 	v.NextPatch()
@@ -86,6 +86,10 @@ func updateVersion(ctx context.Context, nextVer string, gitClient *core.GitClien
 	if err != nil {
 		return fmt.Errorf("push error %v", err)
 	}
+	if !arg.ForcePull {
+		return nil
+	}
+	time.Sleep(5 * time.Second)
 	log.Println("refreshing latest code...")
-	return gitClient.PullLatestCode(ctx)
+	return core.PullLatestCode(ctx, *gitClient)
 }

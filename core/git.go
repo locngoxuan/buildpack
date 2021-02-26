@@ -14,7 +14,7 @@ import (
 	"github.com/go-git/go-git/v5/storage/memory"
 	"github.com/locngoxuan/buildpack/config"
 	"github.com/locngoxuan/buildpack/utils"
-	"io/ioutil"
+	"log"
 	"os"
 	"time"
 )
@@ -40,19 +40,7 @@ type GitClient struct {
 }
 
 func (c *GitClient) auth() (transport.AuthMethod, error) {
-	switch c.GitCredential.Type {
-	case config.CredentialToken:
-		return &http.BasicAuth{
-			Username: "token",
-			Password: utils.ReadEnvVariableIfHas(c.GitCredential.AccessToken),
-		}, nil
-	case config.CredentialAccount:
-		return &http.BasicAuth{
-			Username: utils.ReadEnvVariableIfHas(c.GitCredential.Username),
-			Password: utils.ReadEnvVariableIfHas(c.GitCredential.Password),
-		}, nil
-	}
-	return nil, fmt.Errorf("can not recognize credential type")
+	return authWithCred(c.GitCredential)
 }
 
 func (c *GitClient) CloneIntoMemory(ctx context.Context) error {
@@ -61,6 +49,7 @@ func (c *GitClient) CloneIntoMemory(ctx context.Context) error {
 		return err
 	}
 	c.ReferenceName = plumbing.ReferenceName(fmt.Sprintf("refs/heads/%s", c.Branch))
+	log.Printf("cloning branch %s into memory from %s", c.Branch, c.GitOption.RemoteAddress)
 	c.Repo, err = git.CloneContext(ctx, memory.NewStorage(), memfs.New(), &git.CloneOptions{
 		ReferenceName: c.ReferenceName,
 		URL:           c.GitOption.RemoteAddress,
@@ -159,6 +148,7 @@ func (c *GitClient) Tag(ctx context.Context, version string) error {
 		return err
 	}
 	_, err = c.Repo.CreateTag(version, h.Hash(), &git.CreateTagOptions{
+		Tagger:  signature(),
 		Message: "v" + version,
 	})
 
@@ -170,8 +160,17 @@ func (c *GitClient) Tag(ctx context.Context, version string) error {
 		return err
 	}
 
+	_ = c.Repo.DeleteRemote("update-code")
+	remote, err := c.Repo.CreateRemote(&gitconfig.RemoteConfig{
+		Name: "update-code",
+		URLs: []string{c.RemoteAddress},
+	})
+	if err != nil {
+		return fmt.Errorf("can not create anonymouse remote %v", err)
+	}
 	po := &git.PushOptions{
-		Progress: os.Stdout,
+		RemoteName: remote.Config().Name,
+		Progress:   os.Stdout,
 		RefSpecs: []gitconfig.RefSpec{
 			gitconfig.RefSpec("refs/tags/*:refs/tags/*"),
 		},
@@ -196,7 +195,7 @@ func authWithCred(cred config.GitCredential) (transport.AuthMethod, error) {
 	return nil, fmt.Errorf("can not recognize credential type")
 }
 
-func (c *GitClient) PullLatestCode(ctx context.Context) error {
+func PullLatestCode(ctx context.Context, c GitClient) error {
 	repo, err := git.PlainOpen(c.WorkDir)
 	if err != nil {
 		return err
@@ -218,14 +217,24 @@ func (c *GitClient) PullLatestCode(ctx context.Context) error {
 		return err
 	}
 	err = wt.PullContext(ctx, &git.PullOptions{
+		Force:         true,
 		RemoteName:    remote.Config().Name,
-		SingleBranch:  true,
 		Auth:          auth,
+		Progress:      os.Stdout,
 		ReferenceName: c.ReferenceName,
 	})
 	if err != nil {
 		return err
 	}
+	ref, err := repo.Head()
+	if err != nil {
+		return err
+	}
+	commit, err := repo.CommitObject(ref.Hash())
+	if err != nil {
+		return err
+	}
+	log.Printf("latest commit hash: %s", commit.Hash)
 	return nil
 }
 
@@ -253,7 +262,7 @@ func (c *GitClient) CreateNewBranch(branchName string) error {
 		RefSpecs: []gitconfig.RefSpec{
 			gitconfig.RefSpec(newBranchName + ":" + newBranchName),
 		},
-		Progress: ioutil.Discard,
+		Progress: os.Stdout,
 		Auth:     auth,
 		Force:    true,
 	})

@@ -29,24 +29,8 @@ func clean(ctx context.Context) error {
 
 	globalDockerConfig, _ := config.ReadGlobalDockerConfig()
 
-	hosts := make([]string, 0)
-	hosts = append(hosts, core.DefaultDockerUnixSock, core.DefaultDockerTCPSock)
-	if len(cfg.DockerConfig.Hosts) > 0 {
-		hosts = append(hosts, cfg.DockerConfig.Hosts...)
-	}
-	if len(globalDockerConfig.Hosts) > 0 {
-		hosts = append(hosts, globalDockerConfig.Hosts...)
-	}
-	registries := make([]config.DockerRegistry, 0)
-	registries = append(registries, core.DefaultDockerHubRegistry)
-	if len(cfg.DockerConfig.Registries) > 0 {
-		registries = append(registries,cfg.DockerConfig.Registries...)
-	}
-	if len(globalDockerConfig.Registries) > 0 {
-		registries = append(registries, globalDockerConfig.Registries...)
-	}
-
-	dockerClient, err := core.InitDockerClient(hosts)
+	hosts, registries := aggregateDockerConfigInfo(globalDockerConfig)
+	dockerClient, err := core.InitDockerClient(ctx, hosts)
 	if err != nil {
 		return err
 	}

@@ -119,43 +119,46 @@ func auth(username, password string) (string, error) {
 	return base64.URLEncoding.EncodeToString(encodedJSON), nil
 }
 
-func InitDockerClient(hosts []string) (dockerCli DockerClient, err error) {
-	host, err := VerifyDockerHostConnection(hosts)
+func InitDockerClient(ctx context.Context, hosts []string) (dockerCli DockerClient, err error) {
+	host, err := VerifyDockerHostConnection(ctx, hosts)
 	if err != nil {
 		return
 	}
 	_ = os.Setenv("DOCKER_HOST", host)
-	dockerCli.Client, err = client.NewClientWithOpts()
+	dockerCli.Client, err = client.NewClientWithOpts(client.FromEnv)
 	if err != nil {
 		return
 	}
 	return
 }
 
-func VerifyDockerHostConnection(dockerHosts []string) (string, error) {
+func VerifyDockerHostConnection(ctx context.Context, dockerHosts []string) (string, error) {
 	var err error
 	for _, host := range dockerHosts {
 		err = os.Setenv("DOCKER_HOST", host)
 		if err != nil {
 			continue
 		}
-		cli, err := client.NewClientWithOpts()
-		if err != nil || cli == nil {
+		cli, err := client.NewClientWithOpts(client.FromEnv)
+		if err != nil {
 			continue
 		}
-		_, err = cli.Info(context.Background())
+		if cli == nil {
+			err = fmt.Errorf("can not init docker client")
+			continue
+		}
+		_, err = cli.Info(ctx)
 		if err != nil {
 			_ = cli.Close()
 			continue
 		}
 		_ = cli.Close()
-		err = nil
 		return host, nil
 	}
 	if err != nil {
-		return "", fmt.Errorf("can not connect to docker host %v", err)
+		return "", fmt.Errorf("connect docker host error: %v", err)
 	}
-	return "", fmt.Errorf("can not connect to docker host")
+	return "", nil
 }
 
 func DisplayDockerLog(in io.Reader) (string, error) {

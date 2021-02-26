@@ -20,6 +20,8 @@ func run(ctx context.Context) error {
 			return err
 		}
 		return build(ctx)
+	case cmdPack:
+		return nil
 	case cmdPublish:
 		err := prepareConfig()
 		if err != nil {

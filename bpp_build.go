@@ -39,12 +39,12 @@ func (b *BuildSupervisor) close() {
 	b.DockerClient.Close()
 }
 
-func (b *BuildSupervisor) initDockerClient() error {
+func (b *BuildSupervisor) initDockerClient(ctx context.Context) error {
 	if arg.BuildLocal {
 		return nil
 	}
 	log.Printf("[%s] initiating docker client", b.BuilderName)
-	dockerClient, err := core.InitDockerClient(b.DockerHosts)
+	dockerClient, err := core.InitDockerClient(ctx, b.DockerHosts)
 	if err != nil {
 		return err
 	}
@@ -108,7 +108,7 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 		dir = strings.TrimSuffix(dir, "/")
 	}
 	_, cat := filepath.Split(dir)
-	b.BuildImage = fmt.Sprintf("%s_%s:%s", cat, name, buildVersion)
+	b.BuildImage = strings.ToLower(fmt.Sprintf("%s_%s:%s", cat, name, buildVersion))
 	log.Printf("[%s] docker build image name = %s", b.BuilderName, b.BuildImage)
 	//create image build option
 	_, dockerFileName := filepath.Split(b.Dockerfile)
@@ -226,6 +226,47 @@ func (b *BuildSupervisor) createDockerBuildContext() (string, error) {
 	return tarFile, nil
 }
 
+func aggregateDockerConfigInfo(global config.DockerGlobalConfig) ([]string, []config.DockerRegistry) {
+	hostSet := make(map[string]struct{})
+	hostSet[core.DefaultDockerUnixSock] = struct{}{}
+	hostSet[core.DefaultDockerTCPSock] = struct{}{}
+	if len(global.Hosts) > 0 {
+		for _, host := range global.Hosts {
+			hostSet[host] = struct{}{}
+		}
+	}
+	if len(cfg.DockerConfig.Hosts) > 0 {
+		for _, host := range cfg.DockerConfig.Hosts {
+			hostSet[host] = struct{}{}
+		}
+	}
+
+	registryMap := make(map[string]config.DockerRegistry)
+
+	if len(global.Registries) > 0 {
+		for _, registry := range global.Registries {
+			registryMap[registry.Address] = registry
+		}
+	}
+	if len(cfg.DockerConfig.Registries) > 0 {
+		for _, registry := range cfg.DockerConfig.Registries {
+			registryMap[registry.Address] = registry
+		}
+	}
+
+	hosts := make([]string, 0)
+	for host := range hostSet {
+		hosts = append(hosts, host)
+	}
+
+	registries := make([]config.DockerRegistry, 0)
+	registries = append(registries, core.DefaultDockerHubRegistry)
+	for _, registry := range registryMap {
+		registries = append(registries, registry)
+	}
+	return hosts, registries
+}
+
 func build(ctx context.Context) error {
 	var err error
 	//preparing phase of build process is started
@@ -271,23 +312,7 @@ func build(ctx context.Context) error {
 	for _, module := range modules {
 		supervisor, ok := supervisors[module.config.BuildConfig.Type]
 		if !ok {
-			hosts := make([]string, 0)
-			hosts = append(hosts, core.DefaultDockerUnixSock, core.DefaultDockerTCPSock)
-			if len(cfg.DockerConfig.Hosts) > 0 {
-				hosts = append(hosts, cfg.DockerConfig.Hosts...)
-			}
-			if len(globalDockerConfig.Hosts) > 0 {
-				hosts = append(hosts, globalDockerConfig.Hosts...)
-			}
-			registries := make([]config.DockerRegistry, 0)
-			registries = append(registries, core.DefaultDockerHubRegistry)
-			if len(cfg.DockerConfig.Registries) > 0 {
-				registries = append(registries, cfg.DockerConfig.Registries...)
-			}
-			if len(globalDockerConfig.Registries) > 0 {
-				registries = append(registries, globalDockerConfig.Registries...)
-			}
-
+			hosts, registries := aggregateDockerConfigInfo(globalDockerConfig)
 			log.Printf("initiating build instruction for builder %s", module.config.BuildConfig.Type)
 
 			supervisor = &BuildSupervisor{
@@ -297,7 +322,7 @@ func build(ctx context.Context) error {
 				DockerHosts:      hosts,
 				DockerRegistries: registries,
 			}
-			err = supervisor.initDockerClient()
+			err = supervisor.initDockerClient(ctx)
 			if err != nil {
 				return err
 			}

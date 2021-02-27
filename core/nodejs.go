@@ -6,6 +6,7 @@ import (
 	"github.com/locngoxuan/buildpack/utils"
 	"io/ioutil"
 	"os"
+	"strings"
 )
 
 type PackageJson struct {
@@ -37,6 +38,14 @@ func ReadPackageJson(file string) (PackageJson, error) {
 
 	if utils.IsStringEmpty(packageJson.Name) {
 		return PackageJson{}, fmt.Errorf("package.json is malformed: missing name property")
+	}
+
+	if strings.Contains(packageJson.Package, "/") {
+		return PackageJson{}, fmt.Errorf("package.json is malformed: package includes '/'")
+	}
+
+	if strings.Contains(packageJson.Name, "/") {
+		return PackageJson{}, fmt.Errorf("package.json is malformed: name includes '/'")
 	}
 
 	return packageJson, nil

@@ -8,7 +8,6 @@ import (
 	"github.com/locngoxuan/buildpack/utils"
 	"gopkg.in/yaml.v2"
 	"log"
-	"time"
 )
 
 func pump(ctx context.Context) error {
@@ -86,10 +85,5 @@ func updateVersion(ctx context.Context, nextVer string, gitClient *core.GitClien
 	if err != nil {
 		return fmt.Errorf("push error %v", err)
 	}
-	if !arg.ForcePull {
-		return nil
-	}
-	time.Sleep(5 * time.Second)
-	log.Println("refreshing latest code...")
-	return core.PullLatestCode(ctx, *gitClient)
+	return nil
 }

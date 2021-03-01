@@ -36,7 +36,7 @@ COMMAND:
                 (Options: config, module, version)
 
   pump          Increasing version of project
-                (Options: patch, release, skip-backward, force-pull, git-branch)
+                (Options: patch, release, skip-backward, git-branch)
 
   version       Showing version of bpp
 
@@ -64,7 +64,6 @@ type Arguments struct {
 	BuildLocal   bool
 	BuildRelease bool
 	BuildPath    bool
-	ForcePull    bool
 	SkipOption
 }
 
@@ -83,7 +82,6 @@ func readArguments() (arg Arguments, err error) {
 	f.BoolVar(&arg.BuildLocal, "local", false, "running build and clean in local")
 	f.StringVar(&arg.GitBranch, "git-branch", "", "branch that code will be pushed")
 	f.BoolVar(&arg.SkipBackward, "skip-backward", false, "if true, then major version will be increased")
-	f.BoolVar(&arg.ForcePull, "force-pull", false, "if true, then after pumping version, it will try to pulling latest code")
 
 	f.Usage = func() {
 		_, _ = fmt.Fprint(f.Output(), usagePrefix)

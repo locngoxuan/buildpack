@@ -94,6 +94,7 @@ func (c *GitClient) WriteSingleFile(data []byte, file, commitMsg string) error {
 	if err != nil {
 		return err
 	}
+	defer obj.Close()
 	if obj == nil {
 		return fmt.Errorf("commit object is null")
 	}
@@ -193,49 +194,6 @@ func authWithCred(cred config.GitCredential) (transport.AuthMethod, error) {
 		}, nil
 	}
 	return nil, fmt.Errorf("can not recognize credential type")
-}
-
-func PullLatestCode(ctx context.Context, c GitClient) error {
-	repo, err := git.PlainOpen(c.WorkDir)
-	if err != nil {
-		return err
-	}
-	wt, err := repo.Worktree()
-	if err != nil {
-		return err
-	}
-	_ = repo.DeleteRemote("update-code")
-	remote, err := repo.CreateRemote(&gitconfig.RemoteConfig{
-		Name: "update-code",
-		URLs: []string{c.RemoteAddress},
-	})
-	if err != nil {
-		return fmt.Errorf("can not create anonymouse remote %v", err)
-	}
-	auth, err := authWithCred(c.GitCredential)
-	if err != nil {
-		return err
-	}
-	err = wt.PullContext(ctx, &git.PullOptions{
-		Force:         true,
-		RemoteName:    remote.Config().Name,
-		Auth:          auth,
-		Progress:      os.Stdout,
-		ReferenceName: c.ReferenceName,
-	})
-	if err != nil {
-		return err
-	}
-	ref, err := repo.Head()
-	if err != nil {
-		return err
-	}
-	commit, err := repo.CommitObject(ref.Hash())
-	if err != nil {
-		return err
-	}
-	log.Printf("latest commit hash: %s", commit.Hash)
-	return nil
 }
 
 func (c *GitClient) CreateNewBranch(branchName string) error {

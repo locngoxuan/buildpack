@@ -1,37 +1,69 @@
-GOCMD=go
-BINARY_NAME=bpp
-VERSION?=2.1.1
-OS=linux
-ARCH=amd64
+.PHONY: clean build
 
-GREEN  := $(shell tput -Txterm setaf 2)
-YELLOW := $(shell tput -Txterm setaf 3)
-WHITE  := $(shell tput -Txterm setaf 7)
-RESET  := $(shell tput -Txterm sgr0)
-
-.PHONY: help clean build
-
-default: help
-
-clean:
-	rm -fr ./bin
+BUILD=buildpack
+INSTALL_DIR=/usr/local/bin
+VERSION=2.0.0
+BUILD_ID=1
+BUILD_OS=linux
+BUILD_ARCH=amd64
 
 dev:
-	mkdir -p bin
-	go build  -ldflags="-X main.version=${VERSION}" -o bin/${BINARY_NAME} .
+	@export GOPROXY=direct
+	@export GOSUMDB=off
+	go get -v .
+	env CGO_ENABLED=1 go build -ldflags="-s -w -X main.version=${VERSION}" -o ./bin/${BUILD} -a ./cmd
 
 build:
-	mkdir -p bin
-	env GOOS=${BUILD_OS} GOARCH=${BUILD_ARCH} CGO_ENABLED=1 go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/${BINARY_NAME} -a .
+	@export GOPROXY=direct
+	@export GOSUMDB=off
+	go get -v .
+	env GOOS=${BUILD_OS} GOARCH=${BUILD_ARCH} CGO_ENABLED=1 go build -ldflags="-s -w -X main.version=${VERSION}" -o ./bin/${BUILD} -a ./cmd
+	@sleep 1
 
 install:
-	cp -r bin/${BINARY_NAME} /usr/bin/${BINARY_NAME}
+	chmod 755 ./bin/${BUILD}
+	cp -r ./bin/${BUILD} ${INSTALL_DIR}/${BUILD}
 
-help:
-	@echo 'Usage:'
-	@echo '  ${YELLOW}make${RESET} ${GREEN}<target>${RESET}'
-	@echo ''
-	@echo 'Targets:'
-	@echo "  ${YELLOW}build           ${RESET} ${GREEN}Build your project and put the output binary in bin/$(BINARY_NAME)${RESET}"
-	@echo "  ${YELLOW}clean           ${RESET} ${GREEN}Remove build related file${RESET}"
-	@echo "  ${YELLOW}help            ${RESET} ${GREEN}Show this help message${RESET}"
+### RPM BUILD
+rpm: build rpm_prepare_workspace rpm_prepare_source rpm_build
+
+rpm_mac: build rpm_prepare_workspace rpm_prepare_source_mac rpm_build
+
+rpm_prepare_workspace:
+	@echo "Prepare directories for RPM building"
+	mkdir -p rpmbuild && mkdir -p rpmbuild/BUILD \
+		&& mkdir -p rpmbuild/RPMS \
+		&& mkdir -p rpmbuild/SOURCES \
+		&& mkdir -p rpmbuild/SPECS \
+		&& mkdir -p rpmbuild/SRPMS
+	@sleep 1
+
+rpm_prepare_source:
+	@echo "Prepare sources are needed for RPM building"
+	cp -rf buildpack.spec rpmbuild/SPECS/buildpack.spec
+	@rm -rf rpmbuild/SOURCES/buildpack*.tar.gz
+	tar -czvf buildpack-$(VERSION).tar.gz --transform s/^bin/buildpack-$(VERSION)/ bin
+	mv buildpack-$(VERSION).tar.gz rpmbuild/SOURCES/
+	@sleep 1
+
+rpm_prepare_source_mac:
+	@echo "Prepare sources are needed for RPM building"
+	cp -rf buildpack.spec rpmbuild/SPECS/buildpack.spec
+	@rm -rf rpmbuild/SOURCES/buildpack*.tar.gz
+	tar -czvf buildpack-$(VERSION).tar.gz -s /^bin/buildpack-$(VERSION)/ bin
+	mv buildpack-$(VERSION).tar.gz rpmbuild/SOURCES/
+	@sleep 1
+
+rpm_build:
+	@echo "Building rpm..."
+	rpmbuild --define "_topdir `pwd`/rpmbuild"  \
+		--define "BUILD_ID $(BUILD_ID)"  \
+		--define "BUILD_VERSION $(VERSION)" \
+		--define "BUILD_OS $(BUILD_OS)" \
+		-ba rpmbuild/SPECS/buildpack.spec
+	@rm -rf rpmbuild/SOURCES/buildpack*.tar.gz
+
+clean:
+	rm -rf bin
+	rm -rf rpmbuild
+	@sleep 1

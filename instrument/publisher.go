@@ -23,7 +23,7 @@ func PublishPackage(ctx context.Context, request PublishRequest) Response {
 		if err != nil {
 			return responseError(err)
 		}
-		f, err := p.Lookup(FuncBuild)
+		f, err := p.Lookup(FuncPublish)
 		if err != nil {
 			return responseError(err)
 		}

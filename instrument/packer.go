@@ -45,7 +45,7 @@ func Pack(ctx context.Context, request PackRequest) Response {
 		if err != nil {
 			return responseError(err)
 		}
-		f, err := p.Lookup(FuncBuild)
+		f, err := p.Lookup(FuncPack)
 		if err != nil {
 			return responseError(err)
 		}

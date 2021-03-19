@@ -1,6 +1,6 @@
 GOCMD=go
 BINARY_NAME=bpp
-VERSION?=2.0.0
+VERSION?=2.1.0
 OS=linux
 ARCH=amd64
 
@@ -18,7 +18,7 @@ clean:
 
 dev:
 	mkdir -p bin
-	go build -o bin/${BINARY_NAME} .
+	go build  -ldflags="-X main.version=${VERSION}" -o bin/${BINARY_NAME} .
 
 build:
 	mkdir -p bin

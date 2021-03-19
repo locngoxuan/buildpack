@@ -13,6 +13,8 @@ const (
 	FuncDefaultDockerImage     = "DefaultDockerImageName"
 	FuncDefaultPackDockerImage = "DefaultPackDockerImage"
 	FuncBuild                  = "Build"
+	FuncPack                   = "Pack"
+	FuncPublish                = "Publish"
 )
 
 type BuildRequest struct {

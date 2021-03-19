@@ -22,7 +22,7 @@ dev:
 
 build:
 	mkdir -p bin
-	env GOOS=${BUILD_OS} GOARCH=${BUILD_ARCH} CGO_ENABLED=1 go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/${BINARY_NAME} -a .
+	env GOOS=${OS} GOARCH=${ARCH} CGO_ENABLED=1 go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/${BINARY_NAME} -a .
 
 install:
 	cp -r bin/${BINARY_NAME} /usr/bin/${BINARY_NAME}

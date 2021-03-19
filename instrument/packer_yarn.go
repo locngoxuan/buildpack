@@ -26,7 +26,7 @@ const (
 func yarnLocalPack(ctx context.Context, req PackRequest) Response {
 	c, err := config.ReadModuleConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
-		return responseError(err)
+		return ResponseError(err)
 	}
 	label := c.Label
 	if utils.Trim(label) == "" {
@@ -40,7 +40,7 @@ func yarnLocalPack(ctx context.Context, req PackRequest) Response {
 	cwd := filepath.Join(req.WorkDir, req.ModulePath)
 	packageJson, err := core.ReadPackageJson(filepath.Join(cwd, "package.json"))
 	if err != nil {
-		return responseError(err)
+		return ResponseError(err)
 	}
 	//apply new version
 	versionCmd := []string{
@@ -62,7 +62,7 @@ func yarnLocalPack(ctx context.Context, req PackRequest) Response {
 	if utils.IsNotExists(packagePath) {
 		err = os.MkdirAll(packagePath, 0755)
 		if err != nil {
-			return responseError(err)
+			return ResponseError(err)
 		}
 	}
 
@@ -77,7 +77,7 @@ func yarnLocalPack(ctx context.Context, req PackRequest) Response {
 		return response
 	}
 
-	return responseSuccess()
+	return ResponseSuccess()
 }
 
 func yarnPack(ctx context.Context, req PackRequest) Response {
@@ -86,7 +86,7 @@ func yarnPack(ctx context.Context, req PackRequest) Response {
 	}
 	c, err := config.ReadModuleConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
-		return responseError(err)
+		return ResponseError(err)
 	}
 	label := c.Label
 	if utils.Trim(label) == "" {
@@ -103,7 +103,7 @@ func yarnPack(ctx context.Context, req PackRequest) Response {
 	mounts := make([]mount.Mount, 0)
 	err = os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, defaultYarnPackDir), 0755)
 	if err != nil {
-		return responseError(err)
+		return ResponseError(err)
 	}
 	mounts = append(mounts, mount.Mount{
 		Type:   mount.TypeBind,
@@ -116,7 +116,7 @@ func yarnPack(ctx context.Context, req PackRequest) Response {
 	cwd := req.ModulePath //cwd inside docker
 	packageJson, err := core.ReadPackageJson(filepath.Join(req.WorkDir, req.ModulePath, "package.json"))
 	if err != nil {
-		return responseError(err)
+		return ResponseError(err)
 	}
 	packageName := fmt.Sprintf("%s-%s.tgz", packageJson.Name, ver)
 
@@ -137,11 +137,11 @@ func yarnPack(ctx context.Context, req PackRequest) Response {
 	cli := req.DockerClient.Client
 	cont, err := cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, "")
 	if err != nil {
-		return responseError(fmt.Errorf("can not create build container: %s", err.Error()))
+		return ResponseError(fmt.Errorf("can not create build container: %s", err.Error()))
 	}
 	err = cli.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{})
 	if err != nil {
-		return responseError(fmt.Errorf("can not start build container: %s", err.Error()))
+		return ResponseError(fmt.Errorf("can not start build container: %s", err.Error()))
 	}
 
 	defer removeAfterDone(cli, cont.ID)
@@ -152,7 +152,7 @@ func yarnPack(ctx context.Context, req PackRequest) Response {
 		if err != nil {
 			duration := 30 * time.Second
 			_ = cli.ContainerStop(context.Background(), cont.ID, &duration)
-			return responseError(err)
+			return ResponseError(err)
 		}
 	case status := <-statusCh:
 		//due to status code just takes either running (0) or exited (1) and I can not find a constants or variable
@@ -162,14 +162,14 @@ func yarnPack(ctx context.Context, req PackRequest) Response {
 			defer buf.Reset()
 			out, err := cli.ContainerLogs(ctx, cont.ID, types.ContainerLogsOptions{ShowStdout: true})
 			if err != nil {
-				return responseError(fmt.Errorf("exit status 1"))
+				return ResponseError(fmt.Errorf("exit status 1"))
 			}
 			_, err = stdcopy.StdCopy(&buf, &buf, out)
 			if err != nil {
-				return responseError(fmt.Errorf("exit status 1"))
+				return ResponseError(fmt.Errorf("exit status 1"))
 			}
-			return responseErrorWithStack(fmt.Errorf("exit status 1"), buf.String())
+			return ResponseErrorWithStack(fmt.Errorf("exit status 1"), buf.String())
 		}
 	}
-	return responseSuccess()
+	return ResponseSuccess()
 }

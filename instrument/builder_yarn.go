@@ -40,17 +40,17 @@ func yarnCmd(ctx context.Context, cwd string, options []string) Response {
 	err := cmd.Run()
 	if err != nil {
 		if ctx.Err() == context.Canceled {
-			return responseError(err)
+			return ResponseError(err)
 		}
-		return responseErrorWithStack(err, buf.String())
+		return ResponseErrorWithStack(err, buf.String())
 	}
-	return responseSuccess()
+	return ResponseSuccess()
 }
 
 func yarnLocalBuild(ctx context.Context, req BuildRequest) Response {
 	c, err := config.ReadModuleConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
-		return responseError(err)
+		return ResponseError(err)
 	}
 	label := c.Label
 	if utils.Trim(label) == "" {
@@ -95,16 +95,16 @@ func yarnLocalBuild(ctx context.Context, req BuildRequest) Response {
 		dest := filepath.Join(req.OutputDir, req.ModuleName, moduleOutput)
 		err = os.MkdirAll(dest, 0755)
 		if err != nil {
-			return responseError(err)
+			return ResponseError(err)
 		}
 		src := filepath.Join(req.WorkDir, req.ModulePath, moduleOutput)
 		err = utils.CopyDirectory(src, dest)
 		if err != nil {
-			return responseError(err)
+			return ResponseError(err)
 		}
 	}
 
-	return responseSuccess()
+	return ResponseSuccess()
 }
 
 func yarnBuild(ctx context.Context, req BuildRequest) Response {
@@ -115,7 +115,7 @@ func yarnBuild(ctx context.Context, req BuildRequest) Response {
 	for _, moduleOutput := range req.ModuleOutputs {
 		err := os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, moduleOutput), 0777)
 		if err != nil {
-			return responseError(err)
+			return ResponseError(err)
 		}
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
@@ -126,7 +126,7 @@ func yarnBuild(ctx context.Context, req BuildRequest) Response {
 
 	c, err := config.ReadModuleConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
-		return responseError(err)
+		return ResponseError(err)
 	}
 	label := c.Label
 	if utils.Trim(label) == "" {
@@ -156,11 +156,11 @@ func yarnBuild(ctx context.Context, req BuildRequest) Response {
 	cli := req.DockerClient.Client
 	cont, err := cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, "")
 	if err != nil {
-		return responseError(fmt.Errorf("can not create build container: %s", err.Error()))
+		return ResponseError(fmt.Errorf("can not create build container: %s", err.Error()))
 	}
 	err = cli.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{})
 	if err != nil {
-		return responseError(fmt.Errorf("can not start build container: %s", err.Error()))
+		return ResponseError(fmt.Errorf("can not start build container: %s", err.Error()))
 	}
 
 	defer removeAfterDone(cli, cont.ID)
@@ -171,7 +171,7 @@ func yarnBuild(ctx context.Context, req BuildRequest) Response {
 		if err != nil {
 			duration := 30 * time.Second
 			_ = cli.ContainerStop(context.Background(), cont.ID, &duration)
-			return responseError(err)
+			return ResponseError(err)
 		}
 	case status := <-statusCh:
 		//due to status code just takes either running (0) or exited (1) and I can not find a constants or variable
@@ -181,14 +181,14 @@ func yarnBuild(ctx context.Context, req BuildRequest) Response {
 			defer buf.Reset()
 			out, err := cli.ContainerLogs(ctx, cont.ID, types.ContainerLogsOptions{ShowStdout: true})
 			if err != nil {
-				return responseError(fmt.Errorf("exit status 1"))
+				return ResponseError(fmt.Errorf("exit status 1"))
 			}
 			_, err = stdcopy.StdCopy(&buf, &buf, out)
 			if err != nil {
-				return responseError(fmt.Errorf("exit status 1"))
+				return ResponseError(fmt.Errorf("exit status 1"))
 			}
-			return responseErrorWithStack(fmt.Errorf("exit status 1"), buf.String())
+			return ResponseErrorWithStack(fmt.Errorf("exit status 1"), buf.String())
 		}
 	}
-	return responseSuccess()
+	return ResponseSuccess()
 }

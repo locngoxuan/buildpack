@@ -53,15 +53,15 @@ func Build(ctx context.Context, request BuildRequest) Response {
 		pluginPath := filepath.Join(request.WorkDir, request.ModulePath, fmt.Sprintf("%s.so", pluginName))
 		p, err := plugin.Open(pluginPath)
 		if err != nil {
-			return responseError(err)
+			return ResponseError(err)
 		}
 		f, err := p.Lookup(FuncBuild)
 		if err != nil {
-			return responseError(err)
+			return ResponseError(err)
 		}
 		fn, ok := f.(func(context.Context, BuildRequest) Response)
 		if !ok {
-			return responseError(fmt.Errorf("can not invoke function Build in plugion %s", request.BuilderName))
+			return ResponseError(fmt.Errorf("can not invoke function Build in plugion %s", request.BuilderName))
 		}
 		return fn(ctx, request)
 	}
@@ -71,5 +71,5 @@ func Build(ctx context.Context, request BuildRequest) Response {
 	case YarnBuilderName:
 		return yarnBuild(ctx, request)
 	}
-	return responseError(fmt.Errorf("can not recognize builder name"))
+	return ResponseError(fmt.Errorf("can not recognize builder name"))
 }

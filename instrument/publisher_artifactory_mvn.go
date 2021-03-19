@@ -23,7 +23,7 @@ func publishMvnJarToArtifactory(ctx context.Context, req PublishRequest) Respons
 
 	pom, err := core.ReadPOM(filepath.Join(targetDir, "pom.xml"))
 	if err != nil {
-		return responseError(err)
+		return ResponseError(err)
 	}
 
 	finalName := fmt.Sprintf("%s-%s", pom.ArtifactId, pom.Version)
@@ -64,7 +64,7 @@ func publishMvnJarToArtifactory(ctx context.Context, req PublishRequest) Respons
 		}
 		md5, err := utils.SumContentMD5(item.Source)
 		if err != nil {
-			return responseError(err)
+			return ResponseError(err)
 		}
 		p := &ArtifactoryPackage{
 			Source:   item.Source,
@@ -78,16 +78,16 @@ func publishMvnJarToArtifactory(ctx context.Context, req PublishRequest) Respons
 		for _, element := range packages {
 			chn := repo.GetChannel(!req.DevMode)
 			if utils.IsStringEmpty(chn.Address) {
-				return responseError(fmt.Errorf("channel of repo %s is malformed", repo.Id))
+				return ResponseError(fmt.Errorf("channel of repo %s is malformed", repo.Id))
 			}
 			element.Endpoint = fmt.Sprintf("%s/%s", chn.Address, element.Endpoint)
 			element.Username = utils.ReadEnvVariableIfHas(chn.Username)
 			element.Password = utils.ReadEnvVariableIfHas(chn.Password)
 			err := uploadFile(ctx, *element)
 			if err != nil {
-				return responseError(err)
+				return ResponseError(err)
 			}
 		}
 	}
-	return responseSuccess()
+	return ResponseSuccess()
 }

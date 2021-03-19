@@ -18,20 +18,20 @@ type Response struct {
 	Err      error
 }
 
-func responseSuccess() Response {
+func ResponseSuccess() Response {
 	return Response{
 		Success: true,
 		Err:     nil,
 	}
 }
 
-func responseError(err error) Response {
+func ResponseError(err error) Response {
 	return Response{
 		Success: false,
 		Err:     err,
 	}
 }
-func responseErrorWithStack(err error, stack string) Response {
+func ResponseErrorWithStack(err error, stack string) Response {
 	return Response{
 		Success:  false,
 		ErrStack: stack,

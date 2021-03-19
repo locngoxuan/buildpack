@@ -68,7 +68,7 @@ func ReadMvnConfig(moduleDir string) (c MvnConfig, err error) {
 func mvnLocalBuild(ctx context.Context, req BuildRequest) Response {
 	mvnConfig, err := ReadMvnConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
-		return responseError(err)
+		return ResponseError(err)
 	}
 	args := make([]string, 0)
 	args = append(args, "clean", "install")
@@ -103,24 +103,24 @@ func mvnLocalBuild(ctx context.Context, req BuildRequest) Response {
 	err = cmd.Run()
 	if err != nil {
 		if ctx.Err() == context.Canceled {
-			return responseError(err)
+			return ResponseError(err)
 		}
-		return responseErrorWithStack(err, buf.String())
+		return ResponseErrorWithStack(err, buf.String())
 	}
 
 	for _, moduleOutput := range req.ModuleOutputs {
 		dest := filepath.Join(req.OutputDir, req.ModuleName, moduleOutput)
 		err = os.MkdirAll(dest, 0755)
 		if err != nil {
-			return responseError(err)
+			return ResponseError(err)
 		}
 		src := filepath.Join(req.WorkDir, req.ModulePath, moduleOutput)
 		err = utils.CopyDirectory(src, dest)
 		if err != nil {
-			return responseError(err)
+			return ResponseError(err)
 		}
 	}
-	return responseSuccess()
+	return ResponseSuccess()
 }
 
 func mvnBuild(ctx context.Context, req BuildRequest) Response {
@@ -137,7 +137,7 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 	if len(hostRepository) > 0 {
 		err := os.MkdirAll(hostRepository, 0766)
 		if err != nil {
-			return responseError(err)
+			return ResponseError(err)
 		}
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
@@ -149,7 +149,7 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 	for _, moduleOutput := range req.ModuleOutputs {
 		err := os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, moduleOutput), 0777)
 		if err != nil {
-			return responseError(err)
+			return ResponseError(err)
 		}
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
@@ -160,7 +160,7 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 
 	mvnConfig, err := ReadMvnConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
-		return responseError(err)
+		return ResponseError(err)
 	}
 
 	label := mvnConfig.Label
@@ -197,12 +197,12 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 	cli := req.DockerClient.Client
 	cont, err := cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, "")
 	if err != nil {
-		return responseError(fmt.Errorf("can not create build container: %s", err.Error()))
+		return ResponseError(fmt.Errorf("can not create build container: %s", err.Error()))
 	}
 
 	err = cli.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{})
 	if err != nil {
-		return responseError(fmt.Errorf("can not start build container: %s", err.Error()))
+		return ResponseError(fmt.Errorf("can not start build container: %s", err.Error()))
 	}
 
 	defer removeAfterDone(cli, cont.ID)
@@ -213,7 +213,7 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 		if err != nil {
 			duration := 30 * time.Second
 			_ = cli.ContainerStop(context.Background(), cont.ID, &duration)
-			return responseError(err)
+			return ResponseError(err)
 		}
 	case status := <-statusCh:
 		//due to status code just takes either running (0) or exited (1) and I can not find a constants or variable
@@ -223,16 +223,16 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 			defer buf.Reset()
 			out, err := cli.ContainerLogs(ctx, cont.ID, types.ContainerLogsOptions{ShowStdout: true})
 			if err != nil {
-				return responseError(fmt.Errorf("exit status 1"))
+				return ResponseError(fmt.Errorf("exit status 1"))
 			}
 			_, err = stdcopy.StdCopy(&buf, &buf, out)
 			if err != nil {
-				return responseError(fmt.Errorf("exit status 1"))
+				return ResponseError(fmt.Errorf("exit status 1"))
 			}
-			return responseErrorWithStack(fmt.Errorf("exit status 1"), buf.String())
+			return ResponseErrorWithStack(fmt.Errorf("exit status 1"), buf.String())
 		}
 	}
-	return responseSuccess()
+	return ResponseSuccess()
 }
 
 func removeAfterDone(cli *client.Client, id string) {

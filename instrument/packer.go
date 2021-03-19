@@ -43,11 +43,11 @@ func Pack(ctx context.Context, request PackRequest) Response {
 		pluginPath := filepath.Join(request.WorkDir, request.ModulePath, fmt.Sprintf("%s.so", pluginName))
 		p, err := plugin.Open(pluginPath)
 		if err != nil {
-			return responseError(err)
+			return ResponseError(err)
 		}
 		f, err := p.Lookup(FuncPack)
 		if err != nil {
-			return responseError(err)
+			return ResponseError(err)
 		}
 		return f.(func(context.Context, PackRequest) Response)(ctx, request)
 	}
@@ -55,5 +55,5 @@ func Pack(ctx context.Context, request PackRequest) Response {
 	case YarnPackerName:
 		return yarnPack(ctx, request)
 	}
-	return responseError(fmt.Errorf("can not recognize pack type"))
+	return ResponseError(fmt.Errorf("can not recognize pack type"))
 }

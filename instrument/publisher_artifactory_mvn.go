@@ -3,8 +3,8 @@ package instrument
 import (
 	"context"
 	"fmt"
-	"github.com/locngoxuan/buildpack/v2/core"
-	"github.com/locngoxuan/buildpack/v2/utils"
+	"github.com/locngoxuan/buildpack/core"
+	"github.com/locngoxuan/buildpack/utils"
 	"path/filepath"
 	"strings"
 )

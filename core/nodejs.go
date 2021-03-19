@@ -3,7 +3,7 @@ package core
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/locngoxuan/buildpack/v2/utils"
+	"github.com/locngoxuan/buildpack/utils"
 	"io/ioutil"
 	"os"
 	"strings"

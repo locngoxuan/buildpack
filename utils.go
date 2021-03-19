@@ -1,8 +1,8 @@
 package main
 
 import (
-	"github.com/locngoxuan/buildpack/v2/config"
-	"github.com/locngoxuan/buildpack/v2/core"
+	"github.com/locngoxuan/buildpack/config"
+	"github.com/locngoxuan/buildpack/core"
 )
 
 func aggregateDockerConfigInfo(global config.DockerGlobalConfig) ([]string, []config.DockerRegistry) {

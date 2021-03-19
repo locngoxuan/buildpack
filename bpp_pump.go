@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/locngoxuan/buildpack/v2/config"
-	"github.com/locngoxuan/buildpack/v2/core"
-	"github.com/locngoxuan/buildpack/v2/utils"
+	"github.com/locngoxuan/buildpack/config"
+	"github.com/locngoxuan/buildpack/core"
+	"github.com/locngoxuan/buildpack/utils"
 	"gopkg.in/yaml.v2"
 	"log"
 )

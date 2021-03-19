@@ -3,9 +3,9 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/locngoxuan/buildpack/v2/config"
-	"github.com/locngoxuan/buildpack/v2/instrument"
-	"github.com/locngoxuan/buildpack/v2/utils"
+	"github.com/locngoxuan/buildpack/config"
+	"github.com/locngoxuan/buildpack/instrument"
+	"github.com/locngoxuan/buildpack/utils"
 )
 
 func publish(ctx context.Context) error {

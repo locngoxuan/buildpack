@@ -2,7 +2,7 @@ package config
 
 import (
 	"fmt"
-	"github.com/locngoxuan/buildpack/v2/utils"
+	"github.com/locngoxuan/buildpack/utils"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
 	"os"

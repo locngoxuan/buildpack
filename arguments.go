@@ -1,41 +1,54 @@
-package v1
+package main
 
 import (
 	"bufio"
 	"flag"
 	"fmt"
-	"github.com/locngoxuan/buildpack/common"
+	"github.com/locngoxuan/buildpack/v2/config"
+	"github.com/locngoxuan/buildpack/v2/utils"
 	"os"
 	"path/filepath"
 	"strings"
 )
 
 var (
-	f       = flag.NewFlagSet("buildpack", flag.ContinueOnError)
-	verbose = false
+	f = flag.NewFlagSet("BPP", flag.ContinueOnError)
 
 	cmdVersion = "version"
 	cmdBuild   = "build"
+	cmdPack    = "pack"
 	cmdPublish = "publish"
 	cmdPump    = "pump"
 	cmdClean   = "clean"
 	cmdHelp    = "help"
 
-	usagePrefix = `Usage: buildpack COMMAND [OPTIONS]
+	usagePrefix = `Usage: bpp COMMAND [OPTIONS]
 COMMAND:
-  clean         Clean build folder		
-  build         Compiling and packaging
-  publish       Publish packaged to repository
-  pump          Increase to next version
-  version       Show version of buildpack
-  help          Show usage
+  clean         Cleaning output of build process
+
+  build         Compiling source code
+                (Options: config, release, share-data, module, version, local)
+
+  pack          Packing output of build process as publishable files
+                (Options: config, release, module, version, local)
+
+  publish       Publish packages to repository
+                (Options: config, module, version)
+
+  pump          Increasing version of project
+                (Options: patch, release, skip-backward, git-branch)
+
+  version       Showing version of bpp
+
+  help          Showing usage
 
 Examples:
-  buildpack clean
-  buildpack version
-  buildpack build --dev-mode
-  buildpack build --release
-  buildpack build --path --skip-progress
+  bpp clean
+  bpp version
+  bpp build --release --local  
+  bpp package --release
+  bpp publish
+  bpp pump --skip-backward --git-branch=develop    
 
 Options:
 `
@@ -47,43 +60,29 @@ type Arguments struct {
 	Module       string
 	ConfigFile   string
 	ShareData    string
-	LogDir       string
+	GitBranch    string
+	BuildLocal   bool
 	BuildRelease bool
 	BuildPath    bool
-	Verbose      bool
-	DevMode      bool
 	SkipOption
 }
 
 type SkipOption struct {
-	SkipContainer   bool
-	SkipPublish     bool
-	SkipClean       bool
-	SkipProgressBar bool
-	SkipBackward    bool
+	SkipBackward bool
 }
 
-func ReadArguments() (arg Arguments, err error) {
+func readArguments() (arg Arguments, err error) {
 	f.SetOutput(os.Stdout)
 	f.StringVar(&arg.Version, "version", "", "specify version for build")
 	f.StringVar(&arg.Module, "module", "", "modules will be built")
 	f.StringVar(&arg.ShareData, "share-data", "", "sharing directory for any build and any project on same host")
-	f.StringVar(&arg.LogDir, "log-dir", "", "location where logs are written")
 	f.StringVar(&arg.ConfigFile, "config", "", "specify location of configuration file")
-	f.BoolVar(&arg.DevMode, "dev-mode", false, "enable local mode to disable container build")
 	f.BoolVar(&arg.BuildRelease, "release", false, "project is built for releasing")
 	f.BoolVar(&arg.BuildPath, "patch", false, "project is built only for path")
-
-	f.BoolVar(&arg.SkipClean, "skip-clean", false, "skip running clean when build process has been done")
-	f.BoolVar(&arg.SkipContainer, "skip-container", false, "skip container build")
-	f.BoolVar(&arg.SkipPublish, "skip-publish", false, "skip publishing packages to repositories")
-	f.BoolVar(&arg.SkipProgressBar, "skip-progress", false, "using text plain instead of progress ui")
-
-	//git operation
-	//f.BoolVar(&arg.SkipTag, "skip-tag", false, "skip creating a tag in git central")
+	f.BoolVar(&arg.BuildLocal, "local", false, "running build and clean in local")
+	f.StringVar(&arg.GitBranch, "git-branch", "", "branch that code will be pushed")
 	f.BoolVar(&arg.SkipBackward, "skip-backward", false, "if true, then major version will be increased")
 
-	f.BoolVar(&verbose, "verbose", false, "show more detail in console and logs")
 	f.Usage = func() {
 		_, _ = fmt.Fprint(f.Output(), usagePrefix)
 		f.PrintDefaults()
@@ -98,30 +97,11 @@ func ReadArguments() (arg Arguments, err error) {
 	if len(os.Args) > 2 {
 		err = f.Parse(os.Args[2:])
 	}
-	arg.Verbose = verbose
 	return
 }
 
-func ReadEnv(configFile string) error {
-	workDir, err := filepath.Abs(".")
-	if err != nil {
-		return err
-	}
-
-	if !common.IsEmptyString(configFile) {
-		workDir, _ = filepath.Split(configFile)
-	}
-
-	envFile := filepath.Join(workDir, ".env")
-	if !common.Exists(envFile) {
-		userHomeDir, err := os.UserHomeDir()
-		if err != nil {
-			return err
-		}
-		envFile = filepath.Join(userHomeDir, ".buildpack", ".env")
-	}
-
-	if !common.Exists(envFile) {
+func updateEnvFromFile(envFile string) error {
+	if utils.IsNotExists(envFile) {
 		return nil
 	}
 
@@ -157,6 +137,22 @@ func ReadEnv(configFile string) error {
 		if err != nil {
 			return err
 		}
+	}
+	return nil
+}
+
+func readEnvVariables() error {
+	userHomeDir, err := os.UserHomeDir()
+	if err != nil {
+		return err
+	}
+	err = updateEnvFromFile(filepath.Join(userHomeDir, config.OutputDir, config.ConfigEnvVariables))
+	if err != nil {
+		return err
+	}
+	err = updateEnvFromFile(filepath.Join(workDir, config.ConfigEnvVariables))
+	if err != nil {
+		return err
 	}
 	return nil
 }

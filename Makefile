@@ -1,6 +1,6 @@
 GOCMD=go
 BINARY_NAME=bpp
-VERSION?=2.1.0
+VERSION?=2.1.1
 OS=linux
 ARCH=amd64
 

@@ -59,7 +59,11 @@ func Build(ctx context.Context, request BuildRequest) Response {
 		if err != nil {
 			return responseError(err)
 		}
-		return f.(func(context.Context, BuildRequest) Response)(ctx, request)
+		fn, ok := f.(func(context.Context, BuildRequest) Response)
+		if !ok {
+			return responseError(fmt.Errorf("can not invoke function Build in plugion %s", request.BuilderName))
+		}
+		return fn(ctx, request)
 	}
 	switch strings.ToLower(request.BuilderName) {
 	case MvnBuilderName:

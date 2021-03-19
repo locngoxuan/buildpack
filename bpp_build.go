@@ -56,8 +56,12 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 	if arg.BuildLocal {
 		return nil
 	}
-	log.Printf("[%s] preparing docker image for running build", b.BuildType)
 	e := b.Modules[0]
+	if e.config.BuildConfig.SkipPullImage {
+		log.Printf("[%s] skip pulling docker image", b.BuildType)
+		return nil
+	}
+	log.Printf("[%s] preparing docker image for running build", b.BuildType)
 	var err error
 	dockerImage := e.config.BuildConfig.DockerImage
 	if strings.TrimSpace(dockerImage) == "" {
@@ -310,14 +314,14 @@ func build(ctx context.Context) error {
 
 	waitGroups := make(map[int]*sync.WaitGroup)
 	waitGroups[-1] = new(sync.WaitGroup)
-	for _, id := range steps {
+	for _, step := range steps {
 		wg := new(sync.WaitGroup)
 		for _, module := range modules {
-			if module.Id == id.Current {
+			if module.Id == step.Current {
 				wg.Add(1)
 			}
 		}
-		waitGroups[id.Current] = wg
+		waitGroups[step.Current] = wg
 	}
 
 	findWaitGroup := func(step BuildStep, wgs map[int]*sync.WaitGroup) []*sync.WaitGroup {
@@ -331,6 +335,15 @@ func build(ctx context.Context) error {
 		}
 	}
 
+	findStep := func(moduleId int, steps []BuildStep) (BuildStep, error) {
+		for _, step := range steps {
+			if step.Current == moduleId {
+				return step, nil
+			}
+		}
+		return BuildStep{}, fmt.Errorf("not found build step associated to id %d", moduleId)
+	}
+
 	var globalWaitGroup sync.WaitGroup
 
 	var errOut bytes.Buffer
@@ -338,7 +351,12 @@ func build(ctx context.Context) error {
 	newContext, cancel := context.WithCancel(ctx)
 	for _, module := range modules {
 		globalWaitGroup.Add(1)
-		step := steps[module.Id]
+		step, err := findStep(module.Id, steps)
+		if err != nil {
+			errOut.WriteString(fmt.Sprintf("[%s] is failure: %s\n", module.Name, err.Error()))
+			cancel()
+			break
+		}
 		wgs := findWaitGroup(step, waitGroups)
 		go func(c context.Context, cwg *sync.WaitGroup, pwg *sync.WaitGroup, m Module, s *BuildSupervisor, err *bytes.Buffer) {
 			e := buildModule(c, pwg, m, *s)

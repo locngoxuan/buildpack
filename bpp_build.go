@@ -47,7 +47,7 @@ func (b *BuildSupervisor) initDockerClient(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	dockerClient.Registries = b.DockerClient.Registries
+	dockerClient.Registries = b.DockerRegistries
 	b.DockerClient = dockerClient
 	return nil
 }
@@ -385,7 +385,6 @@ func buildModule(ctx context.Context, prevWg *sync.WaitGroup, module Module, sup
 	}
 	log.Printf("[%s] start to build", module.Name)
 	response := instrument.Build(ctx, instrument.BuildRequest{
-
 		BaseProperties: instrument.BaseProperties{
 			WorkDir:       workDir,
 			OutputDir:     outputDir,

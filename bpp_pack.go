@@ -45,7 +45,7 @@ func (b *PackSupervisor) initDockerClient(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	dockerClient.Registries = b.DockerClient.Registries
+	dockerClient.Registries = b.DockerRegistries
 	b.DockerClient = dockerClient
 	return nil
 }
@@ -54,8 +54,11 @@ func (b *PackSupervisor) prepareDockerImageForPacking(ctx context.Context) error
 	if arg.BuildLocal {
 		return nil
 	}
-	log.Printf("[%s] preparing docker image for running pack", b.PackType)
 	e := b.Modules[0]
+	if e.config.PackConfig.SkipPullImage {
+		return nil
+	}
+	log.Printf("[%s] preparing docker image for running pack", b.PackType)
 	var err error
 	dockerImage := e.config.PackConfig.DockerImage
 	if strings.TrimSpace(dockerImage) == "" {

@@ -36,5 +36,3 @@ require (
 	google.golang.org/grpc v1.36.0 // indirect
 	gopkg.in/yaml.v2 v2.4.0
 )
-
-replace github.com/Sirupsen/logrus v1.4.2 => github.com/sirupsen/logrus v1.4.2

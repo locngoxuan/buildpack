@@ -2,6 +2,7 @@ GOCMD=go
 BINARY_NAME=bpp
 VERSION?=2.1.1
 PWD=$(shell pwd)
+BASE_IMAGE=xuanloc0511/buildpack_base:$(VERSION)
 
 GREEN  := $(shell tput -Txterm setaf 2)
 YELLOW := $(shell tput -Txterm setaf 3)
@@ -21,7 +22,7 @@ linux:
 		-e GOARCH=amd64 \
 		-e CGO_ENABLED=1 \
 		--workdir="/buildpack" \
-		xuanloc0511/buildpack_base:1.0.0 \
+		$(BASE_IMAGE) \
 		go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/linux/${BINARY_NAME} ./cmd/.
 
 wins:
@@ -30,7 +31,7 @@ wins:
 		-e GOARCH=amd64 \
 		-e CGO_ENABLED=1 \
 		--workdir="/buildpack" \
-		xuanloc0511/buildpack_base:1.0.0 \
+		$(BASE_IMAGE) \
 		go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/wins/${BINARY_NAME}.exe ./cmd/.
 
 darwin:
@@ -39,11 +40,11 @@ darwin:
 		-e GOARCH=amd64 \
 		-e CGO_ENABLED=1 \
 		--workdir="/buildpack" \
-		xuanloc0511/buildpack_base:1.0.0 \
+		$(BASE_IMAGE) \
 		go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/darwin/${BINARY_NAME} ./cmd/.
 
 docker:
-	docker build -t xuanloc0511/buildpack_base:1.0.0 \
+	docker build -t $(BASE_IMAGE) \
 		-f ./dockers/Dockerfile .
 
 help:

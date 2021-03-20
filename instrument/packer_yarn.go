@@ -139,12 +139,13 @@ func yarnPack(ctx context.Context, req PackRequest) Response {
 	if err != nil {
 		return ResponseError(fmt.Errorf("can not create build container: %s", err.Error()))
 	}
+
+	defer RemoveAfterDone(cli, cont.ID)
+
 	err = cli.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{})
 	if err != nil {
 		return ResponseError(fmt.Errorf("can not start build container: %s", err.Error()))
 	}
-
-	defer removeAfterDone(cli, cont.ID)
 
 	statusCh, errCh := cli.ContainerWait(ctx, cont.ID, container.WaitConditionNotRunning)
 	select {

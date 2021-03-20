@@ -200,12 +200,12 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 		return ResponseError(fmt.Errorf("can not create build container: %s", err.Error()))
 	}
 
+	defer RemoveAfterDone(cli, cont.ID)
+
 	err = cli.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{})
 	if err != nil {
 		return ResponseError(fmt.Errorf("can not start build container: %s", err.Error()))
 	}
-
-	defer removeAfterDone(cli, cont.ID)
 
 	statusCh, errCh := cli.ContainerWait(ctx, cont.ID, container.WaitConditionNotRunning)
 	select {
@@ -235,7 +235,7 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 	return ResponseSuccess()
 }
 
-func removeAfterDone(cli *client.Client, id string) {
+func RemoveAfterDone(cli *client.Client, id string) {
 	_ = cli.ContainerRemove(context.Background(), id, types.ContainerRemoveOptions{
 		Force: true,
 	})

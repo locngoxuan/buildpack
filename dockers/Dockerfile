@@ -1,6 +1,4 @@
-FROM xuanloc0511/cgo_base:1.0.0
+FROM golang:1.16.2
 
 RUN mkdir -p /buildpack
 ADD . /buildpack
-
-RUN ls -al /buildpack

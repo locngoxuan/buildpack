@@ -1,6 +1,6 @@
 // +build !windows
 
-package main
+package buildpack
 
 import (
 	"golang.org/x/sys/unix"

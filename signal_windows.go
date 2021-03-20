@@ -1,4 +1,4 @@
-package main
+package buildpack
 
 import (
 	"golang.org/x/sys/windows"

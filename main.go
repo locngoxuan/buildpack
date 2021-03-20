@@ -1,4 +1,4 @@
-package main
+package buildpack
 
 import (
 	"context"
@@ -18,7 +18,11 @@ var arg Arguments
 var cfg config.ProjectConfig
 var buildVersion string
 
-func main() {
+func SetVersion(s string) {
+	version = s
+}
+
+func Run() {
 	var err error
 	arg, err = readArguments()
 	if err != nil {

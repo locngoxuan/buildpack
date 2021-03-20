@@ -1,4 +1,4 @@
-package main
+package buildpack
 
 import (
 	"github.com/locngoxuan/buildpack/config"

@@ -17,7 +17,7 @@ clean:
 	rm -fr ./bin
 
 linux:
-	docker run -v $(PWD):/buildpack \
+	docker run -it --rm -v $(PWD):/buildpack \
 		-e GOOS=linux \
 		-e GOARCH=amd64 \
 		-e CGO_ENABLED=1 \
@@ -26,7 +26,7 @@ linux:
 		go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/linux/${BINARY_NAME} ./cmd/.
 
 wins:
-	docker run -v $(PWD):/buildpack \
+	docker run -it --rm -v $(PWD):/buildpack \
 		-e GOOS=windows \
 		-e GOARCH=amd64 \
 		-e CGO_ENABLED=1 \
@@ -35,7 +35,7 @@ wins:
 		go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/wins/${BINARY_NAME}.exe ./cmd/.
 
 darwin:
-	docker run -v $(PWD):/buildpack \
+	docker run -it --rm -v $(PWD):/buildpack \
 		-e GOOS=darwin \
 		-e GOARCH=amd64 \
 		-e CGO_ENABLED=1 \

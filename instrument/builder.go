@@ -27,7 +27,7 @@ type BuildRequest struct {
 func DefaultDockerImageName(moduleAbsPath, builderName string) (string, error) {
 	if strings.HasPrefix(builderName, "external") {
 		pluginName := strings.TrimPrefix(builderName, "external.")
-		pluginPath := filepath.Join(moduleAbsPath, fmt.Sprintf("%s.so", pluginName))
+		pluginPath := filepath.Join(moduleAbsPath, fmt.Sprintf("%s", pluginName))
 		p, err := plugin.Open(pluginPath)
 		if err != nil {
 			return "", err
@@ -50,7 +50,7 @@ func DefaultDockerImageName(moduleAbsPath, builderName string) (string, error) {
 func Build(ctx context.Context, request BuildRequest) Response {
 	if strings.HasPrefix(request.BuilderName, "external") {
 		pluginName := strings.TrimPrefix(request.BuilderName, "external.")
-		pluginPath := filepath.Join(request.WorkDir, request.ModulePath, fmt.Sprintf("%s.so", pluginName))
+		pluginPath := filepath.Join(request.WorkDir, request.ModulePath, fmt.Sprintf("%s", pluginName))
 		p, err := plugin.Open(pluginPath)
 		if err != nil {
 			return ResponseError(err)

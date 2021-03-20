@@ -19,7 +19,7 @@ type PackRequest struct {
 func DefaultPackDockerImage(moduleAbsPath, packType string) (string, error) {
 	if strings.HasPrefix(packType, "external") {
 		pluginName := strings.TrimPrefix(packType, "external.")
-		pluginPath := filepath.Join(moduleAbsPath, fmt.Sprintf("%s.so", pluginName))
+		pluginPath := filepath.Join(moduleAbsPath, fmt.Sprintf("%s", pluginName))
 		p, err := plugin.Open(pluginPath)
 		if err != nil {
 			return "", err
@@ -40,7 +40,7 @@ func DefaultPackDockerImage(moduleAbsPath, packType string) (string, error) {
 func Pack(ctx context.Context, request PackRequest) Response {
 	if strings.HasPrefix(request.PackerName, "external") {
 		pluginName := strings.TrimPrefix(request.PackerName, "external.")
-		pluginPath := filepath.Join(request.WorkDir, request.ModulePath, fmt.Sprintf("%s.so", pluginName))
+		pluginPath := filepath.Join(request.WorkDir, request.ModulePath, fmt.Sprintf("%s", pluginName))
 		p, err := plugin.Open(pluginPath)
 		if err != nil {
 			return ResponseError(err)

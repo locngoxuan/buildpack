@@ -17,18 +17,34 @@ clean:
 
 linux:
 	docker run -v $(PWD):/workdir \
-		xuanloc0511/cgo_linux:1.0.0 \
+		-e GOOS=linux \
+		-e GOARCH=amd64 \
+		-e CGO_ENABLED=1 \
+		xuanloc0511/cgo_base:1.0.0 \
 		go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/linux/${BINARY_NAME} -a .
 
 wins:
 	docker run -v $(PWD):/workdir \
+		-e GOOS=windows \
+		-e GOARCH=amd64 \
+		-e CGO_ENABLED=1 \
+		-e CROSS_TRIPLE=x86_64-w64-mingw32 \
 		xuanloc0511/cgo_windows:1.0.0 \
 		go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/wins/${BINARY_NAME}.exe -a .
 
 darwin:
 	docker run -v $(PWD):/workdir \
+		-e GOOS=darwin \
+		-e GOARCH=amd64 \
+		-e CGO_ENABLED=1 \
+		-e CROSS_TRIPLE=x86_64-apple-darwin \
 		xuanloc0511/cgo_darwin:1.0.0 \
 		go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/darwin/${BINARY_NAME} -a .
+
+docker:
+	docker build -t xuanloc0511/buildpack_base:1.0.0 \
+		-f ./dockers/Dockerfile .
+
 help:
 	@echo 'Usage:'
 	@echo '  ${YELLOW}make${RESET} ${GREEN}<target>${RESET}'

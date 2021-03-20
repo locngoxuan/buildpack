@@ -57,7 +57,7 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 		return nil
 	}
 	e := b.Modules[0]
-	if e.config.BuildConfig.SkipPullImage {
+	if e.config.BuildConfig.SkipPrepareImage {
 		log.Printf("[%s] skip pulling docker image", b.BuildType)
 		return nil
 	}
@@ -65,7 +65,8 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 	var err error
 	dockerImage := e.config.BuildConfig.DockerImage
 	if strings.TrimSpace(dockerImage) == "" {
-		dockerImage, err = instrument.DefaultDockerImageName(workDir, e.config.BuildConfig.Type)
+		absolutePath := filepath.Join(workDir, e.Path)
+		dockerImage, err = instrument.DefaultDockerImageName(absolutePath, e.config.BuildConfig.Type)
 		if err != nil {
 			return err
 		}

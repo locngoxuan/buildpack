@@ -55,7 +55,7 @@ func (b *PackSupervisor) prepareDockerImageForPacking(ctx context.Context) error
 		return nil
 	}
 	e := b.Modules[0]
-	if e.config.PackConfig.SkipPullImage {
+	if e.config.PackConfig.SkipPrepareImage {
 		return nil
 	}
 	log.Printf("[%s] preparing docker image for running pack", b.PackType)
@@ -226,7 +226,7 @@ func pack(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-	}else{
+	} else {
 		buildInfo, err := config.ReadBuildOutputInfo(outputDir)
 		if err != nil {
 			return err

@@ -1,8 +1,7 @@
 GOCMD=go
 BINARY_NAME=bpp
 VERSION?=2.1.1
-OS=linux
-ARCH=amd64
+PWD=$(shell pwd)
 
 GREEN  := $(shell tput -Txterm setaf 2)
 YELLOW := $(shell tput -Txterm setaf 3)
@@ -16,22 +15,27 @@ default: help
 clean:
 	rm -fr ./bin
 
-dev:
-	mkdir -p bin
-	go build  -ldflags="-X main.version=${VERSION}" -o bin/${BINARY_NAME} .
+linux:
+	docker run -v $(PWD):/workdir \
+		xuanloc0511/cgo_linux:1.0.0 \
+		go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/linux/${BINARY_NAME} -a .
 
-build:
-	mkdir -p bin
-	env GOOS=${OS} GOARCH=${ARCH} CGO_ENABLED=1 go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/${BINARY_NAME} -a .
+wins:
+	docker run -v $(PWD):/workdir \
+		xuanloc0511/cgo_windows:1.0.0 \
+		go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/wins/${BINARY_NAME}.exe -a .
 
-install:
-	cp -r bin/${BINARY_NAME} /usr/bin/${BINARY_NAME}
-
+darwin:
+	docker run -v $(PWD):/workdir \
+		xuanloc0511/cgo_darwin:1.0.0 \
+		go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/darwin/${BINARY_NAME} -a .
 help:
 	@echo 'Usage:'
 	@echo '  ${YELLOW}make${RESET} ${GREEN}<target>${RESET}'
 	@echo ''
 	@echo 'Targets:'
-	@echo "  ${YELLOW}build           ${RESET} ${GREEN}Build your project and put the output binary in bin/$(BINARY_NAME)${RESET}"
+	@echo "  ${YELLOW}linux           ${RESET} ${GREEN}Build your project and put the output binary in bin/linux/$(BINARY_NAME)${RESET}"
+	@echo "  ${YELLOW}wins            ${RESET} ${GREEN}Build your project and put the output binary in bin/wins/$(BINARY_NAME)${RESET}"
+	@echo "  ${YELLOW}darwin          ${RESET} ${GREEN}Build your project and put the output binary in bin/darwin/$(BINARY_NAME)${RESET}"
 	@echo "  ${YELLOW}clean           ${RESET} ${GREEN}Remove build related file${RESET}"
 	@echo "  ${YELLOW}help            ${RESET} ${GREEN}Show this help message${RESET}"

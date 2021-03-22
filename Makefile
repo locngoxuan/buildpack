@@ -1,8 +1,9 @@
 GOCMD=go
 BINARY_NAME=bpp
-VERSION?=2.1.1
+VERSION?=2.2.0
 PWD=$(shell pwd)
 BASE_IMAGE=xuanloc0511/buildpack_base:$(VERSION)
+BASE_IMAGE_CGO=xuanloc0511/buildpack_base_cgo:$(VERSION)
 
 GREEN  := $(shell tput -Txterm setaf 2)
 YELLOW := $(shell tput -Txterm setaf 3)
@@ -16,6 +17,12 @@ default: help
 clean:
 	rm -fr ./bin
 
+docker:
+	docker build -t $(BASE_IMAGE) -f ./dockers/Dockerfile .
+
+docker-cgo:
+	docker build -t $(BASE_IMAGE_CGO) -f ./dockers/Dockerfile.cgo .
+
 linux:
 	docker run -it --rm -v $(PWD):/buildpack \
 		-e GOOS=linux \
@@ -27,11 +34,12 @@ linux:
 
 wins:
 	docker run -it --rm -v $(PWD):/buildpack \
-		-e GOOS=windows \
+		-e GOOS=darwin \
 		-e GOARCH=amd64 \
 		-e CGO_ENABLED=1 \
+		-e CROSS_TRIPLE=x86_64-w64-mingw32 \
 		--workdir="/buildpack" \
-		$(BASE_IMAGE) \
+		$(BASE_IMAGE_CGO) \
 		go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/wins/${BINARY_NAME}.exe ./cmd/.
 
 darwin:
@@ -39,13 +47,13 @@ darwin:
 		-e GOOS=darwin \
 		-e GOARCH=amd64 \
 		-e CGO_ENABLED=1 \
+		-e CROSS_TRIPLE=x86_64-apple-darwin \
+		-e OSXCROSS_NO_INCLUDE_PATH_WARNINGS=1 \
+		-e CC=o64-clang \
+		-e CXX=o64-clang++ \
 		--workdir="/buildpack" \
-		$(BASE_IMAGE) \
+		$(BASE_IMAGE_CGO) \
 		go build -ldflags="-s -w -X main.version=${VERSION}" -o bin/darwin/${BINARY_NAME} ./cmd/.
-
-docker:
-	docker build -t $(BASE_IMAGE) \
-		-f ./dockers/Dockerfile .
 
 help:
 	@echo 'Usage:'

@@ -15,10 +15,12 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
 type PackSupervisor struct {
+	Priority         int
 	PackType         string
 	DevMode          bool
 	Modules          []Module
@@ -250,19 +252,19 @@ func pack(ctx context.Context) error {
 	}
 
 	//ignore module that is not configured for building
-	modules := make([]Module, 0)
+	destModules := make([]Module, 0)
 	for _, m := range tempModules {
 		if utils.IsStringEmpty(m.config.PackConfig.Type) {
 			continue
 		}
-		modules = append(modules, m)
+		destModules = append(destModules, m)
 	}
 
 	//build pack supervisors
-	supervisors := make(map[string]*PackSupervisor)
+	mSupervisors := make(map[string]*PackSupervisor)
 	hosts, registries := aggregateDockerConfigInfo(globalDockerConfig)
-	for _, module := range modules {
-		supervisor, ok := supervisors[module.config.PackConfig.Type]
+	for _, module := range destModules {
+		supervisor, ok := mSupervisors[module.config.PackConfig.Type]
 		if !ok {
 			log.Printf("initiating pack supervisor for builder %s", module.config.PackConfig.Type)
 			supervisor = &PackSupervisor{
@@ -277,10 +279,20 @@ func pack(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			supervisors[module.config.PackConfig.Type] = supervisor
+			mSupervisors[module.config.PackConfig.Type] = supervisor
 		}
 		supervisor.Modules = append(supervisor.Modules, module)
 	}
+
+	supervisors := make([]*PackSupervisor, 0)
+	for _, supervisor := range mSupervisors {
+		supervisor.Priority = supervisor.Modules[0].Id
+		supervisors = append(supervisors, supervisor)
+	}
+
+	sort.Slice(supervisors, func(i, j int) bool {
+		return supervisors[i].Priority > supervisors[j].Priority
+	})
 
 	defer func() {
 		for _, supervisor := range supervisors {
@@ -293,32 +305,31 @@ func pack(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-	}
+		modules := supervisor.Modules
+		for _, module := range modules {
+			resp := instrument.Pack(ctx, instrument.PackRequest{
+				BaseProperties: instrument.BaseProperties{
+					WorkDir:       workDir,
+					OutputDir:     outputDir,
+					ShareDataDir:  arg.ShareData,
+					DevMode:       supervisor.DevMode,
+					Version:       buildVersion,
+					ModulePath:    module.Path,
+					ModuleName:    module.Name,
+					ModuleOutputs: module.config.Output,
+					LocalBuild:    arg.BuildLocal,
+				},
+				PackerName:   module.config.PackConfig.Type,
+				DockerImage:  supervisor.PackImage,
+				DockerClient: supervisor.DockerClient,
+			})
 
-	for _, module := range modules {
-		supervisor := supervisors[module.config.PackConfig.Type]
-		resp := instrument.Pack(ctx, instrument.PackRequest{
-			BaseProperties: instrument.BaseProperties{
-				WorkDir:       workDir,
-				OutputDir:     outputDir,
-				ShareDataDir:  arg.ShareData,
-				DevMode:       supervisor.DevMode,
-				Version:       buildVersion,
-				ModulePath:    module.Path,
-				ModuleName:    module.Name,
-				ModuleOutputs: module.config.Output,
-				LocalBuild:    arg.BuildLocal,
-			},
-			PackerName:   module.config.PackConfig.Type,
-			DockerImage:  supervisor.PackImage,
-			DockerClient: supervisor.DockerClient,
-		})
-
-		if resp.Err != nil {
-			if resp.ErrStack != "" {
-				return fmtError(resp.Err, resp.ErrStack)
+			if resp.Err != nil {
+				if resp.ErrStack != "" {
+					return fmtError(resp.Err, resp.ErrStack)
+				}
+				return resp.Err
 			}
-			return resp.Err
 		}
 	}
 	return nil

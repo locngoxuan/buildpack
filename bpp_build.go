@@ -16,11 +16,13 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 	"sync"
 )
 
 type BuildSupervisor struct {
+	Priority         int
 	BuildType        string
 	DevMode          bool
 	Modules          []Module
@@ -249,19 +251,19 @@ func build(ctx context.Context) error {
 	}
 
 	//ignore module that is not configured for building
-	modules := make([]Module, 0)
+	destModules := make([]Module, 0)
 	for _, m := range tempModules {
 		if utils.IsStringEmpty(m.config.BuildConfig.Type) {
 			continue
 		}
-		modules = append(modules, m)
+		destModules = append(destModules, m)
 	}
 
 	//build Dockerfile for each builder type
 	hosts, registries := aggregateDockerConfigInfo(globalDockerConfig)
-	supervisors := make(map[string]*BuildSupervisor)
-	for _, module := range modules {
-		supervisor, ok := supervisors[module.config.BuildConfig.Type]
+	mSupervisors := make(map[string]*BuildSupervisor)
+	for _, module := range destModules {
+		supervisor, ok := mSupervisors[module.config.BuildConfig.Type]
 		if !ok {
 			log.Printf("initiating build supervisor for builder %s", module.config.BuildConfig.Type)
 			supervisor = &BuildSupervisor{
@@ -276,10 +278,20 @@ func build(ctx context.Context) error {
 			if err != nil {
 				return err
 			}
-			supervisors[module.config.BuildConfig.Type] = supervisor
+			mSupervisors[module.config.BuildConfig.Type] = supervisor
 		}
 		supervisor.Modules = append(supervisor.Modules, module)
 	}
+
+	supervisors := make([]*BuildSupervisor, 0)
+	for _, supervisor := range mSupervisors{
+		supervisor.Priority = supervisor.Modules[0].Id
+		supervisors = append(supervisors, supervisor)
+	}
+
+	sort.Slice(supervisors, func(i, j int) bool {
+		return supervisors[i].Priority > supervisors[j].Priority
+	})
 
 	defer func() {
 		for _, supervisor := range supervisors {
@@ -287,43 +299,14 @@ func build(ctx context.Context) error {
 		}
 	}()
 
-	for _, supervisor := range supervisors {
-		err = supervisor.prepareDockerImageForBuilding(ctx)
-		if err != nil {
-			return err
-		}
-	}
-	//preparing phase of build process is completed
-
+	///utilities
 	type BuildStep struct {
 		Current int
 		Prev    int
 	}
 
-	currentId := modules[0].Id
-	steps := []BuildStep{
-		{currentId, currentId},
-	}
-	for _, module := range modules {
-		if module.Id > currentId {
-			steps = append(steps, BuildStep{
-				module.Id, currentId,
-			})
-			currentId = module.Id
-		}
-	}
-
-	waitGroups := make(map[int]*sync.WaitGroup)
-	waitGroups[-1] = new(sync.WaitGroup)
-	for _, step := range steps {
-		wg := new(sync.WaitGroup)
-		for _, module := range modules {
-			if module.Id == step.Current {
-				wg.Add(1)
-			}
-		}
-		waitGroups[step.Current] = wg
-	}
+	var errOut bytes.Buffer
+	defer errOut.Reset()
 
 	findWaitGroup := func(step BuildStep, wgs map[int]*sync.WaitGroup) []*sync.WaitGroup {
 		if step.Current == step.Prev {
@@ -344,35 +327,68 @@ func build(ctx context.Context) error {
 		}
 		return BuildStep{}, fmt.Errorf("not found build step associated to id %d", moduleId)
 	}
+	//end of utilities
 
-	var globalWaitGroup sync.WaitGroup
-
-	var errOut bytes.Buffer
-	defer errOut.Reset()
-	newContext, cancel := context.WithCancel(ctx)
-	for _, module := range modules {
-		globalWaitGroup.Add(1)
-		step, err := findStep(module.Id, steps)
+	for _, supervisor := range supervisors {
+		err = supervisor.prepareDockerImageForBuilding(ctx)
 		if err != nil {
-			errOut.WriteString(fmt.Sprintf("[%s] is failure: %s\n", module.Name, err.Error()))
-			cancel()
-			break
+			return err
 		}
-		wgs := findWaitGroup(step, waitGroups)
-		go func(c context.Context, cwg *sync.WaitGroup, pwg *sync.WaitGroup, m Module, s *BuildSupervisor, err *bytes.Buffer) {
-			e := buildModule(c, pwg, m, *s)
-			if e != nil {
-				err.WriteString(fmt.Sprintf("[%s] is failure: %s\n", m.Name, e.Error()))
-				cancel()
-			}
-			cwg.Done()
-			globalWaitGroup.Done()
-		}(newContext, wgs[0], wgs[1], module, supervisors[module.config.BuildConfig.Type], &errOut)
-	}
-	globalWaitGroup.Wait()
 
-	if errOut.Len() > 0 {
-		return fmt.Errorf(errOut.String())
+		//preparing phase of build process is completed
+		modules := supervisor.Modules
+
+		currentId := modules[0].Id
+		steps := []BuildStep{
+			{currentId, currentId},
+		}
+		for _, module := range modules {
+			if module.Id > currentId {
+				steps = append(steps, BuildStep{
+					module.Id, currentId,
+				})
+				currentId = module.Id
+			}
+		}
+
+		waitGroups := make(map[int]*sync.WaitGroup)
+		waitGroups[-1] = new(sync.WaitGroup)
+		for _, step := range steps {
+			wg := new(sync.WaitGroup)
+			for _, module := range modules {
+				if module.Id == step.Current {
+					wg.Add(1)
+				}
+			}
+			waitGroups[step.Current] = wg
+		}
+
+		supervisorWaitGroup := new(sync.WaitGroup)
+		newContext, cancel := context.WithCancel(ctx)
+		for _, module := range modules {
+			supervisorWaitGroup.Add(1)
+			step, err := findStep(module.Id, steps)
+			if err != nil {
+				errOut.WriteString(fmt.Sprintf("[%s] is failure: %s\n", module.Name, err.Error()))
+				cancel()
+				break
+			}
+			wgs := findWaitGroup(step, waitGroups)
+			go func(c context.Context, cwg, pwg, swg *sync.WaitGroup , m Module, s *BuildSupervisor, err *bytes.Buffer) {
+				e := buildModule(c, pwg, m, *s)
+				if e != nil {
+					err.WriteString(fmt.Sprintf("[%s] is failure: %s\n", m.Name, e.Error()))
+					cancel()
+				}
+				cwg.Done()
+				swg.Done()
+			}(newContext, wgs[0], wgs[1], supervisorWaitGroup, module, supervisor, &errOut)
+		}
+		supervisorWaitGroup.Wait()
+
+		if errOut.Len() > 0 {
+			return fmt.Errorf(errOut.String())
+		}
 	}
 
 	return nil

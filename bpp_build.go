@@ -290,7 +290,7 @@ func build(ctx context.Context) error {
 	}
 
 	sort.Slice(supervisors, func(i, j int) bool {
-		return supervisors[i].Priority > supervisors[j].Priority
+		return supervisors[i].Priority < supervisors[j].Priority
 	})
 
 	defer func() {

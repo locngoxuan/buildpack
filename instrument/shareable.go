@@ -1,5 +1,11 @@
 package instrument
 
+import (
+	"log"
+	"os"
+	"runtime"
+)
+
 type BaseProperties struct {
 	WorkDir       string
 	OutputDir     string
@@ -10,6 +16,22 @@ type BaseProperties struct {
 	ModulePath    string
 	ModuleOutputs []string
 	LocalBuild    bool
+}
+
+var extension string = ""
+
+func init() {
+	//detect os runtime
+	if runtime.GOOS == "linux" {
+
+	} else if runtime.GOOS == "windows" {
+		extension = ".wins"
+	} else if runtime.GOOS == "darwin" {
+		extension = ".darwin"
+	} else {
+		log.Println("your local os either could not be recognized or is not supported")
+		os.Exit(1)
+	}
 }
 
 type Response struct {

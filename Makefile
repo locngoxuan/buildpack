@@ -1,6 +1,6 @@
 GOCMD=go
 BINARY_NAME=bpp
-VERSION?=2.2.0
+VERSION?=2.2.1
 PWD=$(shell pwd)
 BASE_IMAGE=xuanloc0511/buildpack_base:$(VERSION)
 BASE_IMAGE_CGO=xuanloc0511/buildpack_base_cgo:$(VERSION)

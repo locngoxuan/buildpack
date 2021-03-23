@@ -18,7 +18,7 @@ type PublishRequest struct {
 func PublishPackage(ctx context.Context, request PublishRequest) Response {
 	if strings.HasPrefix(request.Type, "external") {
 		pluginName := strings.TrimPrefix(request.Type, "external.")
-		pluginPath := filepath.Join(request.WorkDir, request.ModulePath, fmt.Sprintf("%s", pluginName))
+		pluginPath := filepath.Join(request.WorkDir, request.ModulePath, fmt.Sprintf("%s%s", pluginName, extension))
 		p, err := plugin.Open(pluginPath)
 		if err != nil {
 			return ResponseError(err)

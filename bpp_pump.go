@@ -11,9 +11,9 @@ import (
 )
 
 func pump(ctx context.Context) error {
-	branchName := cfg.GitConfig.Branch
+	branchName := utils.ReadEnvVariableIfHas(cfg.GitConfig.Branch)
 	if !utils.IsStringEmpty(arg.GitBranch) {
-		branchName = arg.GitBranch
+		branchName = utils.ReadEnvVariableIfHas(arg.GitBranch)
 	}
 	branchName = utils.Trim(branchName)
 

@@ -51,7 +51,7 @@ func yarnLocalPack(ctx context.Context, req PackRequest) Response {
 	}
 
 	log.Printf("[%s] yarn version command: yarn %s", req.ModuleName, strings.Join(versionCmd, " "))
-	response := yarnCmd(ctx, req.WorkDir, versionCmd)
+	response := yarnCmd(ctx, cwd, versionCmd)
 	if response.Err != nil {
 		return response
 	}
@@ -72,7 +72,7 @@ func yarnLocalPack(ctx context.Context, req PackRequest) Response {
 		fmt.Sprintf("--filename=%s", filepath.Join(packagePath, packageName)),
 	}
 	log.Printf("[%s] yarn pack command: yarn %s", req.ModuleName, strings.Join(packCmd, " "))
-	response = yarnCmd(ctx, req.WorkDir, packCmd)
+	response = yarnCmd(ctx, cwd, packCmd)
 	if response.Err != nil {
 		return response
 	}

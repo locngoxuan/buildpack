@@ -10,9 +10,9 @@ import (
 )
 
 type PackageJson struct {
-	Package string
-	Name    string
-	Version string
+	Package string `json:"package"`
+	Name    string `json:"name"`
+	Version string `json:"version"`
 }
 
 func ReadPackageJson(file string) (PackageJson, error) {

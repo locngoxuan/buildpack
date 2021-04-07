@@ -5,6 +5,10 @@ MAINTAINER LOC NGO <xuanloc0511@gmail.com>
 RUN mkdir -p /scripts
 ADD buildscript.sh /scripts/buildscript.sh
 ADD packscript.sh /scripts/packscript.sh
+ADD npm-buildscript.sh /scripts/npm-buildscript.sh
+ADD npm-packscript.sh /scripts/npm-packscript.sh
 RUN chmod 777 /scripts/buildscript.sh \
-	&& chmod 777 /scripts/packscript.sh
+	&& chmod 777 /scripts/packscript.sh \
+	&& chmod 777 /scripts/npm-buildscript.sh \
+	&& chmod 777 /scripts/npm-packscript.sh
 CMD ["/bin/sh"]

@@ -44,9 +44,5 @@ func ReadPackageJson(file string) (PackageJson, error) {
 		return PackageJson{}, fmt.Errorf("package.json is malformed: package includes '/'")
 	}
 
-	if strings.Contains(packageJson.Name, "/") {
-		return PackageJson{}, fmt.Errorf("package.json is malformed: name includes '/'")
-	}
-
 	return packageJson, nil
 }

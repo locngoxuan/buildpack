@@ -1,6 +1,6 @@
 GOCMD=go
 BINARY_NAME=bpp
-VERSION?=2.3.0
+VERSION?=2.4.0
 PWD=$(shell pwd)
 BASE_IMAGE=xuanloc0511/buildpack_base:$(VERSION)
 BASE_IMAGE_CGO=xuanloc0511/buildpack_base_cgo:$(VERSION)
@@ -16,6 +16,9 @@ default: help
 
 clean:
 	rm -fr ./bin
+
+dev: clean
+	CGO_ENABLED=1 go build -ldflags="-X main.version=${VERSION}" -o bin/${BINARY_NAME} ./cmd/.
 
 docker:
 	docker build -t $(BASE_IMAGE) -f ./dockers/Dockerfile .

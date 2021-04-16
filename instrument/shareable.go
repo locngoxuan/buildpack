@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"runtime"
+	"strings"
 )
 
 type BaseProperties struct {
@@ -34,6 +35,12 @@ func init() {
 	}
 }
 
+func normalizeNodePackageName(name string) string{
+	name = strings.TrimPrefix(name, "@")
+	name = strings.ReplaceAll(name, "/", "-")
+	return name
+}
+
 type Response struct {
 	Success  bool
 	ErrStack string
@@ -60,3 +67,4 @@ func ResponseErrorWithStack(err error, stack string) Response {
 		Err:      err,
 	}
 }
+

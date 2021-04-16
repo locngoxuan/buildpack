@@ -9,17 +9,15 @@ if [[ -z "${CWD}" ]];then
 	exit 1
 fi
 
-if [[ -z "${REVISION}" ]];then
-	yarn version --new-version ${REVISION} --no-git-tag-version --cwd ${CWD}
-else
-	sleep 1
-fi
+echo "yarn version --new-version ${REVISION} --no-git-tag-version --cwd ${CWD}"
+yarn version --new-version ${REVISION} --no-git-tag-version --cwd ${CWD}
+sleep 1
 
 if [[ -z "${FILENAME}" ]]; then
-	mkdir -p ${OUTPUT}
+    echo "packing version: ${REVISION}"
+	yarn pack --cwd ${CWD}
+else
+    mkdir -p ${OUTPUT}
 	echo "packing version: ${REVISION} at ${FILENAME}"
 	yarn pack --cwd ${CWD} --filename=${FILENAME}
-else
-	echo "packing version: ${REVISION}"
-	yarn pack --cwd ${CWD}
 fi

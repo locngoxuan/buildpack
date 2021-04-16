@@ -41,8 +41,9 @@ func DefaultDockerImageName(moduleAbsPath, builderName string) (string, error) {
 	switch strings.ToLower(builderName) {
 	case MvnBuilderName:
 		return defaultMvnDockerImage, nil
-	case YarnBuilderName:
-		return defaultYarnDockerImage, nil
+	case YarnBuilderName,
+		NpmBuilderName:
+		return defaultNodeLtsDockerImage, nil
 	}
 	return "", fmt.Errorf("can not recognize build type")
 }
@@ -70,6 +71,8 @@ func Build(ctx context.Context, request BuildRequest) Response {
 		return mvnBuild(ctx, request)
 	case YarnBuilderName:
 		return yarnBuild(ctx, request)
+	case NpmBuilderName:
+		return npmBuild(ctx, request)
 	}
 	return ResponseError(fmt.Errorf("can not recognize builder name"))
 }

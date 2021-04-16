@@ -19,14 +19,15 @@ import (
 )
 
 const (
-	YarnBuilderName        = "yarn"
+	defaultNodeLtsDockerImage = "xuanloc0511/node:lts-1.0.0"
+	NpmBuilderName            = "npm"
 )
 
-func yarnCmd(ctx context.Context, cwd string, options []string) Response {
+func npmCmd(ctx context.Context, cwd string, options []string) Response {
 	_args := make([]string, 0)
 	_args = append(_args, options...)
-	_args = append(_args, "--cwd", cwd)
-	cmd := exec.CommandContext(ctx, "yarn", _args...)
+	_args = append(_args, "--prefix", cwd)
+	cmd := exec.CommandContext(ctx, "npm", _args...)
 	defer func() {
 		_ = cmd.Process.Kill()
 	}()
@@ -46,7 +47,7 @@ func yarnCmd(ctx context.Context, cwd string, options []string) Response {
 	return ResponseSuccess()
 }
 
-func yarnLocalBuild(ctx context.Context, req BuildRequest) Response {
+func npmLocalBuild(ctx context.Context, req BuildRequest) Response {
 	c, err := config.ReadModuleConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
 		return ResponseError(err)
@@ -65,27 +66,25 @@ func yarnLocalBuild(ctx context.Context, req BuildRequest) Response {
 	//should read current version from package.json here
 	//apply new version
 	versionCmd := []string{
-		"version",
-		fmt.Sprintf("--new-version=%s", ver),
-		"--no-git-tag-version",
+		"version", ver,
+		"--git-tag-version=false",
 	}
-
+	log.Printf("[%s] npm version command: yarn %s", req.ModuleName, strings.Join(versionCmd, " "))
 	cwd := filepath.Join(req.WorkDir, req.ModulePath)
-	log.Printf("[%s] yarn version command: yarn %s --cwd %s", req.ModuleName, strings.Join(versionCmd, " "), cwd)
-	response := yarnCmd(ctx, cwd, versionCmd)
+	response := npmCmd(ctx, cwd, versionCmd)
 	if response.Err != nil {
 		return response
 	}
 
 	//should put reverse to old version via defer func here
-	log.Printf("[%s] yarn command: yarn install --cwd %s", req.ModuleName, cwd)
-	response = yarnCmd(ctx, cwd, []string{"install"})
+	log.Printf("[%s] npm command: npm install --prefix %s", req.ModuleName, cwd)
+	response = npmCmd(ctx, cwd, []string{"install"})
 	if response.Err != nil {
 		return response
 	}
 
-	log.Printf("[%s] yarn command: yarn build --cwd %s", req.ModuleName, cwd)
-	response = yarnCmd(ctx, cwd, []string{"build"})
+	log.Printf("[%s] npm command: npm run-script build --prefix %s", req.ModuleName, cwd)
+	response = npmCmd(ctx, cwd, []string{"run-script", "build"})
 	if response.Err != nil {
 		return response
 	}
@@ -107,9 +106,9 @@ func yarnLocalBuild(ctx context.Context, req BuildRequest) Response {
 	return ResponseSuccess()
 }
 
-func yarnBuild(ctx context.Context, req BuildRequest) Response {
+func npmBuild(ctx context.Context, req BuildRequest) Response {
 	if req.LocalBuild {
-		return yarnLocalBuild(ctx, req)
+		return npmLocalBuild(ctx, req)
 	}
 	mounts := make([]mount.Mount, 0)
 	for _, moduleOutput := range req.ModuleOutputs {
@@ -121,6 +120,31 @@ func yarnBuild(ctx context.Context, req BuildRequest) Response {
 			Type:   mount.TypeBind,
 			Source: filepath.Join(req.OutputDir, req.ModuleName, moduleOutput),
 			Target: filepath.Join("/working", req.ModulePath, moduleOutput),
+		})
+	}
+
+	if strings.TrimSpace(req.ShareDataDir) != "" {
+		hostNodeModules := filepath.Join(req.ShareDataDir, ".node_modules")
+		err := os.MkdirAll(hostNodeModules, 0766)
+		if err != nil {
+			return ResponseError(err)
+		}
+
+		dir, name := filepath.Split(req.WorkDir)
+		if strings.HasSuffix(dir, "") {
+			dir = strings.TrimSuffix(dir, "/")
+		}
+		_, cat := filepath.Split(dir)
+		dirName := strings.ToLower(fmt.Sprintf("%s_%s", cat, name))
+		sourcePath := filepath.Join(hostNodeModules, dirName)
+		err = os.MkdirAll(sourcePath, 0766)
+		if err != nil {
+			return ResponseError(err)
+		}
+		mounts = append(mounts, mount.Mount{
+			Type:   mount.TypeBind,
+			Source: sourcePath,
+			Target: filepath.Join("/working", req.ModulePath, "node_modules"),
 		})
 	}
 
@@ -138,8 +162,8 @@ func yarnBuild(ctx context.Context, req BuildRequest) Response {
 	}
 	log.Printf("[%s] docker image: %s", req.ModuleName, req.DockerImage)
 	log.Printf("[%s] workging dir: %s", req.ModuleName, req.WorkDir)
-	log.Printf("[%s] cwd option: %s", req.ModuleName, req.ModulePath)
-	dockerCmd := []string{"/bin/sh", "/scripts/buildscript.sh"}
+	log.Printf("[%s] prefix option: %s", req.ModuleName, req.ModulePath)
+	dockerCmd := []string{"/bin/sh", "/scripts/npm-buildscript.sh"}
 	log.Printf("[%s] docker command: %s", req.ModuleName, strings.Join(dockerCmd, " "))
 	env := make([]string, 0)
 	env = append(env, fmt.Sprintf("REVISION=%s", ver))

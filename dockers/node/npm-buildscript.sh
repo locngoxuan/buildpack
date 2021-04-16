@@ -7,10 +7,11 @@ if [[ -z "${CWD}" ]];then
 	echo "missing working directory"
 	exit 1
 fi
-if [[ -z "${REVISION}" ]];then
-	npm version ${REVISION} --git-tag-version=false --prefix ${CWD}
-else
-	sleep 1
-fi
+
+echo "npm version ${REVISION} --git-tag-version=false --allow-same-version --prefix ${CWD}"
+npm version ${REVISION} --git-tag-version=false --allow-same-version --prefix ${CWD}
+
+sleep 1
+
 npm install --prefix ${CWD}
 npm run-script build --prefix ${CWD}

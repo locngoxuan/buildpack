@@ -80,7 +80,7 @@ func initModule(id int, name, path string) (Module, error) {
 
 //preparing build environment
 func prepareListModule() ([]Module, error) {
-	log.Println("preparing modules for running build")
+	log.Println("preparing set of modules")
 	ms := make([]Module, 0)
 	if utils.IsStringEmpty(arg.Module) {
 		for _, module := range cfg.Modules {

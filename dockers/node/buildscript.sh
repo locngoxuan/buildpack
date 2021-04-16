@@ -7,10 +7,10 @@ if [[ -z "${CWD}" ]];then
 	echo "missing working directory"
 	exit 1
 fi
-if [[ -z "${REVISION}" ]];then
-	yarn version --new-version ${REVISION} --no-git-tag-version --cwd ${CWD}
-else
-	sleep 1
-fi
+
+echo "yarn version --new-version ${REVISION} --no-git-tag-version --cwd ${CWD}"
+yarn version --new-version ${REVISION} --no-git-tag-version --cwd ${CWD}
+sleep 1
+
 yarn install --cwd ${CWD}
 yarn build --cwd ${CWD}

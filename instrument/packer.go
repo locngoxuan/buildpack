@@ -31,8 +31,9 @@ func DefaultPackDockerImage(moduleAbsPath, packType string) (string, error) {
 		return f.(func() string)(), nil
 	}
 	switch strings.ToLower(packType) {
-	case YarnPackerName:
-		return defaultYarnDockerImage, nil
+	case YarnPackerName,
+		NpmPackerName:
+		return defaultNodeLtsDockerImage, nil
 	}
 	return "", fmt.Errorf("can not recognize pack type")
 }
@@ -54,6 +55,8 @@ func Pack(ctx context.Context, request PackRequest) Response {
 	switch strings.ToLower(request.PackerName) {
 	case YarnPackerName:
 		return yarnPack(ctx, request)
+	case NpmPackerName:
+		return npmPack(ctx, request)
 	}
 	return ResponseError(fmt.Errorf("can not recognize pack type"))
 }

@@ -19,11 +19,11 @@ import (
 )
 
 const (
-	YarnPackerName     = "yarn"
-	defaultYarnPackDir = "dist"
+	NpmPackerName     = "npm"
+	defaultNpmPackDir = "dist"
 )
 
-func yarnLocalPack(ctx context.Context, req PackRequest) Response {
+func npmLocalPack(ctx context.Context, req PackRequest) Response {
 	c, err := config.ReadModuleConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
 		return ResponseError(err)
@@ -42,21 +42,36 @@ func yarnLocalPack(ctx context.Context, req PackRequest) Response {
 	if err != nil {
 		return ResponseError(err)
 	}
+
 	//apply new version
 	versionCmd := []string{
-		"version",
-		fmt.Sprintf("--new-version=%s", ver),
-		"--no-git-tag-version",
+		"version", ver,
+		"--git-tag-version=false",
+		"--allow-same-version",
 	}
 
-	log.Printf("[%s] yarn version command: yarn %s --cwd %s", req.ModuleName, strings.Join(versionCmd, " "), cwd)
-	response := yarnCmd(ctx, cwd, versionCmd)
+	log.Printf("[%s] npm version command: npm %s --prefix %s", req.ModuleName, strings.Join(versionCmd, " "), cwd)
+	response := npmCmd(ctx, cwd, versionCmd)
 	if response.Err != nil {
 		return response
 	}
 
+	defer func(cmd []string, c, oldVersion string) {
+		cmd[1] = oldVersion
+		_ = npmCmd(context.Background(), c, cmd)
+	}(versionCmd, cwd, packageJson.Version)
+
 	//should put reverse to old version via defer func here
+
+	packCmd := []string{"pack"}
+	log.Printf("[%s] npm pack command: npm %s --prefix %s", req.ModuleName, strings.Join(packCmd, " "), cwd)
+	response = npmCmd(ctx, cwd, packCmd)
+	if response.Err != nil {
+		return response
+	}
+
 	packageName := fmt.Sprintf("%s-%s.tgz", normalizeNodePackageName(packageJson.Name), ver)
+	sourceFile := filepath.Join(cwd, packageName)
 	packagePath := filepath.Join(req.OutputDir, req.ModuleName, "dist")
 	if utils.IsNotExists(packagePath) {
 		err = os.MkdirAll(packagePath, 0755)
@@ -64,23 +79,18 @@ func yarnLocalPack(ctx context.Context, req PackRequest) Response {
 			return ResponseError(err)
 		}
 	}
-
-	packCmd := []string{
-		"pack",
-		fmt.Sprintf("--filename=%s", filepath.Join(packagePath, packageName)),
+	destFile := filepath.Join(packagePath, packageName)
+	err = utils.CopyFile(sourceFile, destFile)
+	if err != nil {
+		return ResponseError(err)
 	}
-	log.Printf("[%s] yarn pack command: yarn %s --cwd %s", req.ModuleName, strings.Join(packCmd, " "), cwd)
-	response = yarnCmd(ctx, cwd, packCmd)
-	if response.Err != nil {
-		return response
-	}
-
+	_ = os.RemoveAll(sourceFile)
 	return ResponseSuccess()
 }
 
-func yarnPack(ctx context.Context, req PackRequest) Response {
+func npmPack(ctx context.Context, req PackRequest) Response {
 	if req.LocalBuild {
-		return yarnLocalPack(ctx, req)
+		return npmLocalPack(ctx, req)
 	}
 	c, err := config.ReadModuleConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
@@ -99,16 +109,16 @@ func yarnPack(ctx context.Context, req PackRequest) Response {
 	log.Printf("[%s] cwd option: %s", req.ModuleName, req.ModulePath)
 
 	mounts := make([]mount.Mount, 0)
-	err = os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, defaultYarnPackDir), 0755)
+	err = os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, defaultNpmPackDir), 0755)
 	if err != nil {
 		return ResponseError(err)
 	}
 	mounts = append(mounts, mount.Mount{
 		Type:   mount.TypeBind,
-		Source: filepath.Join(req.OutputDir, req.ModuleName, defaultYarnPackDir),
-		Target: filepath.Join("/working", req.ModulePath, defaultYarnPackDir),
+		Source: filepath.Join(req.OutputDir, req.ModuleName, defaultNpmPackDir),
+		Target: filepath.Join("/working", req.ModulePath, defaultNpmPackDir),
 	})
-	dockerCmd := []string{"/bin/sh", "/scripts/packscript.sh"}
+	dockerCmd := []string{"/bin/sh", "/scripts/npm-packscript.sh"}
 	log.Printf("[%s] docker command: %s", req.ModuleName, strings.Join(dockerCmd, " "))
 
 	cwd := req.ModulePath //cwd inside docker
@@ -116,13 +126,13 @@ func yarnPack(ctx context.Context, req PackRequest) Response {
 	if err != nil {
 		return ResponseError(err)
 	}
-	packageName := fmt.Sprintf("%s-%s.tgz", normalizeNodePackageName(packageJson.Name), ver)
 
+	packageName := fmt.Sprintf("%s-%s.tgz", normalizeNodePackageName(packageJson.Name), ver)
 	env := make([]string, 0)
 	env = append(env, fmt.Sprintf("REVISION=%s", ver))
 	env = append(env, fmt.Sprintf("CWD=%s", cwd))
-	env = append(env, fmt.Sprintf("OUTPUT=%s", filepath.Join(cwd, defaultYarnPackDir)))
-	env = append(env, fmt.Sprintf("FILENAME=%s", filepath.Join(cwd, defaultYarnPackDir, packageName)))
+	env = append(env, fmt.Sprintf("OUTPUT=%s", filepath.Join(cwd, defaultNpmPackDir)))
+	env = append(env, fmt.Sprintf("FILENAME=%s", packageName))
 	containerConfig := &container.Config{
 		Image:      req.DockerImage,
 		Cmd:        dockerCmd,

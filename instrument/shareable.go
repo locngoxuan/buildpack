@@ -4,7 +4,6 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"strings"
 )
 
 type BaseProperties struct {
@@ -17,6 +16,7 @@ type BaseProperties struct {
 	ModulePath    string
 	ModuleOutputs []string
 	LocalBuild    bool
+	BuildNumber   int
 }
 
 var extension string = ""
@@ -33,12 +33,6 @@ func init() {
 		log.Println("your local os either could not be recognized or is not supported")
 		os.Exit(1)
 	}
-}
-
-func normalizeNodePackageName(name string) string{
-	name = strings.TrimPrefix(name, "@")
-	name = strings.ReplaceAll(name, "/", "-")
-	return name
 }
 
 type Response struct {
@@ -67,4 +61,3 @@ func ResponseErrorWithStack(err error, stack string) Response {
 		Err:      err,
 	}
 }
-

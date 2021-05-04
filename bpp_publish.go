@@ -89,6 +89,7 @@ func publish(ctx context.Context) error {
 					ModuleName:    module.Name,
 					ModuleOutputs: module.config.Output,
 					LocalBuild:    arg.BuildLocal,
+					BuildNumber:   buildInfo.BuildNumber,
 				},
 				Repositories: selectedRepos,
 				PublishConfig: config.PublishConfig{

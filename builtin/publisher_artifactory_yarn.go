@@ -1,36 +1,49 @@
-package instrument
+package builtin
 
 import (
 	"context"
 	"fmt"
+	"github.com/locngoxuan/buildpack/config"
 	"github.com/locngoxuan/buildpack/core"
+	"github.com/locngoxuan/buildpack/instrument"
 	"github.com/locngoxuan/buildpack/utils"
 	"path/filepath"
 	"strings"
 )
 
 const ArtifactoryYarnPublisherName = "artifactoryyarn"
+const ArtifactoryNpmPublisherName = "artifactorynpm"
 
-func publishYarnJarToArtifactory(ctx context.Context, req PublishRequest) Response {
+func publishYarnJarToArtifactory(ctx context.Context, req instrument.PublishRequest) instrument.Response {
 	outputDist := filepath.Join(req.OutputDir, req.ModuleName, "dist")
 	packageJsonPath := filepath.Join(req.WorkDir, req.ModulePath, "package.json")
 	packageJson, err := core.ReadPackageJson(packageJsonPath)
 	if err != nil {
-		return ResponseError(err)
+		return instrument.ResponseError(err)
 	}
 
-	finalName := fmt.Sprintf("%s-%s", packageJson.Name, packageJson.Version)
-	modulePath := func(p core.PackageJson) string {
-		return fmt.Sprintf("%s/%s/%s",
-			strings.ReplaceAll(p.Package, ".", "/"),
-			p.Name,
-			p.Version)
+	c, err := config.ReadModuleConfig(filepath.Join(req.WorkDir, req.ModulePath))
+	if err != nil {
+		return instrument.ResponseError(err)
+	}
+	label := c.Label
+	if utils.Trim(label) == "" {
+		label = "SNAPSHOT"
+	}
+	ver := req.Version
+	if req.DevMode {
+		ver = fmt.Sprintf("%s-%s", req.Version, label)
 	}
 
+	finalName := fmt.Sprintf("%s-%s", core.NormalizeNodePackageName(packageJson.Name), ver)
+
+	modulePath := fmt.Sprintf("%s/%s/%s",
+		strings.ReplaceAll(packageJson.Package, ".", "/"),
+		core.NormalizeNodePackageName(packageJson.Name), ver)
 	temp := []ArtifactoryPackage{
 		{
-			Source:   filepath.Join(outputDist, fmt.Sprintf("%s.jar", finalName)),
-			Endpoint: fmt.Sprintf("%s/%s.jar", modulePath(packageJson), finalName),
+			Source:   filepath.Join(outputDist, fmt.Sprintf("%s.tgz", finalName)),
+			Endpoint: fmt.Sprintf("%s/%s.tgz", modulePath, core.NormalizeNodePackageName(packageJson.Name)),
 		},
 	}
 
@@ -41,7 +54,7 @@ func publishYarnJarToArtifactory(ctx context.Context, req PublishRequest) Respon
 		}
 		md5, err := utils.SumContentMD5(item.Source)
 		if err != nil {
-			return ResponseError(err)
+			return instrument.ResponseError(err)
 		}
 		p := &ArtifactoryPackage{
 			Source:   item.Source,
@@ -55,16 +68,16 @@ func publishYarnJarToArtifactory(ctx context.Context, req PublishRequest) Respon
 		for _, element := range packages {
 			chn := repo.GetChannel(!req.DevMode)
 			if utils.IsStringEmpty(chn.Address) {
-				return ResponseError(fmt.Errorf("channel of repo %s is malformed", repo.Id))
+				return instrument.ResponseError(fmt.Errorf("channel of repo %s is malformed", repo.Id))
 			}
 			element.Endpoint = fmt.Sprintf("%s/%s", chn.Address, element.Endpoint)
 			element.Username = utils.ReadEnvVariableIfHas(chn.Username)
 			element.Password = utils.ReadEnvVariableIfHas(chn.Password)
 			err := uploadFile(ctx, *element)
 			if err != nil {
-				return ResponseError(err)
+				return instrument.ResponseError(err)
 			}
 		}
 	}
-	return ResponseSuccess()
+	return instrument.ResponseSuccess()
 }

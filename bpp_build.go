@@ -231,6 +231,7 @@ func build(ctx context.Context) error {
 	err = config.WriteBuildOutputInfo(config.BuildOutputInfo{
 		Version: buildVersion,
 		Release: isReleased,
+		BuildNumber: arg.BuildNumber,
 	}, outputDir)
 	if err != nil {
 		return err
@@ -284,7 +285,7 @@ func build(ctx context.Context) error {
 	}
 
 	supervisors := make([]*BuildSupervisor, 0)
-	for _, supervisor := range mSupervisors{
+	for _, supervisor := range mSupervisors {
 		supervisor.Priority = supervisor.Modules[0].Id
 		supervisors = append(supervisors, supervisor)
 	}
@@ -374,7 +375,7 @@ func build(ctx context.Context) error {
 				break
 			}
 			wgs := findWaitGroup(step, waitGroups)
-			go func(c context.Context, cwg, pwg, swg *sync.WaitGroup , m Module, s *BuildSupervisor, err *bytes.Buffer) {
+			go func(c context.Context, cwg, pwg, swg *sync.WaitGroup, m Module, s *BuildSupervisor, err *bytes.Buffer) {
 				e := buildModule(c, pwg, m, *s)
 				if e != nil {
 					err.WriteString(fmt.Sprintf("[%s] is failure: %s\n", m.Name, e.Error()))
@@ -400,7 +401,7 @@ func buildModule(ctx context.Context, prevWg *sync.WaitGroup, module Module, sup
 		log.Printf("[%s] is aborted", module.Name)
 		return nil
 	}
-	log.Printf("[%s] start to build", module.Name)
+	log.Printf("[%s] start to build (build number = %d)", module.Name, arg.BuildNumber)
 	response := instrument.Build(ctx, instrument.BuildRequest{
 		BaseProperties: instrument.BaseProperties{
 			WorkDir:       workDir,
@@ -412,6 +413,7 @@ func buildModule(ctx context.Context, prevWg *sync.WaitGroup, module Module, sup
 			ModuleName:    module.Name,
 			ModuleOutputs: module.config.Output,
 			LocalBuild:    arg.BuildLocal,
+			BuildNumber:   arg.BuildNumber,
 		},
 		BuilderName:  module.config.BuildConfig.Type,
 		DockerImage:  supervisor.BuildImage,

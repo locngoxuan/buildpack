@@ -8,6 +8,7 @@ import (
 	"github.com/locngoxuan/buildpack/utils"
 	"os"
 	"path/filepath"
+	"strconv"
 	"strings"
 )
 
@@ -64,6 +65,7 @@ type Arguments struct {
 	BuildLocal   bool
 	BuildRelease bool
 	BuildPath    bool
+	BuildNumber  int
 	SkipOption
 }
 
@@ -81,6 +83,7 @@ func readArguments() (arg Arguments, err error) {
 	f.BoolVar(&arg.BuildPath, "patch", false, "project is built only for path")
 	f.BoolVar(&arg.BuildLocal, "local", false, "running build and clean in local")
 	f.StringVar(&arg.GitBranch, "git-branch", "", "branch that code will be pushed")
+	buildNumber := f.String("build-number", "", "build number")
 	f.BoolVar(&arg.SkipBackward, "skip-backward", false, "if true, then major version will be increased")
 
 	f.Usage = func() {
@@ -96,6 +99,16 @@ func readArguments() (arg Arguments, err error) {
 	arg.Command = strings.TrimSpace(os.Args[1])
 	if len(os.Args) > 2 {
 		err = f.Parse(os.Args[2:])
+	}
+
+	if buildNumber != nil {
+		v := utils.ReadEnvVariableIfHas(*buildNumber)
+		buildNumberInt, err := strconv.Atoi(v)
+		if err != nil{
+			_, _ = fmt.Fprintln(f.Output(), "build number must be number")
+			os.Exit(1)
+		}
+		arg.BuildNumber = buildNumberInt
 	}
 	return
 }

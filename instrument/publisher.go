@@ -15,6 +15,14 @@ type PublishRequest struct {
 	Repositories map[string]config.Repository
 }
 
+type PublishFunc func(ctx context.Context, request PublishRequest) Response
+
+var publishFuncs = make(map[string]PublishFunc)
+
+func RegisterPublishFunction(builderName string, f PublishFunc) {
+	publishFuncs[strings.ToLower(strings.TrimSpace(builderName))] = f
+}
+
 func PublishPackage(ctx context.Context, request PublishRequest) Response {
 	if strings.HasPrefix(request.Type, "external") {
 		pluginName := strings.TrimPrefix(request.Type, "external.")
@@ -29,11 +37,12 @@ func PublishPackage(ctx context.Context, request PublishRequest) Response {
 		}
 		return f.(func(context.Context, PublishRequest) Response)(ctx, request)
 	}
-	switch strings.ToLower(request.Type) {
-	case ArtifactoryMvnPublisherName:
-		return publishMvnJarToArtifactory(ctx, request)
-	case ArtifactoryYarnPublisherName:
-		return publishYarnJarToArtifactory(ctx, request)
+	f, ok := publishFuncs[strings.ToLower(strings.TrimSpace(request.Type))]
+	if !ok {
+		return ResponseError(fmt.Errorf("can not recognize publish type"))
 	}
-	return ResponseError(fmt.Errorf("can not recognize publish type"))
+	if f == nil {
+		return ResponseError(fmt.Errorf("pack function is nil"))
+	}
+	return f(ctx, request)
 }

@@ -101,7 +101,7 @@ func readArguments() (arg Arguments, err error) {
 		err = f.Parse(os.Args[2:])
 	}
 
-	if buildNumber != nil {
+	if buildNumber != nil && strings.TrimSpace(*buildNumber) != ""{
 		v := utils.ReadEnvVariableIfHas(*buildNumber)
 		buildNumberInt, err := strconv.Atoi(v)
 		if err != nil{

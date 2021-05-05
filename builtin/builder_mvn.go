@@ -152,11 +152,14 @@ func mvnBuild(ctx context.Context, req instrument.BuildRequest) instrument.Respo
 		if err != nil {
 			return instrument.ResponseError(err)
 		}
+		src := filepath.Join(req.OutputDir, req.ModuleName, moduleOutput)
+		target := filepath.Join("/working", req.ModulePath, moduleOutput)
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
-			Source: filepath.Join(req.OutputDir, req.ModuleName, moduleOutput),
-			Target: filepath.Join("/working", req.ModulePath, moduleOutput),
+			Source: src,
+			Target: target,
 		})
+		log.Printf("[%s] mount %s:%s", req.ModuleName, src, target)
 	}
 
 	mvnConfig, err := ReadMvnConfig(filepath.Join(req.WorkDir, req.ModulePath))

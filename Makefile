@@ -1,9 +1,10 @@
 GOCMD=go
 BINARY_NAME=bpp
-VERSION?=2.5.0
+VERSION?=2.5.1
 PWD=$(shell pwd)
-BASE_IMAGE=xuanloc0511/buildpack_base:$(VERSION)
-BASE_IMAGE_CGO=xuanloc0511/buildpack_base_cgo:$(VERSION)
+BASE_DOCKER_IMG_VERSION?=2.5.0
+BASE_IMAGE=xuanloc0511/buildpack_base:$(BASE_DOCKER_IMG_VERSION)
+BASE_IMAGE_CGO=xuanloc0511/buildpack_base_cgo:$(BASE_DOCKER_IMG_VERSION)
 
 GREEN  := $(shell tput -Txterm setaf 2)
 YELLOW := $(shell tput -Txterm setaf 3)

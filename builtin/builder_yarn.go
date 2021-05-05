@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	YarnBuilderName        = "yarn"
+	YarnBuilderName = "yarn"
 )
 
 func yarnCmd(ctx context.Context, cwd string, options []string) instrument.Response {
@@ -113,16 +113,24 @@ func yarnBuild(ctx context.Context, req instrument.BuildRequest) instrument.Resp
 		return yarnLocalBuild(ctx, req)
 	}
 	mounts := make([]mount.Mount, 0)
+	inputDir := filepath.Join(req.OutputDir, req.ModuleName, nodeInputDir)
+	err := os.MkdirAll(inputDir, 0755)
+	if err != nil {
+		return instrument.ResponseError(err)
+	}
 	for _, moduleOutput := range req.ModuleOutputs {
-		err := os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, moduleOutput), 0777)
+		err := os.MkdirAll(filepath.Join(inputDir, moduleOutput), 0777)
 		if err != nil {
 			return instrument.ResponseError(err)
 		}
+		src := filepath.Join(inputDir, moduleOutput)
+		target := filepath.Join("/working", req.ModulePath, moduleOutput)
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
-			Source: filepath.Join(req.OutputDir, req.ModuleName, moduleOutput),
-			Target: filepath.Join("/working", req.ModulePath, moduleOutput),
+			Source: src,
+			Target: target,
 		})
+		log.Printf("[%s] mount %s:%s", req.ModuleName, src, target)
 	}
 
 	c, err := config.ReadModuleConfig(filepath.Join(req.WorkDir, req.ModulePath))

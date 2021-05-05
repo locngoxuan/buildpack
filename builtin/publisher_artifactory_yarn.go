@@ -15,7 +15,7 @@ const ArtifactoryYarnPublisherName = "artifactoryyarn"
 const ArtifactoryNpmPublisherName = "artifactorynpm"
 
 func publishYarnJarToArtifactory(ctx context.Context, req instrument.PublishRequest) instrument.Response {
-	outputDist := filepath.Join(req.OutputDir, req.ModuleName, "dist")
+	outputDist := filepath.Join(req.OutputDir, req.ModuleName, nodeOutputDir)
 	packageJsonPath := filepath.Join(req.WorkDir, req.ModulePath, "package.json")
 	packageJson, err := core.ReadPackageJson(packageJsonPath)
 	if err != nil {

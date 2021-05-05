@@ -20,8 +20,7 @@ import (
 )
 
 const (
-	NpmPackerName     = "npm"
-	defaultNpmPackDir = "dist"
+	NpmPackerName    = "npm"
 )
 
 func npmLocalPack(ctx context.Context, req instrument.PackRequest) instrument.Response {
@@ -73,14 +72,14 @@ func npmLocalPack(ctx context.Context, req instrument.PackRequest) instrument.Re
 
 	packageName := fmt.Sprintf("%s-%s.tgz", core.NormalizeNodePackageName(packageJson.Name), ver)
 	sourceFile := filepath.Join(cwd, packageName)
-	packagePath := filepath.Join(req.OutputDir, req.ModuleName, "dist")
-	if utils.IsNotExists(packagePath) {
-		err = os.MkdirAll(packagePath, 0755)
+	outputPackDir := filepath.Join(req.OutputDir, req.ModuleName, nodeOutputDir)
+	if utils.IsNotExists(outputPackDir) {
+		err = os.MkdirAll(outputPackDir, 0755)
 		if err != nil {
 			return instrument.ResponseError(err)
 		}
 	}
-	destFile := filepath.Join(packagePath, packageName)
+	destFile := filepath.Join(outputPackDir, packageName)
 	err = utils.CopyFile(sourceFile, destFile)
 	if err != nil {
 		return instrument.ResponseError(err)
@@ -110,15 +109,36 @@ func npmPack(ctx context.Context, req instrument.PackRequest) instrument.Respons
 	log.Printf("[%s] cwd option: %s", req.ModuleName, req.ModulePath)
 
 	mounts := make([]mount.Mount, 0)
-	err = os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, defaultNpmPackDir), 0755)
+	err = os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, nodeOutputDir), 0755)
+	if err != nil {
+		return instrument.ResponseError(err)
+	}
+
+	inputDir := filepath.Join(req.OutputDir, req.ModuleName, nodeInputDir)
+	err = os.MkdirAll(inputDir, 0755)
 	if err != nil {
 		return instrument.ResponseError(err)
 	}
 	mounts = append(mounts, mount.Mount{
 		Type:   mount.TypeBind,
-		Source: filepath.Join(req.OutputDir, req.ModuleName, defaultNpmPackDir),
-		Target: filepath.Join("/working", req.ModulePath, defaultNpmPackDir),
+		Source: filepath.Join(req.OutputDir, req.ModuleName, nodeOutputDir),
+		Target: filepath.Join("/", nodeOutputDir),
 	})
+	for _, moduleOutput := range req.ModuleOutputs {
+		err := os.MkdirAll(filepath.Join(inputDir, moduleOutput), 0777)
+		if err != nil {
+			return instrument.ResponseError(err)
+		}
+		src := filepath.Join(inputDir, moduleOutput)
+		target := filepath.Join("/working", req.ModulePath, moduleOutput)
+		mounts = append(mounts, mount.Mount{
+			Type:   mount.TypeBind,
+			Source: src,
+			Target: target,
+		})
+		log.Printf("[%s] mount %s:%s", req.ModuleName, src, target)
+	}
+
 	dockerCmd := []string{"/bin/sh", "/scripts/npm-packscript.sh"}
 	log.Printf("[%s] docker command: %s", req.ModuleName, strings.Join(dockerCmd, " "))
 
@@ -132,7 +152,7 @@ func npmPack(ctx context.Context, req instrument.PackRequest) instrument.Respons
 	env := make([]string, 0)
 	env = append(env, fmt.Sprintf("REVISION=%s", ver))
 	env = append(env, fmt.Sprintf("CWD=%s", cwd))
-	env = append(env, fmt.Sprintf("OUTPUT=%s", filepath.Join(cwd, defaultNpmPackDir)))
+	env = append(env, fmt.Sprintf("OUTPUT=%s", filepath.Join("/", nodeOutputDir)))
 	env = append(env, fmt.Sprintf("FILENAME=%s", packageName))
 	containerConfig := &container.Config{
 		Image:      req.DockerImage,

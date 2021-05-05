@@ -20,8 +20,7 @@ import (
 )
 
 const (
-	YarnPackerName     = "yarn"
-	defaultYarnPackDir = "dist"
+	YarnPackerName = "yarn"
 )
 
 func yarnLocalPack(ctx context.Context, req instrument.PackRequest) instrument.Response {
@@ -100,15 +99,36 @@ func yarnPack(ctx context.Context, req instrument.PackRequest) instrument.Respon
 	log.Printf("[%s] cwd option: %s", req.ModuleName, req.ModulePath)
 
 	mounts := make([]mount.Mount, 0)
-	err = os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, defaultYarnPackDir), 0755)
+	err = os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, nodeOutputDir), 0755)
+	if err != nil {
+		return instrument.ResponseError(err)
+	}
+
+	inputDir := filepath.Join(req.OutputDir, req.ModuleName, nodeInputDir)
+	err = os.MkdirAll(inputDir, 0755)
 	if err != nil {
 		return instrument.ResponseError(err)
 	}
 	mounts = append(mounts, mount.Mount{
 		Type:   mount.TypeBind,
-		Source: filepath.Join(req.OutputDir, req.ModuleName, defaultYarnPackDir),
-		Target: filepath.Join("/working", req.ModulePath, defaultYarnPackDir),
+		Source: filepath.Join(req.OutputDir, req.ModuleName, nodeOutputDir),
+		Target: filepath.Join("/", nodeOutputDir),
 	})
+
+	for _, moduleOutput := range req.ModuleOutputs {
+		err := os.MkdirAll(filepath.Join(inputDir, moduleOutput), 0777)
+		if err != nil {
+			return instrument.ResponseError(err)
+		}
+		src := filepath.Join(inputDir, moduleOutput)
+		target := filepath.Join("/working", req.ModulePath, moduleOutput)
+		mounts = append(mounts, mount.Mount{
+			Type:   mount.TypeBind,
+			Source: src,
+			Target: target,
+		})
+		log.Printf("[%s] mount %s:%s", req.ModuleName, src, target)
+	}
 	dockerCmd := []string{"/bin/sh", "/scripts/packscript.sh"}
 	log.Printf("[%s] docker command: %s", req.ModuleName, strings.Join(dockerCmd, " "))
 
@@ -122,8 +142,8 @@ func yarnPack(ctx context.Context, req instrument.PackRequest) instrument.Respon
 	env := make([]string, 0)
 	env = append(env, fmt.Sprintf("REVISION=%s", ver))
 	env = append(env, fmt.Sprintf("CWD=%s", cwd))
-	env = append(env, fmt.Sprintf("OUTPUT=%s", filepath.Join(cwd, defaultYarnPackDir)))
-	env = append(env, fmt.Sprintf("FILENAME=%s", filepath.Join(cwd, defaultYarnPackDir, packageName)))
+	env = append(env, fmt.Sprintf("OUTPUT=%s", filepath.Join("/", nodeOutputDir)))
+	env = append(env, fmt.Sprintf("FILENAME=%s", filepath.Join("/", nodeOutputDir, packageName)))
 	containerConfig := &container.Config{
 		Image:      req.DockerImage,
 		Cmd:        dockerCmd,

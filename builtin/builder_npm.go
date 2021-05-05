@@ -113,6 +113,8 @@ func npmBuild(ctx context.Context, req instrument.BuildRequest) instrument.Respo
 	if req.LocalBuild {
 		return npmLocalBuild(ctx, req)
 	}
+
+	//prepare mount environment
 	mounts := make([]mount.Mount, 0)
 	inputDir := filepath.Join(req.OutputDir, req.ModuleName, nodeInputDir)
 	err := os.MkdirAll(inputDir, 0755)
@@ -133,7 +135,6 @@ func npmBuild(ctx context.Context, req instrument.BuildRequest) instrument.Respo
 		})
 		log.Printf("[%s] mount %s:%s", req.ModuleName, src, target)
 	}
-
 	if strings.TrimSpace(req.ShareDataDir) != "" {
 		hostNodeModules := filepath.Join(req.ShareDataDir, ".node_modules")
 		err := os.MkdirAll(hostNodeModules, 0766)

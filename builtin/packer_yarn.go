@@ -98,12 +98,12 @@ func yarnPack(ctx context.Context, req instrument.PackRequest) instrument.Respon
 	log.Printf("[%s] workging dir: %s", req.ModuleName, req.WorkDir)
 	log.Printf("[%s] cwd option: %s", req.ModuleName, req.ModulePath)
 
+	//prepare mount environment
 	mounts := make([]mount.Mount, 0)
 	err = os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, nodeOutputDir), 0755)
 	if err != nil {
 		return instrument.ResponseError(err)
 	}
-
 	inputDir := filepath.Join(req.OutputDir, req.ModuleName, nodeInputDir)
 	err = os.MkdirAll(inputDir, 0755)
 	if err != nil {
@@ -114,7 +114,6 @@ func yarnPack(ctx context.Context, req instrument.PackRequest) instrument.Respon
 		Source: filepath.Join(req.OutputDir, req.ModuleName, nodeOutputDir),
 		Target: filepath.Join("/", nodeOutputDir),
 	})
-
 	for _, moduleOutput := range req.ModuleOutputs {
 		err := os.MkdirAll(filepath.Join(inputDir, moduleOutput), 0777)
 		if err != nil {
@@ -129,6 +128,31 @@ func yarnPack(ctx context.Context, req instrument.PackRequest) instrument.Respon
 		})
 		log.Printf("[%s] mount %s:%s", req.ModuleName, src, target)
 	}
+	if strings.TrimSpace(req.ShareDataDir) != "" {
+		hostNodeModules := filepath.Join(req.ShareDataDir, ".node_modules")
+		err := os.MkdirAll(hostNodeModules, 0766)
+		if err != nil {
+			return instrument.ResponseError(err)
+		}
+
+		dir, name := filepath.Split(req.WorkDir)
+		if strings.HasSuffix(dir, "") {
+			dir = strings.TrimSuffix(dir, "/")
+		}
+		_, cat := filepath.Split(dir)
+		dirName := strings.ToLower(fmt.Sprintf("%s_%s", cat, name))
+		sourcePath := filepath.Join(hostNodeModules, dirName)
+		err = os.MkdirAll(sourcePath, 0766)
+		if err != nil {
+			return instrument.ResponseError(err)
+		}
+		mounts = append(mounts, mount.Mount{
+			Type:   mount.TypeBind,
+			Source: sourcePath,
+			Target: filepath.Join("/working", req.ModulePath, "node_modules"),
+		})
+	}
+
 	dockerCmd := []string{"/bin/sh", "/scripts/packscript.sh"}
 	log.Printf("[%s] docker command: %s", req.ModuleName, strings.Join(dockerCmd, " "))
 

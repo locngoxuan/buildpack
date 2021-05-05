@@ -112,6 +112,8 @@ func yarnBuild(ctx context.Context, req instrument.BuildRequest) instrument.Resp
 	if req.LocalBuild {
 		return yarnLocalBuild(ctx, req)
 	}
+
+	//prepare mount environment
 	mounts := make([]mount.Mount, 0)
 	inputDir := filepath.Join(req.OutputDir, req.ModuleName, nodeInputDir)
 	err := os.MkdirAll(inputDir, 0755)
@@ -131,6 +133,30 @@ func yarnBuild(ctx context.Context, req instrument.BuildRequest) instrument.Resp
 			Target: target,
 		})
 		log.Printf("[%s] mount %s:%s", req.ModuleName, src, target)
+	}
+	if strings.TrimSpace(req.ShareDataDir) != "" {
+		hostNodeModules := filepath.Join(req.ShareDataDir, ".node_modules")
+		err := os.MkdirAll(hostNodeModules, 0766)
+		if err != nil {
+			return instrument.ResponseError(err)
+		}
+
+		dir, name := filepath.Split(req.WorkDir)
+		if strings.HasSuffix(dir, "") {
+			dir = strings.TrimSuffix(dir, "/")
+		}
+		_, cat := filepath.Split(dir)
+		dirName := strings.ToLower(fmt.Sprintf("%s_%s", cat, name))
+		sourcePath := filepath.Join(hostNodeModules, dirName)
+		err = os.MkdirAll(sourcePath, 0766)
+		if err != nil {
+			return instrument.ResponseError(err)
+		}
+		mounts = append(mounts, mount.Mount{
+			Type:   mount.TypeBind,
+			Source: sourcePath,
+			Target: filepath.Join("/working", req.ModulePath, "node_modules"),
+		})
 	}
 
 	c, err := config.ReadModuleConfig(filepath.Join(req.WorkDir, req.ModulePath))

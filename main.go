@@ -3,6 +3,7 @@ package buildpack
 import (
 	"context"
 	"fmt"
+	"github.com/locngoxuan/buildpack/builtin"
 	"github.com/locngoxuan/buildpack/config"
 	"github.com/locngoxuan/buildpack/utils"
 	"log"
@@ -61,6 +62,7 @@ func Run() {
 		}
 	}(signalChannel)
 
+	builtin.InitBuiltInFunction()
 	err = run(ctx)
 	if err != nil {
 		fmt.Println(fmt.Sprintf("%s: %s", utils.TextRed("FAILURE"), err))

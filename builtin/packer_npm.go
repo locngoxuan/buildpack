@@ -1,4 +1,4 @@
-package instrument
+package builtin
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/locngoxuan/buildpack/config"
 	"github.com/locngoxuan/buildpack/core"
+	"github.com/locngoxuan/buildpack/instrument"
 	"github.com/locngoxuan/buildpack/utils"
 	"log"
 	"os"
@@ -19,14 +20,14 @@ import (
 )
 
 const (
-	YarnPackerName     = "yarn"
-	defaultYarnPackDir = "dist"
+	NpmPackerName     = "npm"
+	defaultNpmPackDir = "dist"
 )
 
-func yarnLocalPack(ctx context.Context, req PackRequest) Response {
+func npmLocalPack(ctx context.Context, req instrument.PackRequest) instrument.Response {
 	c, err := config.ReadModuleConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
-		return ResponseError(err)
+		return instrument.ResponseError(err)
 	}
 	label := c.Label
 	if utils.Trim(label) == "" {
@@ -40,51 +41,61 @@ func yarnLocalPack(ctx context.Context, req PackRequest) Response {
 	cwd := filepath.Join(req.WorkDir, req.ModulePath)
 	packageJson, err := core.ReadPackageJson(filepath.Join(cwd, "package.json"))
 	if err != nil {
-		return ResponseError(err)
-	}
-	//apply new version
-	versionCmd := []string{
-		"version",
-		fmt.Sprintf("--new-version=%s", ver),
-		"--no-git-tag-version",
+		return instrument.ResponseError(err)
 	}
 
-	log.Printf("[%s] yarn version command: yarn %s --cwd %s", req.ModuleName, strings.Join(versionCmd, " "), cwd)
-	response := yarnCmd(ctx, cwd, versionCmd)
+	//apply new version
+	versionCmd := []string{
+		"version", ver,
+		"--git-tag-version=false",
+		"--allow-same-version",
+	}
+
+	log.Printf("[%s] npm version command: npm %s --prefix %s", req.ModuleName, strings.Join(versionCmd, " "), cwd)
+	response := npmCmd(ctx, cwd, versionCmd)
 	if response.Err != nil {
 		return response
 	}
 
+	defer func(cmd []string, c, oldVersion string) {
+		cmd[1] = oldVersion
+		_ = npmCmd(context.Background(), c, cmd)
+	}(versionCmd, cwd, packageJson.Version)
+
 	//should put reverse to old version via defer func here
-	packageName := fmt.Sprintf("%s-%s.tgz", normalizeNodePackageName(packageJson.Name), ver)
+
+	packCmd := []string{"pack"}
+	log.Printf("[%s] npm pack command: npm %s --prefix %s", req.ModuleName, strings.Join(packCmd, " "), cwd)
+	response = npmCmd(ctx, cwd, packCmd)
+	if response.Err != nil {
+		return response
+	}
+
+	packageName := fmt.Sprintf("%s-%s.tgz", core.NormalizeNodePackageName(packageJson.Name), ver)
+	sourceFile := filepath.Join(cwd, packageName)
 	packagePath := filepath.Join(req.OutputDir, req.ModuleName, "dist")
 	if utils.IsNotExists(packagePath) {
 		err = os.MkdirAll(packagePath, 0755)
 		if err != nil {
-			return ResponseError(err)
+			return instrument.ResponseError(err)
 		}
 	}
-
-	packCmd := []string{
-		"pack",
-		fmt.Sprintf("--filename=%s", filepath.Join(packagePath, packageName)),
+	destFile := filepath.Join(packagePath, packageName)
+	err = utils.CopyFile(sourceFile, destFile)
+	if err != nil {
+		return instrument.ResponseError(err)
 	}
-	log.Printf("[%s] yarn pack command: yarn %s --cwd %s", req.ModuleName, strings.Join(packCmd, " "), cwd)
-	response = yarnCmd(ctx, cwd, packCmd)
-	if response.Err != nil {
-		return response
-	}
-
-	return ResponseSuccess()
+	_ = os.RemoveAll(sourceFile)
+	return instrument.ResponseSuccess()
 }
 
-func yarnPack(ctx context.Context, req PackRequest) Response {
+func npmPack(ctx context.Context, req instrument.PackRequest) instrument.Response {
 	if req.LocalBuild {
-		return yarnLocalPack(ctx, req)
+		return npmLocalPack(ctx, req)
 	}
 	c, err := config.ReadModuleConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
-		return ResponseError(err)
+		return instrument.ResponseError(err)
 	}
 	label := c.Label
 	if utils.Trim(label) == "" {
@@ -99,30 +110,30 @@ func yarnPack(ctx context.Context, req PackRequest) Response {
 	log.Printf("[%s] cwd option: %s", req.ModuleName, req.ModulePath)
 
 	mounts := make([]mount.Mount, 0)
-	err = os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, defaultYarnPackDir), 0755)
+	err = os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, defaultNpmPackDir), 0755)
 	if err != nil {
-		return ResponseError(err)
+		return instrument.ResponseError(err)
 	}
 	mounts = append(mounts, mount.Mount{
 		Type:   mount.TypeBind,
-		Source: filepath.Join(req.OutputDir, req.ModuleName, defaultYarnPackDir),
-		Target: filepath.Join("/working", req.ModulePath, defaultYarnPackDir),
+		Source: filepath.Join(req.OutputDir, req.ModuleName, defaultNpmPackDir),
+		Target: filepath.Join("/working", req.ModulePath, defaultNpmPackDir),
 	})
-	dockerCmd := []string{"/bin/sh", "/scripts/packscript.sh"}
+	dockerCmd := []string{"/bin/sh", "/scripts/npm-packscript.sh"}
 	log.Printf("[%s] docker command: %s", req.ModuleName, strings.Join(dockerCmd, " "))
 
 	cwd := req.ModulePath //cwd inside docker
 	packageJson, err := core.ReadPackageJson(filepath.Join(req.WorkDir, req.ModulePath, "package.json"))
 	if err != nil {
-		return ResponseError(err)
+		return instrument.ResponseError(err)
 	}
-	packageName := fmt.Sprintf("%s-%s.tgz", normalizeNodePackageName(packageJson.Name), ver)
 
+	packageName := fmt.Sprintf("%s-%s.tgz", core.NormalizeNodePackageName(packageJson.Name), ver)
 	env := make([]string, 0)
 	env = append(env, fmt.Sprintf("REVISION=%s", ver))
 	env = append(env, fmt.Sprintf("CWD=%s", cwd))
-	env = append(env, fmt.Sprintf("OUTPUT=%s", filepath.Join(cwd, defaultYarnPackDir)))
-	env = append(env, fmt.Sprintf("FILENAME=%s", filepath.Join(cwd, defaultYarnPackDir, packageName)))
+	env = append(env, fmt.Sprintf("OUTPUT=%s", filepath.Join(cwd, defaultNpmPackDir)))
+	env = append(env, fmt.Sprintf("FILENAME=%s", packageName))
 	containerConfig := &container.Config{
 		Image:      req.DockerImage,
 		Cmd:        dockerCmd,
@@ -135,14 +146,14 @@ func yarnPack(ctx context.Context, req PackRequest) Response {
 	cli := req.DockerClient.Client
 	cont, err := cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, "")
 	if err != nil {
-		return ResponseError(fmt.Errorf("can not create build container: %s", err.Error()))
+		return instrument.ResponseError(fmt.Errorf("can not create build container: %s", err.Error()))
 	}
 
 	defer RemoveAfterDone(cli, cont.ID)
 
 	err = cli.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{})
 	if err != nil {
-		return ResponseError(fmt.Errorf("can not start build container: %s", err.Error()))
+		return instrument.ResponseError(fmt.Errorf("can not start build container: %s", err.Error()))
 	}
 
 	statusCh, errCh := cli.ContainerWait(ctx, cont.ID, container.WaitConditionNotRunning)
@@ -151,7 +162,7 @@ func yarnPack(ctx context.Context, req PackRequest) Response {
 		if err != nil {
 			duration := 30 * time.Second
 			_ = cli.ContainerStop(context.Background(), cont.ID, &duration)
-			return ResponseError(err)
+			return instrument.ResponseError(err)
 		}
 	case status := <-statusCh:
 		//due to status code just takes either running (0) or exited (1) and I can not find a constants or variable
@@ -161,14 +172,14 @@ func yarnPack(ctx context.Context, req PackRequest) Response {
 			defer buf.Reset()
 			out, err := cli.ContainerLogs(ctx, cont.ID, types.ContainerLogsOptions{ShowStdout: true})
 			if err != nil {
-				return ResponseError(fmt.Errorf("exit status 1"))
+				return instrument.ResponseError(fmt.Errorf("exit status 1"))
 			}
 			_, err = stdcopy.StdCopy(&buf, &buf, out)
 			if err != nil {
-				return ResponseError(fmt.Errorf("exit status 1"))
+				return instrument.ResponseError(fmt.Errorf("exit status 1"))
 			}
-			return ResponseErrorWithStack(fmt.Errorf("exit status 1"), buf.String())
+			return instrument.ResponseErrorWithStack(fmt.Errorf("exit status 1"), buf.String())
 		}
 	}
-	return ResponseSuccess()
+	return instrument.ResponseSuccess()
 }

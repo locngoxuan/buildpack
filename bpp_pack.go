@@ -224,6 +224,7 @@ func pack(ctx context.Context) error {
 		err = config.WriteBuildOutputInfo(config.BuildOutputInfo{
 			Version: buildVersion,
 			Release: isReleased,
+			BuildNumber: arg.BuildNumber,
 		}, outputDir)
 		if err != nil {
 			return err
@@ -235,6 +236,7 @@ func pack(ctx context.Context) error {
 		}
 		isReleased = buildInfo.Release
 		buildVersion = buildInfo.Version
+		arg.BuildNumber = buildInfo.BuildNumber
 	}
 
 	globalDockerConfig, err := config.ReadGlobalDockerConfig()
@@ -318,6 +320,7 @@ func pack(ctx context.Context) error {
 					ModuleName:    module.Name,
 					ModuleOutputs: module.config.Output,
 					LocalBuild:    arg.BuildLocal,
+					BuildNumber:   arg.BuildNumber,
 				},
 				PackerName:   module.config.PackConfig.Type,
 				DockerImage:  supervisor.PackImage,

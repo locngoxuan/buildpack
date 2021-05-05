@@ -46,3 +46,9 @@ func ReadPackageJson(file string) (PackageJson, error) {
 
 	return packageJson, nil
 }
+
+func NormalizeNodePackageName(name string) string{
+	name = strings.TrimPrefix(name, "@")
+	name = strings.ReplaceAll(name, "/", "-")
+	return name
+}

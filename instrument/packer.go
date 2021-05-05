@@ -16,6 +16,19 @@ type PackRequest struct {
 	core.DockerClient
 }
 
+type PackFunc func(ctx context.Context, request PackRequest) Response
+
+var packDockerImages = make(map[string]string)
+var packFuns = make(map[string]PackFunc)
+
+func RegisterPackDockerImage(builderName, dockerImage string) {
+	packDockerImages[strings.ToLower(strings.TrimSpace(builderName))] = strings.TrimSpace(dockerImage)
+}
+
+func RegisterPackFunction(builderName string, f PackFunc) {
+	packFuns[strings.ToLower(strings.TrimSpace(builderName))] = f
+}
+
 func DefaultPackDockerImage(moduleAbsPath, packType string) (string, error) {
 	if strings.HasPrefix(packType, "external") {
 		pluginName := strings.TrimPrefix(packType, "external.")
@@ -30,12 +43,14 @@ func DefaultPackDockerImage(moduleAbsPath, packType string) (string, error) {
 		}
 		return f.(func() string)(), nil
 	}
-	switch strings.ToLower(packType) {
-	case YarnPackerName,
-		NpmPackerName:
-		return defaultNodeLtsDockerImage, nil
+	dockerImageName, ok := packDockerImages[strings.ToLower(strings.TrimSpace(packType))]
+	if !ok {
+		return "", fmt.Errorf("can not recognize pack type")
 	}
-	return "", fmt.Errorf("can not recognize pack type")
+	if dockerImageName == "" {
+		return "", fmt.Errorf("docker image name is empty")
+	}
+	return dockerImageName, nil
 }
 
 func Pack(ctx context.Context, request PackRequest) Response {
@@ -52,11 +67,12 @@ func Pack(ctx context.Context, request PackRequest) Response {
 		}
 		return f.(func(context.Context, PackRequest) Response)(ctx, request)
 	}
-	switch strings.ToLower(request.PackerName) {
-	case YarnPackerName:
-		return yarnPack(ctx, request)
-	case NpmPackerName:
-		return npmPack(ctx, request)
+	f, ok := packFuns[strings.ToLower(strings.TrimSpace(request.PackerName))]
+	if !ok {
+		return ResponseError(fmt.Errorf("can not recognize pack type"))
 	}
-	return ResponseError(fmt.Errorf("can not recognize pack type"))
+	if f == nil {
+		return ResponseError(fmt.Errorf("pack function is nil"))
+	}
+	return f(ctx, request)
 }

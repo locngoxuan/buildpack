@@ -24,6 +24,19 @@ type BuildRequest struct {
 	core.DockerClient
 }
 
+type BuildFunc func(ctx context.Context, request BuildRequest) Response
+
+var buildDockerImages = make(map[string]string)
+var buildFuns = make(map[string]BuildFunc)
+
+func RegisterBuildDockerImage(builderName, dockerImage string) {
+	buildDockerImages[strings.ToLower(strings.TrimSpace(builderName))] = strings.TrimSpace(dockerImage)
+}
+
+func RegisterBuildFunction(builderName string, f BuildFunc) {
+	buildFuns[strings.ToLower(strings.TrimSpace(builderName))] = f
+}
+
 func DefaultDockerImageName(moduleAbsPath, builderName string) (string, error) {
 	if strings.HasPrefix(builderName, "external") {
 		pluginName := strings.TrimPrefix(builderName, "external.")
@@ -38,14 +51,14 @@ func DefaultDockerImageName(moduleAbsPath, builderName string) (string, error) {
 		}
 		return f.(func() string)(), nil
 	}
-	switch strings.ToLower(builderName) {
-	case MvnBuilderName:
-		return defaultMvnDockerImage, nil
-	case YarnBuilderName,
-		NpmBuilderName:
-		return defaultNodeLtsDockerImage, nil
+	dockerImageName, ok := buildDockerImages[strings.ToLower(strings.TrimSpace(builderName))]
+	if !ok {
+		return "", fmt.Errorf("can not recognize build type")
 	}
-	return "", fmt.Errorf("can not recognize build type")
+	if dockerImageName == "" {
+		return "", fmt.Errorf("docker image name is empty")
+	}
+	return dockerImageName, nil
 }
 
 func Build(ctx context.Context, request BuildRequest) Response {
@@ -66,13 +79,12 @@ func Build(ctx context.Context, request BuildRequest) Response {
 		}
 		return fn(ctx, request)
 	}
-	switch strings.ToLower(request.BuilderName) {
-	case MvnBuilderName:
-		return mvnBuild(ctx, request)
-	case YarnBuilderName:
-		return yarnBuild(ctx, request)
-	case NpmBuilderName:
-		return npmBuild(ctx, request)
+	f, ok := buildFuns[strings.ToLower(strings.TrimSpace(request.BuilderName))]
+	if !ok {
+		return ResponseError(fmt.Errorf("can not recognize builder name"))
 	}
-	return ResponseError(fmt.Errorf("can not recognize builder name"))
+	if f == nil {
+		return ResponseError(fmt.Errorf("build function is nil"))
+	}
+	return f(ctx, request)
 }

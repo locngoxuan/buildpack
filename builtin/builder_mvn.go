@@ -1,4 +1,4 @@
-package instrument
+package builtin
 
 import (
 	"bytes"
@@ -10,6 +10,7 @@ import (
 	"github.com/docker/docker/client"
 	"github.com/docker/docker/pkg/stdcopy"
 	"github.com/locngoxuan/buildpack/config"
+	"github.com/locngoxuan/buildpack/instrument"
 	"github.com/locngoxuan/buildpack/utils"
 	"gopkg.in/yaml.v2"
 	"io/ioutil"
@@ -65,10 +66,10 @@ func ReadMvnConfig(moduleDir string) (c MvnConfig, err error) {
 	return
 }
 
-func mvnLocalBuild(ctx context.Context, req BuildRequest) Response {
+func mvnLocalBuild(ctx context.Context, req instrument.BuildRequest) instrument.Response {
 	mvnConfig, err := ReadMvnConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
-		return ResponseError(err)
+		return instrument.ResponseError(err)
 	}
 	args := make([]string, 0)
 	args = append(args, "clean", "install")
@@ -103,27 +104,27 @@ func mvnLocalBuild(ctx context.Context, req BuildRequest) Response {
 	err = cmd.Run()
 	if err != nil {
 		if ctx.Err() == context.Canceled {
-			return ResponseError(err)
+			return instrument.ResponseError(err)
 		}
-		return ResponseErrorWithStack(err, buf.String())
+		return instrument.ResponseErrorWithStack(err, buf.String())
 	}
 
 	for _, moduleOutput := range req.ModuleOutputs {
 		dest := filepath.Join(req.OutputDir, req.ModuleName, moduleOutput)
 		err = os.MkdirAll(dest, 0755)
 		if err != nil {
-			return ResponseError(err)
+			return instrument.ResponseError(err)
 		}
 		src := filepath.Join(req.WorkDir, req.ModulePath, moduleOutput)
 		err = utils.CopyDirectory(src, dest)
 		if err != nil {
-			return ResponseError(err)
+			return instrument.ResponseError(err)
 		}
 	}
-	return ResponseSuccess()
+	return instrument.ResponseSuccess()
 }
 
-func mvnBuild(ctx context.Context, req BuildRequest) Response {
+func mvnBuild(ctx context.Context, req instrument.BuildRequest) instrument.Response {
 	if req.LocalBuild {
 		return mvnLocalBuild(ctx, req)
 	}
@@ -137,7 +138,7 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 	if len(hostRepository) > 0 {
 		err := os.MkdirAll(hostRepository, 0766)
 		if err != nil {
-			return ResponseError(err)
+			return instrument.ResponseError(err)
 		}
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
@@ -149,7 +150,7 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 	for _, moduleOutput := range req.ModuleOutputs {
 		err := os.MkdirAll(filepath.Join(req.OutputDir, req.ModuleName, moduleOutput), 0777)
 		if err != nil {
-			return ResponseError(err)
+			return instrument.ResponseError(err)
 		}
 		mounts = append(mounts, mount.Mount{
 			Type:   mount.TypeBind,
@@ -160,7 +161,7 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 
 	mvnConfig, err := ReadMvnConfig(filepath.Join(req.WorkDir, req.ModulePath))
 	if err != nil {
-		return ResponseError(err)
+		return instrument.ResponseError(err)
 	}
 
 	label := mvnConfig.Label
@@ -197,14 +198,14 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 	cli := req.DockerClient.Client
 	cont, err := cli.ContainerCreate(ctx, containerConfig, hostConfig, nil, nil, "")
 	if err != nil {
-		return ResponseError(fmt.Errorf("can not create build container: %s", err.Error()))
+		return instrument.ResponseError(fmt.Errorf("can not create build container: %s", err.Error()))
 	}
 
 	defer RemoveAfterDone(cli, cont.ID)
 
 	err = cli.ContainerStart(ctx, cont.ID, types.ContainerStartOptions{})
 	if err != nil {
-		return ResponseError(fmt.Errorf("can not start build container: %s", err.Error()))
+		return instrument.ResponseError(fmt.Errorf("can not start build container: %s", err.Error()))
 	}
 
 	statusCh, errCh := cli.ContainerWait(ctx, cont.ID, container.WaitConditionNotRunning)
@@ -213,7 +214,7 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 		if err != nil {
 			duration := 30 * time.Second
 			_ = cli.ContainerStop(context.Background(), cont.ID, &duration)
-			return ResponseError(err)
+			return instrument.ResponseError(err)
 		}
 	case status := <-statusCh:
 		//due to status code just takes either running (0) or exited (1) and I can not find a constants or variable
@@ -223,16 +224,16 @@ func mvnBuild(ctx context.Context, req BuildRequest) Response {
 			defer buf.Reset()
 			out, err := cli.ContainerLogs(ctx, cont.ID, types.ContainerLogsOptions{ShowStdout: true})
 			if err != nil {
-				return ResponseError(fmt.Errorf("exit status 1"))
+				return instrument.ResponseError(fmt.Errorf("exit status 1"))
 			}
 			_, err = stdcopy.StdCopy(&buf, &buf, out)
 			if err != nil {
-				return ResponseError(fmt.Errorf("exit status 1"))
+				return instrument.ResponseError(fmt.Errorf("exit status 1"))
 			}
-			return ResponseErrorWithStack(fmt.Errorf("exit status 1"), buf.String())
+			return instrument.ResponseErrorWithStack(fmt.Errorf("exit status 1"), buf.String())
 		}
 	}
-	return ResponseSuccess()
+	return instrument.ResponseSuccess()
 }
 
 func RemoveAfterDone(cli *client.Client, id string) {

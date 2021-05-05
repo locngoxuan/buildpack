@@ -41,8 +41,9 @@ type ModuleConfig struct {
 }
 
 type BuildOutputInfo struct {
-	Version string `yaml:"build_mode,omitempty" json:"version,omitempty"`
-	Release bool   `yaml:"release,omitempty" json:"release,omitempty"`
+	Version     string `yaml:"build_mode,omitempty" json:"version,omitempty"`
+	Release     bool   `yaml:"release,omitempty" json:"release,omitempty"`
+	BuildNumber int    `yaml:"build_number,omitempty" json:"build_number, omitempty" `
 }
 
 func ReadProjectConfig(workDir, argConfigFile string) (c ProjectConfig, err error) {

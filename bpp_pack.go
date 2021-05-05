@@ -11,6 +11,7 @@ import (
 	"github.com/locngoxuan/buildpack/instrument"
 	"github.com/locngoxuan/buildpack/utils"
 	"github.com/locngoxuan/sqlbundle"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -79,6 +80,21 @@ func (b *PackSupervisor) prepareDockerImageForPacking(ctx context.Context) error
 	imageFound, _, err := b.DockerClient.ImageExist(ctx, dockerImage)
 	if err != nil {
 		return err
+	}
+
+	if !imageFound {
+		for _, registry := range b.Registries {
+			r, err := b.DockerClient.PullImage(ctx, registry, dockerImage)
+			if err != nil || r == nil {
+				log.Printf("[%s] pulling docker image from %s fail", b.PackType, registry.Address)
+				continue
+			}
+			_, _ = io.Copy(ioutil.Discard, r)
+			if err == nil {
+				imageFound = true
+				break
+			}
+		}
 	}
 
 	//create docker image
@@ -222,8 +238,8 @@ func pack(ctx context.Context) error {
 	}
 	if utils.IsNotExists(filepath.Join(outputDir, config.OutputInfo)) {
 		err = config.WriteBuildOutputInfo(config.BuildOutputInfo{
-			Version: buildVersion,
-			Release: isReleased,
+			Version:     buildVersion,
+			Release:     isReleased,
 			BuildNumber: arg.BuildNumber,
 		}, outputDir)
 		if err != nil {
@@ -243,7 +259,6 @@ func pack(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-
 	tempModules, err := prepareListModule()
 	if err != nil {
 		return err

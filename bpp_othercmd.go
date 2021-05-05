@@ -48,6 +48,9 @@ func clean(ctx context.Context) error {
 	if !imageFound {
 		for _, registry := range registries {
 			r, err := dockerClient.PullImage(ctx, registry, cleanImage)
+			if err != nil || r == nil{
+				continue
+			}
 			_, _ = io.Copy(ioutil.Discard, r)
 			if err == nil {
 				imageFound = true

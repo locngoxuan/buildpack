@@ -20,7 +20,7 @@ type DockerConfig struct {
 type DockerRegistry struct {
 	Address  string `json:"address,omitempty" yaml:"address,omitempty"`
 	Username string `json:"username,omitempty" yaml:"username,omitempty"`
-	Password string `json:"username,omitempty" yaml:"username,omitempty"`
+	Password string `json:"password,omitempty" yaml:"password,omitempty"`
 }
 
 func ReadGlobalDockerConfig() (c DockerGlobalConfig, err error) {
@@ -28,7 +28,7 @@ func ReadGlobalDockerConfig() (c DockerGlobalConfig, err error) {
 	if err != nil {
 		return
 	}
-	configFile := filepath.Join(userHome, fmt.Sprintf(".%s", OutputDir), ConfigGlobal)
+	configFile := filepath.Join(userHome, OutputDir, ConfigGlobal)
 	_, err = os.Stat(configFile)
 	if err != nil {
 		if os.IsNotExist(err) {

@@ -43,7 +43,7 @@ func ReadGlobalRepositoryConfig() (c GlobalRepositoryConfig, err error) {
 	if err != nil {
 		return
 	}
-	configFile := filepath.Join(userHome, fmt.Sprintf(".%s", OutputDir), ConfigGlobal)
+	configFile := filepath.Join(userHome, OutputDir, ConfigGlobal)
 	_, err = os.Stat(configFile)
 	if err != nil {
 		if os.IsNotExist(err) {

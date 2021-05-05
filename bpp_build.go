@@ -12,6 +12,7 @@ import (
 	"github.com/locngoxuan/buildpack/instrument"
 	"github.com/locngoxuan/buildpack/utils"
 	"github.com/locngoxuan/sqlbundle"
+	"io"
 	"io/ioutil"
 	"log"
 	"os"
@@ -83,6 +84,22 @@ func (b *BuildSupervisor) prepareDockerImageForBuilding(ctx context.Context) err
 	imageFound, _, err := b.DockerClient.ImageExist(ctx, dockerImage)
 	if err != nil {
 		return err
+	}
+
+	if !imageFound {
+		for _, registry := range b.Registries {
+			r, err := b.DockerClient.PullImage(ctx, registry, dockerImage)
+			if err != nil || r == nil {
+				log.Printf("[%s] pulling docker image from %s fail", b.BuildType, registry.Address)
+				continue
+			}
+			_, _ = io.Copy(ioutil.Discard, r)
+			if err == nil {
+				imageFound = true
+				break
+			}
+
+		}
 	}
 
 	//create docker image
@@ -229,8 +246,8 @@ func build(ctx context.Context) error {
 		isReleased = true
 	}
 	err = config.WriteBuildOutputInfo(config.BuildOutputInfo{
-		Version: buildVersion,
-		Release: isReleased,
+		Version:     buildVersion,
+		Release:     isReleased,
 		BuildNumber: arg.BuildNumber,
 	}, outputDir)
 	if err != nil {
